@@ -1,0 +1,267 @@
+﻿<Window x:Class="openAIApps.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:openAIApps" xmlns:c="clr-namespace:gpt35Turbo"
+        mc:Ignorable="d"
+        Title="OpenAiApps" Height="768" Width="1080" >
+    <Window.DataContext>
+        <c:requestGPT35 />
+    </Window.DataContext>
+    <Window.Resources>
+        <ObjectDataProvider x:Key="rxGPT35" ObjectType="{x:Type c:requestGPT35}" />
+        
+        <!-- All text-boxes taking requests have this style -->
+        <Style x:Key="TextBoxRequest" TargetType="TextBox">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinHeight" Value="250" />
+            <Setter Property="Margin" Value="0,2,2,0" />
+            <Setter Property="IsEnabled" Value="True" />
+            <Setter Property="IsReadOnly" Value="False" />
+            <Setter Property="Grid.Row" Value="1" />
+            <Setter Property="Grid.Column" Value="0" />
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TabIndex" Value="1" />
+            <Setter Property="MaxHeight" Value="500" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}" >
+                        <Border x:Name="bg" BorderThickness="1" BorderBrush="DarkGray" Background="White">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="bg" Value="Black" />
+                                <Setter Property="BorderThickness" TargetName="bg" Value="2"/>
+                                <Setter Property="FontSize" Value="16" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- All text-boxes receiving the AI-response have this style -->
+        <Style x:Key="TextBoxResponse" TargetType="TextBox">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinHeight" Value="250" />
+            <Setter Property="Margin" Value="2,0,2,0" />
+            <Setter Property="IsEnabled" Value="True" />
+            <Setter Property="IsReadOnly" Value="False" />
+            <Setter Property="Grid.Row" Value="4" />
+            <Setter Property="Grid.Column" Value="0" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MaxHeight" Value="500" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}" >
+                        <Border x:Name="bg" BorderThickness="1" BorderBrush="DarkGray" Background="White">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="bg" Value="Black" />
+                                <Setter Property="BorderThickness" TargetName="bg" Value="2"/>
+                                <Setter Property="FontSize" Value="16" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SliderGPTOptions" TargetType="Slider">
+            <Setter Property="SmallChange" Value="0.1" />
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="FontSize" Value="9"></Setter>
+            <Setter Property="FontStyle" Value="Normal"></Setter>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="FontStyle" Value="Italic" />
+            <Setter Property="Margin" Value="0,0,2,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="DarkGray" />
+        </Style>
+        <Style x:Key="SendRequest" TargetType="Button">
+            <Setter Property="Margin" Value="0,2,2,2" />
+            <Setter Property="TabIndex" Value="2" />
+            <Setter Property="Content" Value="Send Request" />
+            <Setter Property="Grid.Row" Value="2" />
+            <Setter Property="Grid.Column" Value="0" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel LastChildFill="True" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" UseLayoutRounding="False" >
+
+        <Menu DockPanel.Dock="Top" Height="18" IsEnabled="True" IsMainMenu="True">
+            <MenuItem Header="File" Name="menuFile" Click="menuFile_Click" IsEnabled="True" AllowDrop="True">
+                <MenuItem Header="Save Chat" x:Name="menuSave" Click="menuSave_Click" IsEnabled="True" />
+                <MenuItem Header="Exit" Name="menuExit" Click="menuExit_Click" IsEnabled="True" />
+            </MenuItem>
+            <MenuItem Header="Tools" Name="menuTools" IsEnabled="True" AllowDrop="True">
+                <MenuItem Header="Record" Name="menuRecord" Click="menuRecord_Click" IsEnabled="True" />
+                <MenuItem Header="Convert WAV" Name="menuConvert" Click="menuConvert_Click"  IsEnabled="True" />
+                <MenuItem Header="Play File" Name="menuPlayFile" Click="menuPlayFile_Click"  IsEnabled="True" />
+                <MenuItem Header="SpeechSynthesis Options" Name="menuSpeechSynthesisTool" Click="menuSpeechSynthesisTool_Click" IsEnabled="True" />
+            </MenuItem>
+            <MenuItem Header="Help" Name="menuHelp" Click="menuHelp_Click" IsEnabled="True" AllowDrop="True">
+                <MenuItem Header="About" Name="menuAbout" Click="menuAbout_Click" IsEnabled="True"/>
+            </MenuItem>
+        </Menu>
+        <TabControl x:Name="tpApps" DockPanel.Dock="Top" >
+            <!-- GPT3.5 Turbo stuff tab -->
+            <TabItem Header="GPT3.5 Turbo"  Name="tpGPT35" >
+                <Grid x:Name="gridGPT35" VerticalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="cdReqRes" Width="1.5*"/>
+                        <ColumnDefinition x:Name="cdOptions" Width="0.5*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition x:Name="rdLabelReq" Height="*"/>
+                        <RowDefinition x:Name="rdTextReq" Height="*" />
+                        <RowDefinition x:Name="rdBtnReq" Height="Auto" />
+                        <RowDefinition x:Name="rdLabelRes" Height="*" />
+                        <RowDefinition x:Name="rdTextRes" Height="*" />
+                    </Grid.RowDefinitions>
+                    <!-- GPT-turbo - main window/output/input controls -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spInput" Orientation="Vertical" >
+                        <Label Grid.Row="0" Grid.Column="0" >Write your request below</Label>
+                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtRequest" GotFocus="txtRequest_GotFocus" />
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnSendRequest" Click="btnSendRequest_Click" />
+                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}" x:Name="txtResponse" />
+                    </StackPanel>
+                    <!-- GPT-turbo - options controls -->
+                    <GroupBox x:Name="groupChatCompletions" Header="GPT3.5 Chat/Completions" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
+                        <StackPanel x:Name="spOptions" Orientation="Vertical" Margin="5">
+                            <CheckBox x:Name="cbGPT35Chat" Content="Chat" IsChecked="False" IsEnabled="true" Checked="cbGPT35Chat_Checked" Unchecked="cbGPT35Chat_Unchecked"/>
+                            <Label Content="Role" />
+                            <ComboBox x:Name="cmRole" Margin="0,5,0,0" IsEnabled="False" SelectionChanged="cmRole_SelectionChanged" Initialized="cmRole_Initialized"/>
+                            <Label Content="Current Chat-history" />
+                            <ComboBox x:Name="cmHistory" Margin="0,5,0,0" Text="History" IsEnabled="False" />
+                            <Button x:Name="btnClearHistory" Margin="0,5,0,0" Content="Clear History" IsEnabled="False" Click="btnClearHistory_Click"/>
+                            <Label x:Name="lblTemperature" Content="Temperature" />
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTemperature" Minimum="0" Maximum="2" Value="{Binding temperature, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ValueChanged="sldrTemperature_ValueChanged"/>
+                            <Label x:Name="lblTopp" Content="Top-p" />
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTopp" Minimum="0" Maximum="1" Value="{Binding Source={StaticResource rxGPT35}, Path=top\_p}" ValueChanged="sldrTopp_ValueChanged"/>
+                            <Label x:Name="lblN" Content="n" />
+                            <Slider x:Name="sldrN" Minimum="1" Maximum="10" SmallChange="1" Value="{Binding Source={StaticResource rxGPT35}, Path=n}" ValueChanged="sldrN_ValueChanged"/>
+                            <Label Content="stream" />
+                            <CheckBox x:Name="bStream" IsChecked="{Binding Source={StaticResource rxGPT35}, Path=stream}" Click="bStream_Click"/>
+                            <Label Content="stop" />
+                            <Label Content="max_tokens" />
+                            <Label x:Name="lblPresencePenalty" Content="Presence Penalty" />
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrPresencePenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT35}, Path=presence_penalty}" ValueChanged="sldrPresencePenalty_ValueChanged"/>
+                            <Label x:Name="lblFreqencyPenalty" Content="Frequency Penalty" />
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrFrequencyPenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT35}, Path=frequency_penalty}" ValueChanged="sldrFrequencyPenalty_ValueChanged"/>
+                            <Label Content="User" />
+                            <TextBox x:Name="tbName" Text="{Binding XPath=user,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="tbName_LostFocus" />
+                            <Label Content="Models" />
+                            <ComboBox x:Name="cmbAvailableModels" IsEditable="False" SelectionChanged="cmbAvailableModels_SelectionChanged" Initialized="cmbAvailableModels_Initialized" /> <!-- When initialized, get models -->
+                        </StackPanel>
+                    </GroupBox>
+
+                </Grid>
+            </TabItem>
+            <!-- DALL-E stuff tab -->
+            <TabItem Header="DALL-E"  Name="tpDalle">
+                <Grid x:Name="gridDalle" VerticalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="cdDalleReqRes" Width="1.5*"/>
+                        <ColumnDefinition x:Name="cdDalleOptions" Width="0.5*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <!-- DALL-E main window/input/output controls -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spDalleInput" Orientation="Vertical">
+                        <Label Grid.Row="0" Grid.Column="0" >Write your request below</Label>
+                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtDalleRequest" GotFocus="txtRequest_GotFocus"/>
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnDalleSendRequest" Click="btnDalleSendRequest_Click" />
+                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtDalleResponse" />
+                    </StackPanel>
+                    <!-- DALL-E - options controls -->
+                    <GroupBox x:Name="groupImageGen" Header="Image Options" Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Margin="0,0,0,0">
+                        <StackPanel Orientation="Vertical" Margin="5">
+                            <Label Margin="2,2,2,0" VerticalAlignment="Center">Number of Images</Label>
+                            <ComboBox x:Name="cmNumberOfImages" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmNumberOfImages_SelectionChanged"/>
+                            <Label Margin="2,10,2,0">Image Size</Label>
+                            <ComboBox x:Name="cmSize" Margin="0,0,0,0"  IsEnabled="True" SelectionChanged="cmSize_SelectionChanged"/>
+                            <Label Margin="2,10,2,0">Image Variations</Label>
+                            <CheckBox x:Name="cbImageVariations" Checked="cbImageVariations_Checked" IsChecked="False" Unchecked="cbImageVariations_Unchecked"/>
+                            <Button x:Name="btnOpenImage" Content="Choose Image" IsEnabled="False" Click="btnOpenImage_Click"/>
+                            <Label Margin="2,10,2,0">Edit Image</Label>
+                            <CheckBox x:Name="cbImageEdit" Checked="cbImageEdit_Checked"  IsChecked="False" Unchecked="cbImageEdit_Unchecked" />
+                            <Button x:Name="btnMaskImage" Content="Choose Mask" IsEnabled="False" Click="btnMaskImage_Click" />
+                            <Label x:Name="lblSelectedImage" Content="Currently selected image" Visibility="Hidden" />
+                            <Image x:Name="imageSelected" Visibility="Hidden" />
+                            <Button x:Name="btnRemoveImage" Content="Remove Image" Visibility="Hidden" Click="btnRemoveImage_Click"/>
+                            <Label x:Name="lblSelectedMask" Content="Currently selected mask" Visibility="Hidden" />
+                            <Image x:Name="imageMask" Visibility="Hidden" />
+                            <Button x:Name="btnRemoveMask" Content="Remove Mask" Visibility="Hidden" Click="btnRemoveMask_Click"/>
+
+                        </StackPanel>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Whisper"  Name="tpWhisper">
+                <Grid x:Name="gridWhisper" VerticalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="cdWhisperReqRes" Width="1.5*"/>
+                        <ColumnDefinition x:Name="cdWhisperOptions" Width="0.5*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical">
+                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPropmt" />
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
+                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperResponse" />
+                    </StackPanel>
+                    <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
+                        <StackPanel x:Name="spWhisper" Orientation="Vertical" Margin="5">
+                            <Label Content="Speach to text" />
+                            <ComboBox x:Name="cmbSpeachToText" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbSpeachToText_SelectionChanged">
+                                <ComboBoxItem IsSelected="True" Content="Transcription" />
+                                <ComboBoxItem Content="Translation" />
+                            </ComboBox>
+                            <Label Content="Select an Audio File" />
+                            <Button x:Name="btnAudioOpenFile" Content="Open Audiofile" Click="btnAudioOpenFile_Click" />
+                            <Label x:Name="lblSelectedAudioFile" Content="Selected File" />
+                            <Label Content="Select language below" />
+                            <ComboBox x:Name="cmbLanguage" SelectionChanged="cmbLanguage_SelectionChanged">
+                                <ComboBoxItem IsSelected="True" Content="en - English" />
+                                <ComboBoxItem Content="nb - Norwegian" />
+                                <ComboBoxItem Content="tl - Tagalog" />
+                            </ComboBox>
+                            
+                        </StackPanel>
+                        
+                    </GroupBox>
+                    
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+    </DockPanel>
+</Window>
