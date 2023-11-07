@@ -86,7 +86,7 @@ namespace openAIApps
             get { return rxGPT35; }
         }
         public void InitControls()
-        {
+        {//set standard/default values to image controls
             foreach (var p in Dalle.optImages.optImages)
                 cmNumberOfImages.Items.Add(p);
             cmNumberOfImages.SelectedItem = Dalle.optImages.noImages;
@@ -94,6 +94,11 @@ namespace openAIApps
             foreach (var p in Dalle.optImages.optSize)
                 cmSize.Items.Add(p);
             cmSize.SelectedItem = Dalle.optImages.csize;
+
+            foreach (var p in Dalle.optImages.optQuality)
+                cmImageQuality.Items.Add(p);
+
+            cmImageQuality.SelectedItem = Dalle.optImages.Quality;
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
@@ -486,7 +491,7 @@ namespace openAIApps
         private async void btnWhisperSendRequest_Click(object sender, RoutedEventArgs e)
         {
             txtWhisperResponse.Text = "";
-            this.IsEnabled = false;
+            this.IsEnabled = true;
             
             try
             {
@@ -629,6 +634,8 @@ namespace openAIApps
             speechSynthesisTool.ShowDialog();
         }
 
+        /// 
+        /// available models...hmmm..do later next two functions are meant to fill and handle ComboBox cmbAvailableModels
         private void cmbAvailableModels_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
 
@@ -636,6 +643,16 @@ namespace openAIApps
 
         private void cmbAvailableModels_Initialized(object sender, EventArgs e)
         {
+
+        }
+
+        //when aulity of an image is changed...value is changed
+        private void cmImageQuality_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Dalle.optImages.Quality = (string)cmImageQuality.SelectedItem;
+
+            Dalle.rxImages.quality = Dalle.optImages.Quality;
+            //Dalle.rxImagesEdit.size = Dalle.rxImages.size = Dalle.rxImagesVariation.size = Dalle.optImages.csize;
 
         }
     }

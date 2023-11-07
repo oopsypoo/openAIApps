@@ -201,6 +201,11 @@
                             <ComboBox x:Name="cmNumberOfImages" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmNumberOfImages_SelectionChanged"/>
                             <Label Margin="2,10,2,0">Image Size</Label>
                             <ComboBox x:Name="cmSize" Margin="0,0,0,0"  IsEnabled="True" SelectionChanged="cmSize_SelectionChanged"/>
+                            
+                            <Label Margin="2,10,2,0">Image Quality</Label>
+                            <ComboBox x:Name="cmImageQuality" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmImageQuality_SelectionChanged"/>
+                            
+                            
                             <Label Margin="2,10,2,0">Image Variations</Label>
                             <CheckBox x:Name="cbImageVariations" Checked="cbImageVariations_Checked" IsChecked="False" Unchecked="cbImageVariations_Unchecked"/>
                             <Button x:Name="btnOpenImage" Content="Choose Image" IsEnabled="False" Click="btnOpenImage_Click"/>
@@ -233,7 +238,7 @@
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical">
                         <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPropmt" />
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPrompt" />
                         <Button Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
                         <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperResponse" />

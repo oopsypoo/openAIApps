@@ -2,6 +2,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 
 namespace gpt35Turbo
@@ -147,7 +148,8 @@ namespace gpt35Turbo
             //model = "gpt-3.5-turbo";
             ///model = "gpt-3.5-turbo-0613";
             //model = "gpt-3.5-turbo-16k";
-            model = "gpt-4";
+            //model = "gpt-4";
+            model = "gpt-4-1106-preview";
             //model = "gpt-4-0314";
             //model = "gpt-4-32k";
             //model = "gpt-4-8k";

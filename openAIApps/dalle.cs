@@ -32,34 +32,47 @@ public class Dalle
     {
         public int noImages;
         public string csize;
+        public string Quality;
         public string requestURL;
         //public string responseFormat;
         public readonly int[] optImages = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-        public readonly string[] optSize = { "256x256", "512x512", "1024x1024" };
+        //for DALL-E you can use the first 3 sizes, and DALL-E 3, 3 the last 3 sizes
+        public readonly string[] optSize = { "256x256", "512x512", "1024x1024", "1024x1792", "1792x1024" };
+        public readonly string[] optQuality = { "standard", "hd" };
         public OptionsImage()
         {
             //set default values
             noImages = 1;
             requestURL = url_image_generations;
             csize = optSize[0];
+            Quality = optQuality[0];
             //  responseFormat = "url";
         }
 
     }
-
+    /// <summary>
+    /// The default model is DALL-E 3. If I want to choose between these two I have to make to many changes. Variations and Edit will only work with DALL-E 2.
+    /// We have to recompile if we want to do this or make use of this.
+    /// </summary>
     public class requestImage
     {
+        //to use version 3 we haveto set the model name
+        public string model { get; set; }
         public string prompt { get; set; }
         public int n { get; set; }
         public string size { get; set; }
 
-
+        public string quality { get; set; }
         //public string response_format;
         /// <summary>
         /// for the moment, just set some defaults for testing
         /// </summary>
         public requestImage()
         {
+            //set default model
+            model = "dall-e-3";
+            //two qualitities: standard and hd.
+            quality = optImages.Quality;
             n = optImages.noImages;
             size = optImages.csize;
             //  response_format = optImages.responseFormat;
