@@ -1,6 +1,6 @@
 # openAIApps
 **2023-11-07** First commit of this hobby-project. Using WPF, OpenAI API. 
-On this date there was a couple of updates from the OpenAI community regarding GPT 4 Turbo. New to me so I thought I'd try it out and therefore I commited this _stuff_ to Github.
+On this date there was a couple of updates from the OpenAI community regarding GPT 4 Turbo. And a bunch of other stuff. New to me so I thought I'd try it out and therefore I commited _this_ _stuff_ to Github.
 Two models available in the **GPT4 Turbo** family at this time:
 1. gpt-4-1106-preview - works "_out of the box_" in my code
                         _The latest GPT-4 model with improved instruction following, JSON mode, reproducible outputs, parallel function calling, and more. Returns a maximum of 4,096 output tokens. This preview model is not yet suited for production traffic__
@@ -8,13 +8,15 @@ Two models available in the **GPT4 Turbo** family at this time:
                           _Ability to understand images, in addition to all other GPT-4 Turbo capabilties. Returns a maximum of 4,096 output tokens. This is a preview model version and not suited yet for production traffic_
 
 **DALL-E**
-DALL-E v3 - I will see if I can update to this version
+DALL-E v3 - I will see if I can update to this version.
+Updated to version 3, But now I can't use EDIT or VARIATIONS..but I can see that the pics are "good".
 
 **Assistant API**
 Haven't tried yet. Can be interesting.
 
 **TTS**
-Will not update or do more here for the time being
+Will not update or do more here for the time being. I've allready tried using TTS via "Microsoft.CognitiveServices.Speech". I think this one is cooler. More voices/dialects from all over the world. Narrowed it down to English, Norwegian and Tagalog.
+But if I'm right OpenAI offers a way so that you do not have to use this. Which is good. See source SpeechSynthesis.cs.
 
 **GPTs**
 Somehing to look into in the future? See their quotes below:
