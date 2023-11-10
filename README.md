@@ -1,4 +1,8 @@
 # openAIApps
+**2023-11-10 0810** Did minor changes/tidying up a little
+ - All references to GPT3.5 Turbo is removed. All objects/classes have been reduces to just GPT. The sourcefile too.
+ - The tab that used to have the header GPT3.5Turbo has now the name of the model used in the chat.
+
 **2023-11-07** First commit of this hobby-project. Using WPF, OpenAI API. 
 On this date there was a couple of updates from the OpenAI community regarding GPT 4 Turbo. And a bunch of other stuff. New to me so I thought I'd try it out and therefore I commited _this_ _stuff_ to Github.
 Two models available in the **GPT4 Turbo** family at this time:
