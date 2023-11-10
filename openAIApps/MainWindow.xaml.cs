@@ -9,7 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using gpt35Turbo;
+using gpt;
 using whisper;
 //speechsynthesis.cs
 using TTS;
@@ -53,8 +53,8 @@ namespace openAIApps
         const string options_file = "options.json";
         readonly string logfile = savepath_logs + "logfile" + ".txt";
 
-        static requestGPT35 rxGPT35 = new requestGPT35();
-        static responseGPT35Turbo responseGPT35 = new responseGPT35Turbo();
+        static requestGPT rxGPT = new requestGPT();
+        static responseGPT responseGPT = new responseGPT();
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
         
         /// <summary>
@@ -81,9 +81,9 @@ namespace openAIApps
             Loaded += (sender, e) => MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             
         }
-        public static requestGPT35 RxGPT35
+        public static requestGPT RxGPT
         {
-            get { return rxGPT35; }
+            get { return rxGPT; }
         }
         public void InitControls()
         {//set standard/default values to image controls
@@ -99,6 +99,9 @@ namespace openAIApps
                 cmImageQuality.Items.Add(p);
 
             cmImageQuality.SelectedItem = Dalle.optImages.Quality;
+
+            //Add the GPT-model-name to the tab. I've removed all references to GPT3.5Turbo
+            tpGPT.Header = rxGPT.model;
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
@@ -152,8 +155,8 @@ namespace openAIApps
             this.IsEnabled = false;
             SaveToLogFile(txtRequest.Text);
             
-            if (cbGPT35Chat.IsChecked == false)
-                rxGPT35.InitRequest(txtRequest.Text);
+            if (cbGPTChat.IsChecked == false)
+                rxGPT.InitRequest(txtRequest.Text);
             else
             {
                 if (cmRole.SelectedIndex < 0)
@@ -163,9 +166,9 @@ namespace openAIApps
                     return;
                 }
                 else
-                    rxGPT35.AddMessage(cmRole.Text, txtRequest.Text);
+                    rxGPT.AddMessage(cmRole.Text, txtRequest.Text);
             }
-            var jsonString = JsonSerializer.Serialize<requestGPT35>(rxGPT35);
+            var jsonString = JsonSerializer.Serialize<requestGPT>(rxGPT);
             thisSession.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             thisSession.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", OpenAPIKey);
             var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
@@ -179,29 +182,29 @@ namespace openAIApps
 
                 //if there is an error we cannot deserialize to the class OpenAIResponse.
                 //All member-variables are null. Therefore we can just do a check on one member
-                responseGPT35 = JsonSerializer.Deserialize<responseGPT35Turbo>(responseString);
+                responseGPT = JsonSerializer.Deserialize<responseGPT>(responseString);
 
                 this.Dispatcher.Invoke(() =>
                 {
-                    if (responseGPT35.choices == null)
+                    if (responseGPT.choices == null)
                     {
                         txtResponse.Text = "Server-response:\n" + response + "\n\nError:" + responseString;
                     }
                     else
                     {
-                        txtResponse.Text = responseGPT35.choices[0].message.content;
+                        txtResponse.Text = responseGPT.choices[0].message.content;
                         if(SpeechSynthesis.TTSUse)
                         { 
                             var res = SpeechSynthesis.TTSAsync(txtResponse.Text); //this is fun S)
                         }
                         //we have to do everythig here...remember that we have to have a counter so that new responses always come last
-                        if (cbGPT35Chat.IsChecked == true)
+                        if (cbGPTChat.IsChecked == true)
                         {
                             //if chat mode, we take care of response. At this point the user has allready sent a request so we can add another
-                            //this one was new for me: (rxGPT35.messages.Length - 1) = (^1) (index operators)
-                            cmHistory.Items.Add(rxGPT35.messages[^1].role + ", " + rxGPT35.messages[^1].content);
-                            cmHistory.Items.Add(responseGPT35.choices[0].message.role + ", " + responseGPT35.choices[0].message.content);
-                            rxGPT35.AddMessage(responseGPT35.choices[0].message.role, responseGPT35.choices[0].message.content);
+                            //this one was new for me: (rxGPT.messages.Length - 1) = (^1) (index operators)
+                            cmHistory.Items.Add(rxGPT.messages[^1].role + ", " + rxGPT.messages[^1].content);
+                            cmHistory.Items.Add(responseGPT.choices[0].message.role + ", " + responseGPT.choices[0].message.content);
+                            rxGPT.AddMessage(responseGPT.choices[0].message.role, responseGPT.choices[0].message.content);
                         }
                     }
                 });
@@ -226,8 +229,8 @@ namespace openAIApps
 
         private void btnClearHistory_Click(object sender, RoutedEventArgs e)
         {
-            rxGPT35.SaveToLogFile();
-            rxGPT35.Dispose();
+            rxGPT.SaveToLogFile();
+            rxGPT.Dispose();
             cmHistory.Items.Clear();
             txtRequest.Clear();
             txtResponse.Clear();
@@ -235,7 +238,7 @@ namespace openAIApps
 
         private void cmRole_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            rxGPT35.SetRole(cmRole.SelectedItem.ToString());
+            rxGPT.SetRole(cmRole.SelectedItem.ToString());
         }
 
         private void txtRequest_GotFocus(object sender, RoutedEventArgs e)
@@ -247,20 +250,20 @@ namespace openAIApps
         {
             if (this.IsEnabled)
             {
-                if(rxGPT35 != null)
+                if(rxGPT != null)
                 {
-                    cmRole.ItemsSource = rxGPT35.gpt35Roles;
+                    cmRole.ItemsSource = rxGPT.gptRoles;
                 }
             }
         }
-        private void cbGPT35Chat_Checked(object sender, RoutedEventArgs e)
+        private void cbGPTChat_Checked(object sender, RoutedEventArgs e)
         {
             cmHistory.IsEnabled = true;
             btnClearHistory.IsEnabled = true;
             cmRole.IsEnabled = true;
             cmRole.SelectedIndex = 0;
         }
-        private void cbGPT35Chat_Unchecked(object sender, RoutedEventArgs e)
+        private void cbGPTChat_Unchecked(object sender, RoutedEventArgs e)
         {
             cmHistory.IsEnabled=false;
             btnClearHistory.IsEnabled=false;
@@ -440,7 +443,7 @@ namespace openAIApps
 
         private void menuSave_Click(object sender, RoutedEventArgs e)
         {
-            rxGPT35.SaveToLogFile();
+            rxGPT.SaveToLogFile();
         }
 
         private void btnRemoveImage_Click(object sender, RoutedEventArgs e)
@@ -563,67 +566,67 @@ namespace openAIApps
 
         private void tbName_LostFocus(object sender, RoutedEventArgs e)
         {
-            if(rxGPT35 != null)
-                rxGPT35.user = tbName.Text;
+            if(rxGPT != null)
+                rxGPT.user = tbName.Text;
         }
 
         private void sldrFrequencyPenalty_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if(rxGPT35 != null) 
+            if(rxGPT != null) 
             {
                 string tempLabel = "Frequency Penalty: ";
-                rxGPT35.frequency_penalty = sldrFrequencyPenalty.Value;
+                rxGPT.frequency_penalty = sldrFrequencyPenalty.Value;
                 lblFreqencyPenalty.Content = tempLabel + sldrFrequencyPenalty.Value.ToString("N1");
             }
         }
 
         private void sldrPresencePenalty_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if(rxGPT35 != null) 
+            if(rxGPT != null) 
             {
                 string tempLabel = "Presence Penalty: ";
-                rxGPT35.presence_penalty = sldrPresencePenalty.Value;
+                rxGPT.presence_penalty = sldrPresencePenalty.Value;
                 lblPresencePenalty.Content = tempLabel + sldrPresencePenalty.Value.ToString("N1");
             }
         }
 
         private void bStream_Click(object sender, RoutedEventArgs e)
         {
-            if(rxGPT35 != null)
+            if(rxGPT != null)
             { 
                 if (bStream.IsChecked == true)
-                    rxGPT35.stream = true;
+                    rxGPT.stream = true;
                 else
-                    rxGPT35.stream = false;
+                    rxGPT.stream = false;
             }
         }
 
         private void sldrN_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if(rxGPT35 != null)
+            if(rxGPT != null)
             {
                 string tempLabel = "n: ";
-                rxGPT35.n = (int)sldrN.Value;
+                rxGPT.n = (int)sldrN.Value;
                 lblN.Content = tempLabel + sldrN.Value.ToString();
             }
         }
 
         private void sldrTopp_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (rxGPT35 != null)
+            if (rxGPT != null)
             {
                 string tempLabel = "Top_p: ";
-                rxGPT35.top_p = sldrTopp.Value;
+                rxGPT.top_p = sldrTopp.Value;
                 lblTopp.Content = tempLabel + sldrTopp.Value.ToString("N1");
             }
         }
 
         private void sldrTemperature_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (rxGPT35 != null)
+            if (rxGPT != null)
             {
                 string tempLabel = "Temperature: ";
-                rxGPT35.temperature = sldrTemperature.Value;
+                rxGPT.temperature = sldrTemperature.Value;
                 lblTemperature.Content = tempLabel+sldrTemperature.Value.ToString("N1");
             }
         }

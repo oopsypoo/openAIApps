@@ -1,4 +1,4 @@
-﻿using gpt35Turbo;
+﻿using gpt;
 using System.Windows;
 
 
@@ -16,8 +16,8 @@ namespace openAIApps
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            requestGPT35 rxGPT35 = MainWindow.RxGPT35;
-            tbModel.Text = "Model: " + rxGPT35.model;
+            requestGPT rxGPT = MainWindow.RxGPT;
+            tbModel.Text = "Model: " + rxGPT.model;
         }
     }
 }

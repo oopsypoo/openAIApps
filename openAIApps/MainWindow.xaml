@@ -3,14 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:openAIApps" xmlns:c="clr-namespace:gpt35Turbo"
+        xmlns:local="clr-namespace:openAIApps" xmlns:c="clr-namespace:gpt"
         mc:Ignorable="d"
         Title="OpenAiApps" Height="768" Width="1080" >
     <Window.DataContext>
-        <c:requestGPT35 />
+        <c:requestGPT />
     </Window.DataContext>
     <Window.Resources>
-        <ObjectDataProvider x:Key="rxGPT35" ObjectType="{x:Type c:requestGPT35}" />
+        <ObjectDataProvider x:Key="rxGPT" ObjectType="{x:Type c:requestGPT}" />
         
         <!-- All text-boxes taking requests have this style -->
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
@@ -118,9 +118,9 @@
             </MenuItem>
         </Menu>
         <TabControl x:Name="tpApps" DockPanel.Dock="Top" >
-            <!-- GPT3.5 Turbo stuff tab -->
-            <TabItem Header="GPT3.5 Turbo"  Name="tpGPT35" >
-                <Grid x:Name="gridGPT35" VerticalAlignment="Stretch">
+            <!-- GPT Turbo stuff tab -->
+            <TabItem Header="GPT"  Name="tpGPT" >
+                <Grid x:Name="gridGPT" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="cdReqRes" Width="1.5*"/>
                         <ColumnDefinition x:Name="cdOptions" Width="0.5*"/>
@@ -141,9 +141,9 @@
                         <TextBox Style="{StaticResource TextBoxResponse}" x:Name="txtResponse" />
                     </StackPanel>
                     <!-- GPT-turbo - options controls -->
-                    <GroupBox x:Name="groupChatCompletions" Header="GPT3.5 Chat/Completions" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
+                    <GroupBox x:Name="groupChatCompletions" Header="GPT Chat/Completions" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
                         <StackPanel x:Name="spOptions" Orientation="Vertical" Margin="5">
-                            <CheckBox x:Name="cbGPT35Chat" Content="Chat" IsChecked="False" IsEnabled="true" Checked="cbGPT35Chat_Checked" Unchecked="cbGPT35Chat_Unchecked"/>
+                            <CheckBox x:Name="cbGPTChat" Content="Chat" IsChecked="False" IsEnabled="true" Checked="cbGPTChat_Checked" Unchecked="cbGPTChat_Unchecked"/>
                             <Label Content="Role" />
                             <ComboBox x:Name="cmRole" Margin="0,5,0,0" IsEnabled="False" SelectionChanged="cmRole_SelectionChanged" Initialized="cmRole_Initialized"/>
                             <Label Content="Current Chat-history" />
@@ -152,17 +152,17 @@
                             <Label x:Name="lblTemperature" Content="Temperature" />
                             <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTemperature" Minimum="0" Maximum="2" Value="{Binding temperature, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ValueChanged="sldrTemperature_ValueChanged"/>
                             <Label x:Name="lblTopp" Content="Top-p" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTopp" Minimum="0" Maximum="1" Value="{Binding Source={StaticResource rxGPT35}, Path=top\_p}" ValueChanged="sldrTopp_ValueChanged"/>
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTopp" Minimum="0" Maximum="1" Value="{Binding Source={StaticResource rxGPT}, Path=top\_p}" ValueChanged="sldrTopp_ValueChanged"/>
                             <Label x:Name="lblN" Content="n" />
-                            <Slider x:Name="sldrN" Minimum="1" Maximum="10" SmallChange="1" Value="{Binding Source={StaticResource rxGPT35}, Path=n}" ValueChanged="sldrN_ValueChanged"/>
+                            <Slider x:Name="sldrN" Minimum="1" Maximum="10" SmallChange="1" Value="{Binding Source={StaticResource rxGPT}, Path=n}" ValueChanged="sldrN_ValueChanged"/>
                             <Label Content="stream" />
-                            <CheckBox x:Name="bStream" IsChecked="{Binding Source={StaticResource rxGPT35}, Path=stream}" Click="bStream_Click"/>
+                            <CheckBox x:Name="bStream" IsChecked="{Binding Source={StaticResource rxGPT}, Path=stream}" Click="bStream_Click"/>
                             <Label Content="stop" />
                             <Label Content="max_tokens" />
                             <Label x:Name="lblPresencePenalty" Content="Presence Penalty" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrPresencePenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT35}, Path=presence_penalty}" ValueChanged="sldrPresencePenalty_ValueChanged"/>
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrPresencePenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT}, Path=presence_penalty}" ValueChanged="sldrPresencePenalty_ValueChanged"/>
                             <Label x:Name="lblFreqencyPenalty" Content="Frequency Penalty" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrFrequencyPenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT35}, Path=frequency_penalty}" ValueChanged="sldrFrequencyPenalty_ValueChanged"/>
+                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrFrequencyPenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT}, Path=frequency_penalty}" ValueChanged="sldrFrequencyPenalty_ValueChanged"/>
                             <Label Content="User" />
                             <TextBox x:Name="tbName" Text="{Binding XPath=user,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="tbName_LostFocus" />
                             <Label Content="Models" />

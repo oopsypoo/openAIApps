@@ -5,9 +5,9 @@ using System.IO;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 
-namespace gpt35Turbo
+namespace gpt
 { 
-    public class requestGPT35 : IDisposable
+    public class requestGPT : IDisposable
     {
         public string model { get; set; }
         public Message[] messages { get; set; }
@@ -33,7 +33,7 @@ namespace gpt35Turbo
         public string user { get; set; }
         private readonly uint MaxTokens = 4097;
         
-        public readonly string[] gpt35Roles = { "user", "system" };
+        public readonly string[] gptRoles = { "user", "system" };
         private string _Role = "";
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -127,16 +127,16 @@ namespace gpt35Turbo
                 messages = null;
             }
         }
-        ~requestGPT35()
+        ~requestGPT()
         {
             Dispose();
         }
         /// <summary>
         /// define the model here or whatever variables that needs to be initialized
         /// </summary>
-        public requestGPT35() 
+        public requestGPT() 
         { 
-            _Role = gpt35Roles[0]; 
+            _Role = gptRoles[0]; 
             temperature = 1;
             top_p = 1;
             n = 1;
@@ -170,33 +170,33 @@ namespace gpt35Turbo
 
 
 
-    public class responseGPT35Turbo
+    public class responseGPT
     {
         public string id { get; set; }
         public string _object { get; set; }
         public int created { get; set; }
         public string model { get; set; }
-        public gpt35Usage usage { get; set; }
-        public gpt35Choice[] choices { get; set; }
+        public gptUsage usage { get; set; }
+        public gptChoice[] choices { get; set; }
 
 
     }
 
-    public class gpt35Usage
+    public class gptUsage
     {
         public int prompt_tokens { get; set; }
         public int completion_tokens { get; set; }
         public int total_tokens { get; set; }
     }
 
-    public class gpt35Choice
+    public class gptChoice
     {
-        public gpt35Message message { get; set; }
+        public gptMessage message { get; set; }
         public string finish_reason { get; set; }
         public int index { get; set; }
     }
 
-    public class gpt35Message
+    public class gptMessage
     {
         public string role { get; set; }
         public string content { get; set; }
