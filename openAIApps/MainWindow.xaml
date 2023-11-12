@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:openAIApps" xmlns:c="clr-namespace:gpt"
         mc:Ignorable="d"
-        Title="OpenAiApps" Height="768" Width="1080" >
+        Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
     <Window.DataContext>
         <c:requestGPT />
     </Window.DataContext>
@@ -112,9 +112,13 @@
                 <MenuItem Header="Convert WAV" Name="menuConvert" Click="menuConvert_Click"  IsEnabled="True" />
                 <MenuItem Header="Play File" Name="menuPlayFile" Click="menuPlayFile_Click"  IsEnabled="True" />
                 <MenuItem Header="SpeechSynthesis Options" Name="menuSpeechSynthesisTool" Click="menuSpeechSynthesisTool_Click" IsEnabled="True" />
+                <MenuItem Header="Assistant Tools" Name="menuAssistantTools" IsEnabled="True" AllowDrop="True"> 
+                    <MenuItem Header="Create An Assistant" Name="menuCreateAssistant" Click="menuCreateAssistant_Click" IsEnabled="True" />
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="Help" Name="menuHelp" Click="menuHelp_Click" IsEnabled="True" AllowDrop="True">
                 <MenuItem Header="About" Name="menuAbout" Click="menuAbout_Click" IsEnabled="True"/>
+                <MenuItem Header="ThisAssist" Name="menuThisAssistant" Click="menuThisAssistant_Click" IsEnabled="True"/>
             </MenuItem>
         </Menu>
         <TabControl x:Name="tpApps" DockPanel.Dock="Top" >

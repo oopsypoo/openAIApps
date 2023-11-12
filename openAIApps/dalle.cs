@@ -11,8 +11,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 
-
-
 /// <summary>
 /// I should set up a #ifdef on the edit and image variations. They should not be visible as long as it only works on DALL-E 2 and not DALL-E 3
 /// </summary>

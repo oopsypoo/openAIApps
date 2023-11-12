@@ -7,7 +7,15 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>$(DefineConstants);DALLE_VERSION3</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
+    <None Remove="noo.png" />
+    <None Remove="oai.jpg" />
+    <None Remove="oai_small.png" />
+    <None Remove="qa.png" />
     <None Remove="sign.jpg" />
     <None Remove="sign3.jpg" />
     <None Remove="sign4.jpg" />
@@ -20,6 +28,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="noo.png" />
+    <Resource Include="oai.jpg" />
+    <Resource Include="oai_small.png" />
+    <Resource Include="qa.png" />
     <Resource Include="sign.jpg" />
     <Resource Include="sign3.jpg" />
     <Resource Include="sign4.jpg" />

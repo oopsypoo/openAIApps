@@ -1,0 +1,12 @@
+﻿<Window x:Name="CreateAssistant1" x:Class="openAIApps.CreateAssistant"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:openAIApps"
+        mc:Ignorable="d"
+        Title="Create a new Assistant" Height="450" Width="800" Icon="/noo.png">
+    <Grid>
+        
+    </Grid>
+</Window>
