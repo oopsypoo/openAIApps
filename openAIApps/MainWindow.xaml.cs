@@ -102,6 +102,14 @@ namespace openAIApps
 
             //Add the GPT-model-name to the tab. I've removed all references to GPT3.5Turbo
             tpGPT.Header = rxGPT.model;
+#if DALLE_VERSION3
+            {
+                cbImageVariations.IsEnabled = false;
+                btnOpenImage.IsEnabled = false;
+                cbImageEdit.IsEnabled = false;
+                btnMaskImage.IsEnabled = false;
+            }
+#endif
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
@@ -113,7 +121,11 @@ namespace openAIApps
             About about = new About();
             about.ShowDialog();
         }
-
+        private void menuThisAssistant_Click(object sender, RoutedEventArgs e)
+        {
+            rassistant ra = new rassistant();
+            ra.ShowDialog();
+        }
         private void menuFile_Click(object sender, RoutedEventArgs e)
         {
 
@@ -656,6 +668,11 @@ namespace openAIApps
 
             Dalle.rxImages.quality = Dalle.optImages.Quality;
             //Dalle.rxImagesEdit.size = Dalle.rxImages.size = Dalle.rxImagesVariation.size = Dalle.optImages.csize;
+
+        }
+
+        private void menuCreateAssistant_Click(object sender, RoutedEventArgs e)
+        {
 
         }
     }

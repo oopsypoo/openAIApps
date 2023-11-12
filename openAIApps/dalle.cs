@@ -11,8 +11,21 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 
+
+
+/// <summary>
+/// I should set up a #ifdef on the edit and image variations. They should not be visible as long as it only works on DALL-E 2 and not DALL-E 3
+/// </summary>
+
 public class Dalle
 {
+    /* 
+     * There is different behaviour and capabilities depending on the DALL-E version. I should set this up so that 
+     * it's reflected in the application.
+     * 3 => no edit and image variations of pics should be available
+     * < 3 => edit and image variations is available
+    */
+    
     public const string url_image_generations = "https://api.openai.com/v1/images/generations";
     public const string url_image_edit = "https://api.openai.com/v1/images/edits";
     public const string url_image_variations = "https://api.openai.com/v1/images/variations";
@@ -32,20 +45,32 @@ public class Dalle
     {
         public int noImages;
         public string csize;
-        public string Quality;
+        
         public string requestURL;
         //public string responseFormat;
-        public readonly int[] optImages = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-        //for DALL-E you can use the first 3 sizes, and DALL-E 3, 3 the last 3 sizes
-        public readonly string[] optSize = { "256x256", "512x512", "1024x1024", "1024x1792", "1792x1024" };
+
+        //for DALL-E you can use these sizes
+#if DALLE_VERSION3 //this preprocessor symbol is defined under the project-properties, Build->General->Conditional compilation symbols
+        public readonly int[] optImages = { 1 };
+        public string Quality;
+        public readonly string[] optSize = { "1024x1024", "1024x1792", "1792x1024" };
         public readonly string[] optQuality = { "standard", "hd" };
+#else
+        //if DALLE_VERSION is < 3
+        public readonly string[] optSize = { "256x256", "512x512", "1024x1024"};
+        public readonly int[] optImages = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+#endif
+
+
         public OptionsImage()
         {
             //set default values
             noImages = 1;
             requestURL = url_image_generations;
             csize = optSize[0];
+#if DALLE_VERSION3
             Quality = optQuality[0];
+#endif
             //  responseFormat = "url";
         }
 
