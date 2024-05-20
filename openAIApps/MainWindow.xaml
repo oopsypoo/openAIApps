@@ -10,8 +10,8 @@
         <c:requestGPT />
     </Window.DataContext>
     <Window.Resources>
-        <ObjectDataProvider x:Key="rxGPT" ObjectType="{x:Type c:requestGPT}" />
-        
+        <ObjectDataProvider x:Key="rxGPT" ObjectType="{x:Type c:requestGPT}" /> 
+
         <!-- All text-boxes taking requests have this style -->
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
@@ -112,9 +112,6 @@
                 <MenuItem Header="Convert WAV" Name="menuConvert" Click="menuConvert_Click"  IsEnabled="True" />
                 <MenuItem Header="Play File" Name="menuPlayFile" Click="menuPlayFile_Click"  IsEnabled="True" />
                 <MenuItem Header="SpeechSynthesis Options" Name="menuSpeechSynthesisTool" Click="menuSpeechSynthesisTool_Click" IsEnabled="True" />
-                <MenuItem Header="Assistant Tools" Name="menuAssistantTools" IsEnabled="True" AllowDrop="True"> 
-                    <MenuItem Header="Create An Assistant" Name="menuCreateAssistant" Click="menuCreateAssistant_Click" IsEnabled="True" />
-                </MenuItem>
             </MenuItem>
             <MenuItem Header="Help" Name="menuHelp" Click="menuHelp_Click" IsEnabled="True" AllowDrop="True">
                 <MenuItem Header="About" Name="menuAbout" Click="menuAbout_Click" IsEnabled="True"/>
@@ -142,7 +139,7 @@
                         <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtRequest" GotFocus="txtRequest_GotFocus" />
                         <Button Style="{StaticResource SendRequest}" x:Name="btnSendRequest" Click="btnSendRequest_Click" />
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}" x:Name="txtResponse" />
+                        <TextBox Style="{StaticResource TextBoxResponse}" x:Name="txtResponse" Height="350" />
                     </StackPanel>
                     <!-- GPT-turbo - options controls -->
                     <GroupBox x:Name="groupChatCompletions" Header="GPT Chat/Completions" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
@@ -175,6 +172,44 @@
                     </GroupBox>
 
                 </Grid>
+            </TabItem>
+            <TabItem Header="Vision" Name="tpVision">
+                <Grid x:Name="gridVision" VerticalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="cdVisionReqRes" Width="1.5*"/>
+                        <ColumnDefinition x:Name="cdVisionOptions" Width="0.5*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spVisionInput" Orientation="Vertical">
+                        <Label Grid.Row="0" Grid.Column="0" >Write your request below</Label>
+                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtVisionRequest" GotFocus="txtVisionRequest_GotFocus"/>
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnVisionSendRequest" Click="btnVisionSendRequest_Click" />
+                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtVisionResponse" />
+                    </StackPanel>
+                    <!-- Vision - options controls -->
+                    <GroupBox  x:Name="groupVision" Header="Vision Options" Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Margin="0,0,0,0">
+                        <StackPanel Orientation="Vertical" Margin="5">
+                            <Label Content="Set number of images" />
+                            <ComboBox x:Name="cmbVisionImages" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbVisionImages_SelectionChanged">
+                                <ComboBoxItem Tag="one" IsSelected="True">1</ComboBoxItem>
+                                <ComboBoxItem Tag="two">2</ComboBoxItem>
+                                <ComboBoxItem Tag="three">3</ComboBoxItem>
+                            </ComboBox>
+                            <!--Image control...at least one-->
+                            <Label x:Name="lblSelectedVImage" Content="Currently selected image" Visibility="Hidden" />
+                            <Button x:Name="btnOpenVImage" Content="Choose Image" IsEnabled="True" Click="btnOpenVImage_Click"/>
+                            <Image x:Name="imgVision" Margin="0,5,0,0" Source="/no_pic.png" />
+                        </StackPanel>
+                    </GroupBox>
+                </Grid>
+
             </TabItem>
             <!-- DALL-E stuff tab -->
             <TabItem Header="DALL-E"  Name="tpDalle">

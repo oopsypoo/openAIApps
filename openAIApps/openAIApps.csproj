@@ -5,14 +5,28 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>disable</Nullable>
     <UseWPF>true</UseWPF>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>$(DefineConstants);DALLE_VERSION3</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DefineConstants>$(DefineConstants);DALLE_VERSION3</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>$(DefineConstants);DALLE_VERSION3</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DefineConstants>$(DefineConstants);DALLE_VERSION3</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove="noo.png" />
+    <None Remove="no_pic.png" />
     <None Remove="oai.jpg" />
     <None Remove="oai_small.png" />
     <None Remove="qa.png" />
@@ -22,6 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" Version="1.0.0-beta.17" />
     <PackageReference Include="MediaToolkit" Version="1.1.0.1" />
     <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.27.0" />
     <PackageReference Include="NAudio" Version="2.1.0" />
@@ -29,6 +44,7 @@
 
   <ItemGroup>
     <Resource Include="noo.png" />
+    <Resource Include="no_pic.png" />
     <Resource Include="oai.jpg" />
     <Resource Include="oai_small.png" />
     <Resource Include="qa.png" />

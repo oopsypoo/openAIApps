@@ -264,7 +264,7 @@ namespace openAIApps
             {
                 if(rxGPT != null)
                 {
-                    cmRole.ItemsSource = rxGPT.gptRoles;
+                    cmRole.ItemsSource = rxGPT.gpt_roles;
                 }
             }
         }
@@ -674,6 +674,98 @@ namespace openAIApps
         private void menuCreateAssistant_Click(object sender, RoutedEventArgs e)
         {
 
+        }
+
+        private void imgVision_Initialized(object sender, EventArgs e)
+        {
+
+        }
+
+        private async void btnVisionSendRequest_Click(object sender, RoutedEventArgs e)
+        {
+
+            Vision.InitChatVision(txtVisionRequest.Text);
+            var responseString = await Vision.ResponseChat(OpenAPIKey);
+            if (responseString == null)
+            {
+                txtVisionResponse.Text = "Server-response: \n" + GlobalhttpResponse + "\n\nError:\n" + responseString;
+                this.IsEnabled = true;
+                return;
+            }
+            else
+            {
+                //everything is ok. Get response
+                txtVisionResponse.Text = responseString.Message.Role + "\n" + responseString.Message.Content;
+            }
+            /*
+               Vision.rxVision.messages[0].content[0].text = txtVisionRequest.Text;
+               try
+               {
+                   GlobalhttpResponse = await Vision.rxVision.PostFile(OpenAPIKey);
+
+
+                   var response = await GlobalhttpResponse.Content.ReadAsStringAsync();
+
+                   //var resource = JsonSerializer.Deserialize(responseString);
+                   /// there's an error. just get out.
+
+                   if (response == null)
+                   {
+                       txtVisionResponse.Text = "Server-response: \n" + GlobalhttpResponse + "\n\nError:\n" + response;
+                       this.IsEnabled = true;
+                       return;
+                   }
+                   else
+                   {
+                       //everything is ok. Get response
+                       txtVisionResponse.Text = response;
+                   }
+               }
+               catch (Exception err)
+               {
+                   this.Dispatcher.Invoke(() =>
+                   {
+                       txtVisionResponse.Text = err.Message + "\nInnerexception: " + err.InnerException;
+                       this.IsEnabled = true;
+                       return;
+                   });
+               }
+
+               this.Dispatcher.Invoke(() =>
+               {
+                   this.IsEnabled = true;
+               });
+          */
+        }
+
+        private void txtVisionRequest_GotFocus(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void cmbVisionImages_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        private void btnOpenVImage_Click(object sender, RoutedEventArgs e)
+        {
+            Vision.ImageFileName = Vision.GetImageFileName();
+            var fileExtension = Path.GetExtension(Vision.ImageFileName);
+            if (string.IsNullOrEmpty(Vision.ImageFileName))
+            {
+                MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            //string filename = ExtractFileName(temp);
+            /*byte[] imageBytes = File.ReadAllBytes(Vision.ImageFileName);
+            string base64Image = Convert.ToBase64String(imageBytes);
+            Vision.rxVision.messages[0].content[0].image_url.url = $"data:image/{fileExtension};base64,{base64Image}";
+            */
+
+            imgVision.Source = GetImageSource(Vision.ImageFileName);
+            
+            AddImageControls(sender);
         }
     }
 }

@@ -6,7 +6,116 @@
         xmlns:local="clr-namespace:openAIApps"
         mc:Ignorable="d"
         Title="How may I help you?" Height="450" Width="704" Icon="/qa.png">
-    <Grid>
-        
+    <Window.Resources>
+        <!-- All text-boxes taking requests have this style -->
+        <Style x:Key="TextBoxRequest" TargetType="TextBox">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinHeight" Value="75" />
+            <Setter Property="Margin" Value="0,2,2,0" />
+            <Setter Property="IsEnabled" Value="True" />
+            <Setter Property="IsReadOnly" Value="False" />
+            <Setter Property="Grid.Row" Value="1" />
+            <Setter Property="Grid.Column" Value="0" />
+            <Setter Property="AcceptsReturn" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TabIndex" Value="1" />
+            <Setter Property="MaxHeight" Value="150" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}" >
+                        <Border x:Name="bg" BorderThickness="1" BorderBrush="DarkGray" Background="White">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="bg" Value="Black" />
+                                <Setter Property="BorderThickness" TargetName="bg" Value="2"/>
+                                <Setter Property="FontSize" Value="16" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- All text-boxes receiving the AI-response have this style -->
+        <Style x:Key="TextBoxResponse" TargetType="TextBox">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinHeight" Value="150" />
+            <Setter Property="Margin" Value="2,0,2,0" />
+            <Setter Property="IsEnabled" Value="True" />
+            <Setter Property="IsReadOnly" Value="False" />
+            <Setter Property="Grid.Row" Value="4" />
+            <Setter Property="Grid.Column" Value="0" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MaxHeight" Value="500" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}" >
+                        <Border x:Name="bg" BorderThickness="1" BorderBrush="DarkGray" Background="White">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="bg" Value="Black" />
+                                <Setter Property="BorderThickness" TargetName="bg" Value="2"/>
+                                <Setter Property="FontSize" Value="16" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="FontSize" Value="9"></Setter>
+            <Setter Property="FontStyle" Value="Normal"></Setter>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="FontStyle" Value="Italic" />
+            <Setter Property="Margin" Value="0,0,2,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="DarkGray" />
+        </Style>
+        <Style x:Key="SendRequest" TargetType="Button">
+            <Setter Property="Margin" Value="0,2,2,2" />
+            <Setter Property="TabIndex" Value="2" />
+            <Setter Property="Content" Value="Send Request" />
+            <Setter Property="Grid.Row" Value="2" />
+            <Setter Property="Grid.Column" Value="0" />
+        </Style>
+    </Window.Resources>
+    <Grid x:Name="gridGPT" VerticalAlignment="Stretch">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="cdReqRes" Width="1.5*"/>
+            <ColumnDefinition x:Name="cdOptions" Width="0.5*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition x:Name="rdLabelReq" Height="*"/>
+            <RowDefinition x:Name="rdTextReq" Height="*" />
+            <RowDefinition x:Name="rdBtnReq" Height="Auto" />
+            <RowDefinition x:Name="rdLabelRes" Height="*" />
+            <RowDefinition x:Name="rdTextRes" Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spAssistant" Orientation="Vertical">
+            <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Request assistance</Label>
+            <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtAssistantPrompt" />
+            <Button Style="{StaticResource SendRequest}" x:Name="btnAssistantSendRequest" Click="btnAssistantSendRequest_Click"/>
+            <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">Assitance' response</Label>
+            <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtAssistantResponse" />
+        </StackPanel>
+        <GroupBox x:Name="groupAssistant" Header="Assistant" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5" >
+            <StackPanel>
+                <Label Grid.Row="0" Grid.Column="1"  Margin="2,2,2,2" Content="Id" />
+                <TextBox  x:Name="txtAssistantId" Text="assistant-Id" />
+                <Label Grid.Row="0" Grid.Column="1"  Margin="2,2,2,2" Content="Description" />
+            </StackPanel>
+        </GroupBox>
     </Grid>
+    
 </Window>

@@ -31,9 +31,9 @@ namespace gpt
         /// </summary>
         ///public class logit_bias { }
         public string user { get; set; }
-        private readonly uint MaxTokens = 4097;
+        private readonly uint _MaxTokens = 4097;
         
-        public readonly string[] gptRoles = { "user", "system" };
+        public readonly string[] gpt_roles = { "user", "system" };
         private string _Role = "";
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -136,7 +136,7 @@ namespace gpt
         /// </summary>
         public requestGPT() 
         { 
-            _Role = gptRoles[0]; 
+            _Role = gpt_roles[0]; 
             temperature = 1;
             top_p = 1;
             n = 1;
@@ -148,8 +148,8 @@ namespace gpt
             //model = "gpt-3.5-turbo";
             ///model = "gpt-3.5-turbo-0613";
             //model = "gpt-3.5-turbo-16k";
-            //model = "gpt-4";
-            model = "gpt-4-1106-preview";
+            model = "gpt-4o";
+            //model = "gpt-4-1106-preview";
             //model = "gpt-4-0314";
             //model = "gpt-4-32k";
             //model = "gpt-4-8k";

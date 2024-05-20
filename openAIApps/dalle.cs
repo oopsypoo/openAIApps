@@ -48,7 +48,8 @@ public class Dalle
         //public string responseFormat;
 
         //for DALL-E you can use these sizes
-#if DALLE_VERSION3 //this preprocessor symbol is defined under the project-properties, Build->General->Conditional compilation symbols
+#if DALLE_VERSION3  //this preprocessor symbol is defined under the project-properties, Build->General->Conditional compilation symbols. 
+                    //Cannot request for imagevariations or image edits for this version. At this point...
         public readonly int[] optImages = { 1 };
         public string Quality;
         public readonly string[] optSize = { "1024x1024", "1024x1792", "1792x1024" };

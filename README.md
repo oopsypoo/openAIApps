@@ -1,4 +1,9 @@
 # openAIApps
+**2024-05-20 1651** Added Vision
+ - Added OpenAI Vision using Azure OpenAI API
+ - Reason for this was that I had problems-/or it was confusing using JSON-format/structure. Couldn't make it work, so I shifted to Nuget->Azure.AI.OpenAI v1.0.0-beta.17
+ - 
+
 **2023-11-10 0810** Did minor changes/tidying up a little
  - All references to GPT3.5 Turbo is removed. All objects/classes have been reduces to just GPT. The sourcefile too.
  - The tab that used to have the header GPT3.5Turbo has now the name of the model used in the chat.
