@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using Microsoft.CognitiveServices.Speech;
+using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Net.Http;
@@ -52,8 +53,14 @@ public class Dalle
                     //Cannot request for imagevariations or image edits for this version. At this point...
         public readonly int[] optImages = { 1 };
         public string Quality;
-        public readonly string[] optSize = { "1024x1024", "1024x1792", "1792x1024" };
-        public readonly string[] optQuality = { "standard", "hd" };
+        /// <summary>
+        /// these values are for DALL-E 3
+        /// </summary>
+        //public readonly string[] optSize = { "1024x1024", "1024x1792", "1792x1024" };
+        ///these are the sizes supported by gpt-image-1
+        public readonly string[] optSize = { "1024x1024", "1024x1536", "1536x1024" }; //square, portrait, landscape
+        //public readonly string[] optQuality = { "standard", "hd" };
+        public readonly string[] optQuality = { "low", "medium", "high", "auto" };
 #else
         //if DALLE_VERSION is < 3
         public readonly string[] optSize = { "256x256", "512x512", "1024x1024"};
@@ -84,8 +91,10 @@ public class Dalle
         public string model { get; set; }
         public string prompt { get; set; }
         public int n { get; set; }
+        public string output_format { get; set; }
         public string size { get; set; }
-
+        /// to make original code from DALLE3 work i have to set this to 'url'. Cannot use with gpt-image-1
+        //public string response_format { get; set; }
         public string quality { get; set; }
         //public string response_format;
         /// <summary>
@@ -94,11 +103,16 @@ public class Dalle
         public requestImage()
         {
             //set default model
-            model = "dall-e-3";
+            //model = "dall-e-3";
+            model = "gpt-image-1";
             //two qualitities: standard and hd.
             quality = optImages.Quality;
+            //set format
+            output_format = "jpeg";
             n = optImages.noImages;
             size = optImages.csize;
+            /// to make original code from DALLE3 work i have to set this to 'url'. Cannot use with gpt-image-1
+            //response_format = "url";
             //  response_format = optImages.responseFormat;
         }
         public async Task<HttpResponseMessage> PostFile(string key)
@@ -106,6 +120,7 @@ public class Dalle
             using (var httpClient = new HttpClient())
             {
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+                httpClient.DefaultRequestHeaders.Add("OpenAI-Beta", "image-generations-2023-10-01"); // ✅ important for gpt-image-1
                 httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
                 
                 var jsonString = JsonSerializer.Serialize<Dalle.requestImage>(rxImages);
@@ -131,6 +146,9 @@ public class Dalle
         }
         return null;
     }
+    /// <summary>
+    /// ImageVariation..not sure if this will work with gpt-image-1(DALL-E 3) anymore..do some research later
+    /// </summary>
     public class requestImageVariation
     {
         public string image { get; set; }
@@ -147,12 +165,14 @@ public class Dalle
             using (var httpClient = new HttpClient())
             {
                 httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+                
                 using (var content = new MultipartFormDataContent())
                 {
                     using (var fileStream = new FileStream(savepath_pics + image, FileMode.Open, FileAccess.Read))
                     {
                         content.Add(new StreamContent(fileStream), "image", image);
                         content.Add(new StringContent(n.ToString()), "n");
+                        content.Add(new StringContent(n.ToString()), "output_format");
                         content.Add(new StringContent(size), "size");
                         var res = await httpClient.PostAsync(url_image_variations, content);
                         return res;
@@ -161,12 +181,17 @@ public class Dalle
             }
         }
     }
+    /// <summary>
+    /// ImageEdit. this needs to be upgraded. Do not use yet.
+    /// </summary>
     public class requestImageEdit
     {
         public string image { get; set; }
         public string mask { get; set; }
         public string prompt { get; set; }
         public int n { get; set; }
+        //to make original code from DALLE3 work i have to set this to 'url'
+        public string response_format { get; set; }
         public string size { get; set; }
 
         public requestImageEdit()
@@ -202,6 +227,7 @@ public class Dalle
                     content.Add(new StringContent(prompt), "prompt");
                     content.Add(new StringContent(n.ToString()), "n");
                     content.Add(new StringContent(size), "size");
+
                     var res = await httpClient.PostAsync(url_image_edit, content);
                     return res;
                 }
@@ -212,7 +238,24 @@ public class Dalle
     {
         public int created { get; set; }
         public imageData[] data { get; set; }
-
+        /// <summary>
+        /// if I want to convert from base64 to BitmapImage using json-data and not url(url is for DALL-E 3/2)
+        /// </summary>
+        public BitmapImage Base64ToBitmap(string base64)
+        {
+            byte[] imageBytes = Convert.FromBase64String(base64);
+            using (var ms = new MemoryStream(imageBytes))
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.StreamSource = ms;
+                bitmap.EndInit();
+                bitmap.Freeze(); // important if using in WPF UI thread
+                return bitmap;
+            }
+        }
+ 
         public void DrawImages()
         {
             int i = 0, nImages = data.Length;
@@ -220,7 +263,7 @@ public class Dalle
             saveButton = new SaveThisImage[nImages];
             while (i < nImages)
             {
-                if (data[i].url != null)
+                /*if (data[i].url != null)
                 {
                     temp[i] = new TempWindow(i);
                     //this.AddChild(temp);
@@ -229,6 +272,7 @@ public class Dalle
                     //var bitmapImage = new BitmapImage();
                     temp[i].bi.BeginInit();
                     temp[i].bi.UriSource = new Uri(data[i].url);
+                    //temp[i].bi = Base64ToBitmap(data[i].url);
                     temp[i].bi.EndInit();
 
                     ImageBrush myBackground = new ImageBrush();
@@ -236,6 +280,19 @@ public class Dalle
                     myBackground.Stretch = Stretch.Uniform;
                     temp[i].Background = myBackground;
 
+                    temp[i].Visibility = Visibility.Visible;
+                    temp[i].ShowButton();
+                }*/
+                if (data[i].b64_json != null)
+                {                     
+                    temp[i] = new TempWindow(i);
+                    //this.AddChild(temp);
+                    temp[i].index = i;
+                    temp[i].bi = Base64ToBitmap(data[i].b64_json);
+                    ImageBrush myBackground = new ImageBrush();
+                    myBackground.ImageSource = temp[i].bi;
+                    myBackground.Stretch = Stretch.Uniform;
+                    temp[i].Background = myBackground;
                     temp[i].Visibility = Visibility.Visible;
                     temp[i].ShowButton();
                 }
@@ -246,7 +303,7 @@ public class Dalle
 
     public class imageData
     {
-        public string url { get; set; }
+        public string b64_json { get; set; }
     }
     public class SaveThisImage : Button
     {

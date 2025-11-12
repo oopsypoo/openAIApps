@@ -1,18 +1,23 @@
-﻿using System;
+﻿using gpt;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using gpt;
-using whisper;
 //speechsynthesis.cs
 using TTS;
+using whisper;
+using static openAIApps.VideoClient;
 
 
 
@@ -43,6 +48,7 @@ namespace openAIApps
         const string url_chat_completions = "https://api.openai.com/v1/chat/completions";
 
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        
         /// <summary>
         /// make these paths more general-purpose in the future
         /// </summary>
@@ -53,10 +59,13 @@ namespace openAIApps
         const string options_file = "options.json";
         readonly string logfile = savepath_logs + "logfile" + ".txt";
 
-        static requestGPT rxGPT = new requestGPT();
-        static responseGPT responseGPT = new responseGPT();
+        public static requestGPT rxGPT = new requestGPT();
+        public static responseGPT responseGPT = new responseGPT();
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
-        
+        private VideoClient _videoClient;
+        private List<VideoListItem> _videoHistory = new();
+        private string _videoReferencePath = string.Empty;
+
         /// <summary>
         /// not sure if this is the best solution. Using namespace and reorganizing data is the thing. But this will work.
         /// </summary>
@@ -85,6 +94,7 @@ namespace openAIApps
         {
             get { return rxGPT; }
         }
+       
         public void InitControls()
         {//set standard/default values to image controls
             foreach (var p in Dalle.optImages.optImages)
@@ -109,6 +119,9 @@ namespace openAIApps
                 cbImageEdit.IsEnabled = false;
                 btnMaskImage.IsEnabled = false;
             }
+            _videoClient = new VideoClient(apiKey: OpenAPIKey);
+            InitVideoList();
+
 #endif
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
@@ -767,5 +780,291 @@ namespace openAIApps
             
             AddImageControls(sender);
         }
+
+        private void cmbModelChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+        private void cmbVideoLengthChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+        private void cmbVideoSizeChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+        private async void btnVideoSendRequest_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Build request from your UI controls
+                var request = new VideoClient.RequestVideo
+                {
+                    Prompt = txtVideoPrompt.Text,
+                    Model = cmbVideoModel.Text,
+                    Seconds = cmbVideoLength.Text,
+                    Size = cmbVideoSize.Text
+                };
+
+                // Create the video job
+                var response = await _videoClient.CreateVideoAsync(request);
+
+                // Show raw JSON in your response text box
+                txtVideoResponse.Text = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+
+                // --- Handle invalid response ---
+                if (response == null || string.IsNullOrEmpty(response.Id))
+                {
+                    MessageBox.Show("Video creation request failed. No video ID returned.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // --- Add to your listbox immediately ---
+                lstVideoFiles.Items.Add(new VideoClient.VideoListItem
+                {
+                    Id = response.Id,
+                    Status = response.Status,
+                    Progress = response.Progress,
+                    Model = response.Model
+                });
+
+                // --- Create and show progress window ---
+                var progressWindow = new ProgressWindow("Creating video...");
+                progressWindow.Owner = this;
+
+                var cts = new CancellationTokenSource();
+                progressWindow.Canceled += (s, _) => cts.Cancel();
+
+                progressWindow.Show();
+
+                // --- Track progress using the client helper ---
+                var progress = new Progress<double>(value =>
+                {
+                    progressWindow.UpdateProgress(value);
+                });
+
+                await _videoClient.MonitorVideoProgressAsync(response.Id, progress, cts.Token);
+
+                progressWindow.Close();
+
+                // --- Check final status ---
+                var finalStatus = await _videoClient.GetVideoStatusAsync(response.Id);
+
+                if (finalStatus != null)
+                {
+                    txtVideoResponse.Text = JsonSerializer.Serialize(finalStatus, new JsonSerializerOptions { WriteIndented = true });
+
+                    // Update listbox item if found
+                    var existing = lstVideoFiles.Items.OfType<VideoClient.VideoListItem>().FirstOrDefault(v => v.Id == finalStatus.Id);
+                    if (existing != null)
+                    {
+                        existing.Status = finalStatus.Status;
+                        existing.Progress = finalStatus.Progress;
+                        lstVideoFiles.Items.Refresh();
+                    }
+
+                    if (finalStatus.Status == "completed")
+                    {
+                        MessageBox.Show($"✅ Video {finalStatus.Id} created successfully!", "Done", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else if (finalStatus.Status == "failed")
+                    {
+                        MessageBox.Show($"❌ Video {finalStatus.Id} failed to generate.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"⚠️ Video {finalStatus.Id} has status: {finalStatus.Status}", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Could not retrieve final video status.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unexpected error: {ex.Message}", "Exception", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
+        private void btnOpenVReference_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select a reference image",
+                Filter = "Image Files (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png",
+                CheckFileExists = true
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                _videoReferencePath = dlg.FileName;
+
+                // Display preview in the Image control
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(_videoReferencePath);
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+
+                imgVideo.Source = bitmap;
+            }
+        }
+        private async void InitVideoList()
+        {
+            try
+            {
+                var listResponse = await _videoClient.GetAllVideosAsync();
+                if (listResponse?.Data != null)
+                {
+                    _videoHistory = listResponse.Data;  // Populate our local list
+                    lstVideoFiles.ItemsSource = _videoHistory;
+                    lstVideoFiles.DisplayMemberPath = "Id";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load video list:\n{ex.Message}",
+                                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void btnDownloadVideo_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            {
+                MessageBox.Show("Please select a video to download.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string videoId = selectedVideo.Id;
+
+            // Create progress window
+            var progressWindow = new ProgressWindow("Downloading video...");
+            progressWindow.Owner = this;
+            progressWindow.Show();
+
+            var progress = new Progress<double>(value =>
+            {
+                progressWindow.UpdateProgress(value);
+            });
+
+            bool success = await _videoClient.DownloadVideoAsync(videoId, progress);
+
+            progressWindow.Close();
+
+            if (success)
+                MessageBox.Show($"Video {videoId} downloaded successfully.", "Download Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            else
+                MessageBox.Show($"Failed to download video {videoId}.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        private async void btnDeleteVideo_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            {
+                MessageBox.Show("Please select a video to delete.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Are you sure you want to delete video {selectedVideo.Id}?",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (confirm != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                await _videoClient.DeleteVideoAsync(selectedVideo.Id);
+
+                // Remove it from the UI list
+                var videos = lstVideoFiles.ItemsSource as List<VideoListItem>;
+                if (videos != null)
+                {
+                    videos.Remove(selectedVideo);
+                    lstVideoFiles.ItemsSource = null;
+                    lstVideoFiles.ItemsSource = videos;
+                }
+
+                MessageBox.Show("Video deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to delete video:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void btnGetStatus_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            {
+                MessageBox.Show("Please select a video first.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                var status = await _videoClient.GetVideoStatusAsync(selectedVideo.Id);
+
+                // Show JSON string in your response TextBox (or format nicely)
+                txtVideoResponse.Text = JsonSerializer.Serialize(status, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+
+                // Optional: update your local _videoHistory so progress/status is current
+                selectedVideo.Status = status.Status;
+                selectedVideo.Progress = status.Progress;
+
+                // Refresh ListBox to reflect any changes
+                lstVideoFiles.ItemsSource = null;
+                lstVideoFiles.ItemsSource = _videoHistory;
+                lstVideoFiles.DisplayMemberPath = "Id";
+            }
+            catch (Exception ex)
+            {
+                txtVideoResponse.Text = $"Error fetching video status:\n{ex.Message}";
+            }
+        }
+
+        private void btmRemoveImage_Click(object sender, RoutedEventArgs e)
+        {
+            // Clear the reference file path
+            _videoReferencePath = string.Empty;
+            _videoClient.ReferenceFilePath = string.Empty; // if your VideoClient uses this
+
+            // Reset the preview image
+            imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
+        }
+        private void btnPlayVideo_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            {
+                MessageBox.Show("Please select a video first.", "No Selection",
+                                MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string videosDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            string localFilePath = Path.Combine(videosDir, $"{selectedVideo.Id}.mp4");
+
+            if (!File.Exists(localFilePath))
+            {
+                MessageBox.Show("Video not found locally. Please download it first.", "Missing File",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Open preview window
+            var previewWindow = new VideoPreviewWindow(localFilePath);
+            previewWindow.ShowDialog();
+        }
     }
 }
+
+
+

@@ -10,7 +10,7 @@
         <c:requestGPT />
     </Window.DataContext>
     <Window.Resources>
-        <ObjectDataProvider x:Key="rxGPT" ObjectType="{x:Type c:requestGPT}" /> 
+        <ObjectDataProvider x:Key="rxGPT" ObjectType="{x:Type c:requestGPT}" />
 
         <!-- All text-boxes taking requests have this style -->
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
@@ -167,7 +167,8 @@
                             <Label Content="User" />
                             <TextBox x:Name="tbName" Text="{Binding XPath=user,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="tbName_LostFocus" />
                             <Label Content="Models" />
-                            <ComboBox x:Name="cmbAvailableModels" IsEditable="False" SelectionChanged="cmbAvailableModels_SelectionChanged" Initialized="cmbAvailableModels_Initialized" /> <!-- When initialized, get models -->
+                            <ComboBox x:Name="cmbAvailableModels" IsEditable="False" SelectionChanged="cmbAvailableModels_SelectionChanged" Initialized="cmbAvailableModels_Initialized" />
+                            <!-- When initialized, get models -->
                         </StackPanel>
                     </GroupBox>
 
@@ -212,7 +213,7 @@
 
             </TabItem>
             <!-- DALL-E stuff tab -->
-            <TabItem Header="DALL-E"  Name="tpDalle">
+            <TabItem Header="Img-Creation" Name="tpGPT_IMG">
                 <Grid x:Name="gridDalle" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="cdDalleReqRes" Width="1.5*"/>
@@ -240,11 +241,11 @@
                             <ComboBox x:Name="cmNumberOfImages" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmNumberOfImages_SelectionChanged"/>
                             <Label Margin="2,10,2,0">Image Size</Label>
                             <ComboBox x:Name="cmSize" Margin="0,0,0,0"  IsEnabled="True" SelectionChanged="cmSize_SelectionChanged"/>
-                            
+
                             <Label Margin="2,10,2,0">Image Quality</Label>
                             <ComboBox x:Name="cmImageQuality" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmImageQuality_SelectionChanged"/>
-                            
-                            
+
+
                             <Label Margin="2,10,2,0">Image Variations</Label>
                             <CheckBox x:Name="cbImageVariations" Checked="cbImageVariations_Checked" IsChecked="False" Unchecked="cbImageVariations_Unchecked"/>
                             <Button x:Name="btnOpenImage" Content="Choose Image" IsEnabled="False" Click="btnOpenImage_Click"/>
@@ -275,14 +276,14 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical">
-                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPrompt" />
-                        <Button Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
-                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperResponse" />
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical" Grid.ColumnSpan="1" >
+                        <Label Grid.Row="0" Grid.Column="0">OpenAi response</Label>
+                        <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPrompt" />
+                        <Button  Grid.Column="0" Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
+                        <Label Grid.Row="3" Grid.Column="0">OpenAi response</Label>
+                        <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperResponse" />
                     </StackPanel>
-                    <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
+                    <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
                         <StackPanel x:Name="spWhisper" Orientation="Vertical" Margin="5">
                             <Label Content="Speach to text" />
                             <ComboBox x:Name="cmbSpeachToText" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbSpeachToText_SelectionChanged">
@@ -298,11 +299,67 @@
                                 <ComboBoxItem Content="nb - Norwegian" />
                                 <ComboBoxItem Content="tl - Tagalog" />
                             </ComboBox>
-                            
+
                         </StackPanel>
-                        
+
                     </GroupBox>
-                    
+
+                </Grid>
+            </TabItem>
+            <TabItem Header="Video"  Name="tpVideo">
+                <Grid x:Name="gridVideo" VerticalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="cdVideoReqRes" Width="1.5*"/>
+                        <ColumnDefinition x:Name="cdVideoOptions" Width="0.5*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spVideoInput" Orientation="Vertical" Grid.ColumnSpan="1">
+                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
+                        <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtVideoPrompt" />
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoSendRequest_Click"/>
+                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtVideoResponse" />
+                        <MediaElement x:Name="mediaVideo" Margin="0,5,0,0" Height="200" LoadedBehavior="Manual" UnloadedBehavior="Stop"/>
+                    </StackPanel>
+                    <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
+                        <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
+                            <Label Content="Model" />
+                            <ComboBox x:Name="cmbVideoModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbModelChanged">
+                                <ComboBoxItem IsSelected="True" Content="sora-2" />
+                                <ComboBoxItem Content="sora-2-pro" />
+                            </ComboBox>
+                            <Label Content="Video Length" />
+                            <ComboBox x:Name="cmbVideoLength" SelectionChanged="cmbVideoLengthChanged">
+                                <ComboBoxItem IsSelected="True" Content="4" />
+                                <ComboBoxItem Content="8" />
+                                <ComboBoxItem Content="12" />
+                            </ComboBox>
+                            <Label Content="Video Size" />
+                            <ComboBox x:Name="cmbVideoSize" SelectionChanged="cmbVideoSizeChanged">
+                                <ComboBoxItem IsSelected="True" Content="720x1280" />
+                                <ComboBoxItem Content="1280x720" />
+                                <ComboBoxItem Content="1024x1792" />
+                                <ComboBoxItem Content="1792x1024" />
+                            </ComboBox>
+                            <Label Content="Input Reference - select an image" />
+                            <Button x:Name="btnOpenVReference" Content="Choose Image" IsEnabled="True" Click="btnOpenVReference_Click"/>
+                            <Image x:Name="imgVideo" Margin="0,5,0,0" Source="/no_pic.png" />
+                            <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
+                            <ListBox x:Name="lstVideoFiles" Margin="0,10,0,0" Height="100"/>
+                            <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
+                            <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Click="btnDeleteVideo_Click" />
+                            <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
+                            <Button x:Name="btnPlayVideo" Content="Play Selected Video" IsEnabled="True" Click="btnPlayVideo_Click" />
+                        </StackPanel>
+
+                    </GroupBox>
+
                 </Grid>
             </TabItem>
         </TabControl>

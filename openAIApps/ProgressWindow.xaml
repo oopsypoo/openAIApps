@@ -1,0 +1,42 @@
+﻿<Window x:Class="openAIApps.ProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Progress"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        Width="320"
+        Height="150"
+        Background="#1E1E1E"
+        Foreground="White"
+        AllowsTransparency="True"
+        ShowInTaskbar="False"
+        Topmost="True">
+
+    <Border CornerRadius="12" Background="#2A2A2A" Padding="20">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock x:Name="txtTitle"
+                       Text="Processing..."
+                       FontSize="16"
+                       FontWeight="Bold"
+                       Margin="0,0,0,10"
+                       TextAlignment="Center"/>
+            <ProgressBar x:Name="pbProgress"
+                         Width="240"
+                         Height="20"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="0"/>
+            <TextBlock x:Name="txtProgress"
+                       Margin="0,5,0,0"
+                       FontSize="14"
+                       TextAlignment="Center"
+                       Text="0%"/>
+            <Button Content="Cancel"
+                        Margin="0,0,0,0"
+                        Width="100"
+                        Height="25"
+                        Click="Cancel_Click"/>
+        </StackPanel>
+    </Border>
+</Window>

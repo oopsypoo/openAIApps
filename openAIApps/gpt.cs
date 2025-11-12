@@ -149,6 +149,9 @@ namespace gpt
             ///model = "gpt-3.5-turbo-0613";
             //model = "gpt-3.5-turbo-16k";
             model = "gpt-4o";
+            //model = "gpt-4o-mini";
+            //model = "o1-preview";
+            //model = "o1-mini";
             //model = "gpt-4-1106-preview";
             //model = "gpt-4-0314";
             //model = "gpt-4-32k";
