@@ -28,7 +28,9 @@ public class Dalle
     public const string url_image_generations = "https://api.openai.com/v1/images/generations";
     public const string url_image_edit = "https://api.openai.com/v1/images/edits";
     public const string url_image_variations = "https://api.openai.com/v1/images/variations";
-    const string savepath_pics = "D:\\Users\\frode\\Documents\\openapi\\pics\\";
+    string appRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi");
+
+    private static string savepath_pics;
     public static OptionsImage optImages = new OptionsImage();
     public static requestImage rxImages = new requestImage();
     public static requestImageVariation rxImagesVariation = new requestImageVariation();
@@ -37,6 +39,18 @@ public class Dalle
     public static TempWindow[] temp;
     public static SaveThisImage[] saveButton;
     
+    private void EnsureAppDirectories()
+    {
+        if (!Directory.Exists(appRoot))
+        {
+            Directory.CreateDirectory(appRoot);
+        }
+        savepath_pics = Path.Combine(appRoot, "pics");
+        if (!Directory.Exists(savepath_pics))
+        {
+            Directory.CreateDirectory(savepath_pics);
+        }
+    }
     /// <summary>
     /// options for the image request. User can set this(in practice it will be constant)
     /// </summary>
@@ -104,7 +118,7 @@ public class Dalle
         {
             //set default model
             //model = "dall-e-3";
-            model = "gpt-image-1";
+            model = "gpt-image-1.5";
             //two qualitities: standard and hd.
             quality = optImages.Quality;
             //set format
@@ -131,7 +145,13 @@ public class Dalle
             }
         }
     }
-    public static string GetImageFileName()
+
+    public static string GetSavepath_pics()
+    {
+        return savepath_pics;
+    }
+
+    public static string GetImageFileName(string savepath_pics)
     {
         OpenFileDialog ofd = new OpenFileDialog();
         ofd.Filter = "Image Files(*.jpg; *.jpeg; *.gif; *.bmp; *.png)|*.jpg; *.jpeg; *.gif; *.bmp; *.png";
@@ -391,5 +411,8 @@ public class Dalle
             saveButton[i].IsEnabled = true;
         }
     }
-    
+    public Dalle()
+    {
+        EnsureAppDirectories();
+    }
 }
