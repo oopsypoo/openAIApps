@@ -48,17 +48,20 @@ namespace openAIApps
         const string url_chat_completions = "https://api.openai.com/v1/chat/completions";
 
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        
+
         /// <summary>
         /// make these paths more general-purpose in the future
         /// </summary>
         //all logs are stored here
-        const string savepath_logs = "D:\\Users\\frode\\Documents\\openapi\\logs\\";
-        const string savepath_snds = "D:\\Users\\frode\\Documents\\openapi\\snds\\";
+        private string appRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi");
+        private string savepath_logs;
+        private string savepath_snds;
+        //const string savepath_logs = "C:\\Users\\wwsac\\Documents\\openapi\\logs\\";
+        //const string savepath_snds = "C:\\Users\\wwsac\\Documents\\openapi\\snds\\";
         //filename containing options to openapi
         const string options_file = "options.json";
-        readonly string logfile = savepath_logs + "logfile" + ".txt";
-
+        //readonly string logfile = savepath_logs + "logfile" + ".txt";
+        private string logfile;
         public static requestGPT rxGPT = new requestGPT();
         public static responseGPT responseGPT = new responseGPT();
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
@@ -66,6 +69,15 @@ namespace openAIApps
         private List<VideoListItem> _videoHistory = new();
         private string _videoReferencePath = string.Empty;
 
+        private void EnsureSavePaths()
+        {
+            savepath_logs = Path.Combine(appRoot, "logs");
+            savepath_snds = Path.Combine(appRoot, "snds");
+            Directory.CreateDirectory(savepath_logs);
+            Directory.CreateDirectory(savepath_snds);
+            logfile = Path.Combine(savepath_logs, "logfile.txt");
+        }
+        
         /// <summary>
         /// not sure if this is the best solution. Using namespace and reorganizing data is the thing. But this will work.
         /// </summary>
@@ -97,6 +109,7 @@ namespace openAIApps
        
         public void InitControls()
         {//set standard/default values to image controls
+            EnsureSavePaths();
             foreach (var p in Dalle.optImages.optImages)
                 cmNumberOfImages.Items.Add(p);
             cmNumberOfImages.SelectedItem = Dalle.optImages.noImages;
@@ -407,7 +420,7 @@ namespace openAIApps
         }
         private void btnOpenImage_Click(object sender, RoutedEventArgs e)
         {
-            string temp = Dalle.GetImageFileName();
+            string temp = Dalle.GetImageFileName(Dalle.GetSavepath_pics());
             if (string.IsNullOrEmpty(temp))
             { 
                 MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK,MessageBoxImage.Error);
@@ -437,7 +450,7 @@ namespace openAIApps
 
         private void btnMaskImage_Click(object sender, RoutedEventArgs e)
         {
-            string fullpath = Dalle.GetImageFileName();
+            string fullpath = Dalle.GetImageFileName(Dalle.GetSavepath_pics());
             if (string.IsNullOrEmpty(fullpath))
             {
                 MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -1065,6 +1078,8 @@ namespace openAIApps
         }
     }
 }
+
+
 
 
 

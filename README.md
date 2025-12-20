@@ -1,4 +1,11 @@
 # openAIApps
+**2025-11-12 1745** Added Video
+ - Haven't worked on this project for a while so I made use of OpenAi. Very efficient...
+ - Videocreation tool by OpenAI. Using the basic calls, ++ reference image. I does the job
+ - Did not implement the remix-module. Maybe later
+ - Dalle-E is not really Dall-E anymore since I hardcoded in the model-name (gpt-image-1). There are restrictions, but there are restrictions on every image-model (they are different)
+ - 
+   
 **2024-05-20 1651** Added Vision
  - Added OpenAI Vision using Azure OpenAI API
  - Reason for this was that I had problems-/or it was confusing using JSON-format/structure. Couldn't make it work, so I shifted to Nuget->Azure.AI.OpenAI v1.0.0-beta.17

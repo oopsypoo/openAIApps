@@ -362,6 +362,40 @@
 
                 </Grid>
             </TabItem>
+            <TabItem Header="Responses"  Name="tpResponses">
+                <Grid x:Name="gridResponses" VerticalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="cdResponsesReqRes" Width="1.5*"/>
+                        <ColumnDefinition x:Name="cdResponsesOptions" Width="0.5*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spResponsesInput" Orientation="Vertical" Grid.ColumnSpan="1">
+                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
+                        <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtResponsesPrompt" />
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnResponsesSendRequest" Click="btnResponsesSendRequest_Click"/>
+                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtResponsesResponse" />
+                    </StackPanel>
+                    <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
+                        <StackPanel x:Name="spResponses" Orientation="Vertical" Margin="5">
+                            <Label Content="Model" />
+                            <ComboBox x:Name="cmbResponsesModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbResponsesModel_SelectionChanged">
+                                <ComboBoxItem IsSelected="True" Content="computer-use-preview" />
+                                <ComboBoxItem IsSelected="False" Content="gpt-4o" />
+                            </ComboBox>
+                            <ComboBox x:Name="cmbModelsAvailable" IsEditable="False" IsReadOnly="True" />
+                        </StackPanel>
+
+                    </GroupBox>
+
+                </Grid>
+            </TabItem>
         </TabControl>
 
     </DockPanel>
