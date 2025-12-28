@@ -8,12 +8,16 @@ using System.Collections.Generic;
 
 namespace openAIApps
 {
-    internal class Responses : IDisposable
+    public class Responses : IDisposable
     {
         private readonly HttpClient _httpClient;
         private const string ResponsesEndpoint = "https://api.openai.com/v1/responses";
-        
-       
+        // Add these properties to the Responses class (public for UI binding)
+        public string CurrentReasoning { get; set; } = "none"; // default
+
+        // Current configuration - updated by UI
+        public string CurrentModel { get; set; } = "gpt-4o";
+        public string CurrentTool { get; set; } = "text"; // default to plain text
 
         public Responses(string apiKey)
         {
@@ -21,25 +25,9 @@ namespace openAIApps
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
         }
 
-        public async Task<string> GetResponseAsync(string prompt, string model = "computer-use-preview")
+        public async Task<string> GetResponseAsync(string prompt)
         {
-            // Build the request
-            var request = new ResponsesRequest
-            {
-                Model = model,
-                Input = prompt,
-                Truncation = "auto",
-                Tools = new[]
-                {
-                    new ComputerUseTool
-                    {
-                        DisplayWidth = 3440,
-                        DisplayHeight = 1440,
-                        Environment = "windows"
-                    }
-                }
-            };
-
+            var request = BuildRequest(prompt);
             var options = new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -56,9 +44,61 @@ namespace openAIApps
             if (!response.IsSuccessStatusCode)
                 return $"Error {response.StatusCode}: {responseString}";
 
-            // Parse the response
             var result = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
+            return ParseResponse(result);
+        }
 
+        private ResponsesRequest BuildRequest(string prompt)
+        {
+            var request = new ResponsesRequest
+            {
+                Model = CurrentModel,
+                Input = prompt,
+                Truncation = "auto"
+            };
+
+            // Add tools based on selected tool
+            request.Tools = GetToolsForCurrentSelection();
+            // Add reasoning config (gpt-5/o-series only)
+            if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
+            {
+                request.Reasoning = new ReasoningConfig
+                {
+                    Effort = CurrentReasoning
+                };
+            }
+
+            return request;
+        }
+
+        private Tool[] GetToolsForCurrentSelection()
+        {
+            return CurrentTool switch
+            {
+                "text" => Array.Empty<Tool>(), // No tools, plain text
+                "web_search" => new[]
+                {
+                    new WebSearchTool()
+                },
+                "reasoning" => new[]
+                {
+                    new ReasoningTool()
+                },
+                "computer_use" => new[]
+                {
+                    new ComputerUseTool
+                    {
+                        DisplayWidth = 3440,
+                        DisplayHeight = 1440,
+                        Environment = "windows"
+                    }
+                },
+                _ => Array.Empty<Tool>()
+            };
+        }
+
+        private string ParseResponse(ResponsesResponse result)
+        {
             var sb = new StringBuilder();
 
             if (result?.Output != null)
@@ -67,55 +107,92 @@ namespace openAIApps
                 {
                     foreach (var contentItem in output.Content ?? new List<ContentItem>())
                     {
-                        if (contentItem.Type == "output_text" && !string.IsNullOrEmpty(contentItem.Text))
+                        switch (contentItem.Type)
                         {
-                            sb.AppendLine($"🧠 Text: {contentItem.Text}");
+                            case "output_text":
+                                if (!string.IsNullOrEmpty(contentItem.Text))
+                                    sb.AppendLine($"🧠 {contentItem.Text}");
+                                break;
 
-                            // Simple simulation for possible computer-use instructions
-                            if (contentItem.Text.Contains("open", StringComparison.OrdinalIgnoreCase) &&
-                                contentItem.Text.Contains("notepad", StringComparison.OrdinalIgnoreCase))
-                            {
-                                sb.AppendLine("💻 [Simulated Action] Would open Notepad.");
-                            }
-                            if (contentItem.Text.Contains("create", StringComparison.OrdinalIgnoreCase) &&
-                                contentItem.Text.Contains(".txt", StringComparison.OrdinalIgnoreCase))
-                            {
-                                sb.AppendLine("💻 [Simulated Action] Would create a text file.");
-                            }
-                        }
-                        else if (contentItem.Type == "tool_use")
-                        {
-                            sb.AppendLine($"🛠️ Tool call: {contentItem.ToolName}");
-                            sb.AppendLine($"   Input: {contentItem.ToolInput}");
+                            case "tool_use":
+                                sb.AppendLine($"🛠️ Tool: {contentItem.ToolName ?? "unknown"}");
+                                if (contentItem.ToolInput != null)
+                                {
+                                    sb.AppendLine($"   Input: {contentItem.ToolInput}");
+                                    // Simulate tool execution
+                                    sb.AppendLine($"   [Simulated: {SimulateTool(contentItem.ToolName, contentItem.ToolInput ?? default)}]");
+                                }
+                                break;
                         }
                     }
                 }
             }
 
-            return sb.Length > 0 ? sb.ToString() : responseString;
+            return sb.Length > 0 ? sb.ToString() : "No response content";
+        }
+
+        private string SimulateTool(string toolName, JsonElement toolInput)
+        {
+            string inputText = toolInput.ValueKind == JsonValueKind.Undefined ||
+                       toolInput.ValueKind == JsonValueKind.Null
+            ? "no input"
+            : toolInput.GetRawText();
+
+                return toolName switch
+                {
+                    "web_search" => $"Web search would execute: {inputText}",
+                    "reasoning" => $"Reasoning step executed with input: {inputText}",
+                    "computer_use_preview" => "Computer use action simulated (requires access)",
+                    _ => $"Tool execution simulated: {inputText}"
+                };
         }
 
         public void Dispose()
         {
-            _httpClient.Dispose();
+            _httpClient?.Dispose();
         }
 
-        // ---------- Inner DTOs ----------
-        private class ComputerUseTool
+        // ---------- Tool Definitions ----------
+        private abstract class Tool
         {
             [JsonPropertyName("type")]
-            public string Type { get; set; } = "computer_use_preview";
-
-            [JsonPropertyName("display_width")]
-            public int DisplayWidth { get; set; }
-
-            [JsonPropertyName("display_height")]
-            public int DisplayHeight { get; set; }
-
-            [JsonPropertyName("environment")]
-            public string Environment { get; set; }
+            public string Type { get; set; }
         }
 
+        private class WebSearchTool : Tool
+        {
+            public WebSearchTool()
+            {
+                Type = "web_search";
+            }
+        }
+
+        private class ReasoningTool : Tool
+        {
+            public ReasoningTool()
+            {
+                Type = "reasoning";
+            }
+        }
+
+        private class ComputerUseTool : Tool
+        {
+            public ComputerUseTool()
+            {
+                Type = "computer_use_preview";
+            }
+
+            [JsonPropertyName("display_width")]
+            public int DisplayWidth { get; set; } = 3440;
+
+            [JsonPropertyName("display_height")]
+            public int DisplayHeight { get; set; } = 1440;
+
+            [JsonPropertyName("environment")]
+            public string Environment { get; set; } = "windows";
+        }
+
+        // ---------- DTOs ----------
         private class ResponsesRequest
         {
             [JsonPropertyName("model")]
@@ -128,7 +205,10 @@ namespace openAIApps
             public string Truncation { get; set; } = "auto";
 
             [JsonPropertyName("tools")]
-            public ComputerUseTool[] Tools { get; set; }
+            public Tool[] Tools { get; set; }
+            
+            [JsonPropertyName("reasoning")]
+            public ReasoningConfig Reasoning { get; set; }
         }
 
         private class ResponsesResponse
@@ -146,7 +226,7 @@ namespace openAIApps
         private class ContentItem
         {
             [JsonPropertyName("type")]
-            public string? Type { get; set; }  // "output_text" or "tool_use"
+            public string? Type { get; set; }
 
             [JsonPropertyName("text")]
             public string? Text { get; set; }
@@ -156,6 +236,11 @@ namespace openAIApps
 
             [JsonPropertyName("tool_input")]
             public JsonElement? ToolInput { get; set; }
+        }
+        private class ReasoningConfig
+        {
+            [JsonPropertyName("effort")]
+            public string Effort { get; set; }
         }
     }
 }

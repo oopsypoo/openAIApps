@@ -376,7 +376,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spResponsesInput" Orientation="Vertical" Grid.ColumnSpan="1">
-                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
+                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Responses prompt</Label>
                         <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtResponsesPrompt" />
                         <Button Style="{StaticResource SendRequest}" x:Name="btnResponsesSendRequest" Click="btnResponsesSendRequest_Click"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
@@ -385,11 +385,18 @@
                     <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spResponses" Orientation="Vertical" Margin="5">
                             <Label Content="Model" />
-                            <ComboBox x:Name="cmbResponsesModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbResponsesModel_SelectionChanged">
-                                <ComboBoxItem IsSelected="True" Content="computer-use-preview" />
-                                <ComboBoxItem IsSelected="False" Content="gpt-4o" />
+                            <ComboBox x:Name="cmbResponsesModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbResponsesModel_SelectionChanged" />
+                            <Label Content="Reasoning" Margin="0,10,0,0"/>
+                            <ComboBox x:Name="cmbReasoning" IsEditable="False" SelectionChanged="cmbReasoning_SelectionChanged">
+                                <ComboBoxItem Content="none" IsSelected="True" Tag="none"/>
+                                <ComboBoxItem Content="minimal" Tag="minimal"/>
+                                <ComboBoxItem Content="low" Tag="low"/>
+                                <ComboBoxItem Content="medium" Tag="medium"/>
+                                <ComboBoxItem Content="high" Tag="high"/>
+                                <ComboBoxItem Content="xhigh" Tag="xhigh"/>
                             </ComboBox>
-                            <ComboBox x:Name="cmbModelsAvailable" IsEditable="False" IsReadOnly="True" />
+                            <Label Content="Available Tools" />
+                            <ComboBox x:Name="cmbToolsAvailable" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbToolsAvailable_SelectionChanged"/>
                         </StackPanel>
 
                     </GroupBox>

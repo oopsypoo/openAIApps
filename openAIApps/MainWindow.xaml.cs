@@ -68,6 +68,9 @@ namespace openAIApps
         private VideoClient _videoClient;
         private List<VideoListItem> _videoHistory = new();
         private string _videoReferencePath = string.Empty;
+        // near other fields
+        private Responses _responsesClient;
+
 
         private void EnsureSavePaths()
         {
@@ -95,12 +98,72 @@ namespace openAIApps
                 sw.WriteLine(logEntry);
             }
         }
+        // In InitControls(), after creating _responsesClient:
+        private void InitResponsesControls()
+        {
+            _responsesClient = new Responses(OpenAPIKey);
+
+            // Frontier GPT-5 family (reasoning-enabled)
+            cmbResponsesModel.Items.Clear();
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5.2", Tag = "gpt-5.2" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5.2-pro", Tag = "gpt-5.2-pro" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5.1", Tag = "gpt-5.1" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5-pro", Tag = "gpt-5-pro" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5-mini", Tag = "gpt-5-mini" });
+
+            // GPT-4.1 family (non-reasoning)
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4.1", Tag = "gpt-4.1" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4.1-mini", Tag = "gpt-4.1-mini" });
+
+            // GPT-4o series
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4o", Tag = "gpt-4o", IsSelected = true });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4o-mini", Tag = "gpt-4o-mini" });
+
+            // Dedicated reasoning models (o-series)
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o3", Tag = "o3" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o3-pro", Tag = "o3-pro" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o3-mini", Tag = "o3-mini" });
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o4-mini", Tag = "o4-mini" });
+
+            // Specialized / preview
+            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "computer-use-preview", Tag = "computer-use-preview" });
+
+            cmbResponsesModel.SelectedIndex = 6; // gpt-4o (safe default)
+            _responsesClient.CurrentModel = "gpt-4o";
+
+            // Tools (unchanged)
+            cmbToolsAvailable.Items.Clear();
+            cmbToolsAvailable.Items.Add(new ComboBoxItem { Content = "text", Tag = "text" });
+            cmbToolsAvailable.Items.Add(new ComboBoxItem { Content = "web_search", Tag = "web_search" });
+            cmbToolsAvailable.Items.Add(new ComboBoxItem { Content = "computer_use", Tag = "computer_use" });
+            cmbToolsAvailable.SelectedIndex = 0;
+            _responsesClient.CurrentTool = "text";
+
+            // Reasoning levels (per docs)
+            cmbReasoning.Items.Clear();
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "none", Tag = "none" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "minimal", Tag = "minimal" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "low", Tag = "low" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "medium", Tag = "medium" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "high", Tag = "high" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "xhigh", Tag = "xhigh" });
+            cmbReasoning.SelectedIndex = 0;
+            _responsesClient.CurrentReasoning = "none";
+        }
+
+
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            InitResponsesControls(); // Move ALL combo population here
+            MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+        }
         public MainWindow()
         {
             InitializeComponent();
             InitControls();
-            Loaded += (sender, e) => MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
-            
+            Loaded += MainWindow_Loaded;
+
         }
         public static requestGPT RxGPT
         {
@@ -134,7 +197,7 @@ namespace openAIApps
             }
             _videoClient = new VideoClient(apiKey: OpenAPIKey);
             InitVideoList();
-
+            
 #endif
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
@@ -1076,6 +1139,81 @@ namespace openAIApps
             var previewWindow = new VideoPreviewWindow(localFilePath);
             previewWindow.ShowDialog();
         }
+
+       
+        private void cmbToolsAvailable_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbToolsAvailable.SelectedItem is ComboBoxItem selected)
+            {
+                _responsesClient.CurrentTool = selected.Tag.ToString();
+            }
+        }
+
+        // Your existing btnResponsesSendRequest_Click stays the same, just simpler:
+        private async void btnResponsesSendRequest_Click(object sender, RoutedEventArgs e)
+        {
+            if (_responsesClient == null)
+            {
+                MessageBox.Show("Responses client not initialized.", "Error");
+                return;
+            }
+
+            this.IsEnabled = false;
+            txtResponsesResponse.Text = string.Empty;
+
+            try
+            {
+                string result = await _responsesClient.GetResponseAsync(txtResponsesPrompt.Text);
+                txtResponsesResponse.Text = result;
+            }
+            catch (Exception ex)
+            {
+                txtResponsesResponse.Text = $"Error: {ex.Message}";
+            }
+            finally
+            {
+                this.IsEnabled = true;
+            }
+        }
+        private void cmbResponsesModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbResponsesModel.SelectedItem is ComboBoxItem selected)
+            {
+                string model = selected.Tag.ToString();
+                _responsesClient.CurrentModel = model;
+
+                // Model-specific reasoning warnings
+                string reasoning = _responsesClient.CurrentReasoning;
+                bool supportsReasoning = model.StartsWith("gpt-5") ||
+                                        model.StartsWith("o") ||
+                                        model == "gpt-5-pro";
+
+                if (!supportsReasoning && reasoning != "none")
+                {
+                    MessageBox.Show(
+                        $"⚠️ '{model}' may ignore reasoning.effort='{reasoning}'. " +
+                        "Use GPT-5/o-series models for reasoning controls.",
+                        "Model Compatibility",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    // Auto-reset to safe default
+                    cmbReasoning.SelectedIndex = 0;
+                    _responsesClient.CurrentReasoning = "none";
+                }
+                else if (model == "gpt-5-pro" && reasoning != "high")
+                {
+                    MessageBox.Show(
+                        "gpt-5-pro only supports 'high' reasoning. Auto-setting.",
+                        "Model Note",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    cmbReasoning.SelectedIndex = 4; // high
+                    _responsesClient.CurrentReasoning = "high";
+                }
+            }
+        }
+
     }
 }
 
