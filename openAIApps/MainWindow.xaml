@@ -397,7 +397,11 @@
                             </ComboBox>
                             <Label Content="Available Tools" />
                             <ComboBox x:Name="cmbToolsAvailable" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbToolsAvailable_SelectionChanged"/>
+                            
+                            <Button x:Name="btnResponsesNewChat" Content="New Conversation" Click="btnResponsesNewChat_Click" Margin="0,0,5,0"/>
+                            <Button x:Name="btnResponsesDeleteChat" Content="Delete Conversation" Click="btnResponsesDeleteChat_Click"/>
                         </StackPanel>
+
 
                     </GroupBox>
 

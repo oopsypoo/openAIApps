@@ -18,6 +18,9 @@ namespace openAIApps
         // Current configuration - updated by UI
         public string CurrentModel { get; set; } = "gpt-4o";
         public string CurrentTool { get; set; } = "text"; // default to plain text
+                                                          // NEW: conversation tracking
+        public string LastResponseId { get; private set; } = null;
+        public bool ConversationActive => !string.IsNullOrEmpty(LastResponseId);
 
         public Responses(string apiKey)
         {
@@ -45,6 +48,10 @@ namespace openAIApps
                 return $"Error {response.StatusCode}: {responseString}";
 
             var result = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
+            
+            // NEW: remember conversation id
+            if (!string.IsNullOrEmpty(result?.Id))
+                LastResponseId = result.Id;
             return ParseResponse(result);
         }
 
@@ -54,18 +61,15 @@ namespace openAIApps
             {
                 Model = CurrentModel,
                 Input = prompt,
-                Truncation = "auto"
+                Truncation = "auto",
+                Tools = GetToolsForCurrentSelection(),
+                Store = true,                             // keep responses on server
+                PreviousResponseId = LastResponseId       // link to last turn if any
             };
 
-            // Add tools based on selected tool
-            request.Tools = GetToolsForCurrentSelection();
-            // Add reasoning config (gpt-5/o-series only)
             if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
             {
-                request.Reasoning = new ReasoningConfig
-                {
-                    Effort = CurrentReasoning
-                };
+                request.Reasoning = new ReasoningConfig { Effort = CurrentReasoning };
             }
 
             return request;
@@ -151,6 +155,24 @@ namespace openAIApps
         {
             _httpClient?.Dispose();
         }
+        public void ClearConversation()
+        {
+            LastResponseId = null;
+        }
+
+        public async Task<bool> DeleteConversationAsync(string responseId)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Delete,
+                $"{ResponsesEndpoint}/{responseId}");
+
+            using var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+                return false;
+
+            var body = await response.Content.ReadAsStringAsync();
+            // API returns { "id": "...", "object": "response", "deleted": true }
+            return body.Contains("\"deleted\": true", StringComparison.OrdinalIgnoreCase);
+        }
 
         // ---------- Tool Definitions ----------
         private abstract class Tool
@@ -209,12 +231,23 @@ namespace openAIApps
             
             [JsonPropertyName("reasoning")]
             public ReasoningConfig Reasoning { get; set; }
+            [JsonPropertyName("store")]
+            public bool Store { get; set; } = true;
+
+            [JsonPropertyName("previous_response_id")]
+            public string PreviousResponseId { get; set; }
         }
 
         private class ResponsesResponse
         {
+            [JsonPropertyName("id")]
+            public string Id { get; set; }
+
             [JsonPropertyName("output")]
             public List<OutputItem>? Output { get; set; }
+
+            [JsonPropertyName("previous_response_id")]
+            public string PreviousResponseId { get; set; }
         }
 
         private class OutputItem

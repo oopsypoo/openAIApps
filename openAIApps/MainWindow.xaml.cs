@@ -1213,6 +1213,70 @@ namespace openAIApps
                 }
             }
         }
+        private void cmbReasoning_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_responsesClient == null)
+                return;
+
+            if (sender is ComboBox cmb && cmb.SelectedItem is ComboBoxItem selectedReasoning && selectedReasoning.Tag != null)
+            {
+                _responsesClient.CurrentReasoning = selectedReasoning.Tag.ToString();
+            }
+            // If nothing selected (during init), just keep current value
+        }
+
+        private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
+        {
+            // Just clear local state – server will eventually expire data
+            if (_responsesClient != null)
+            {
+                _responsesClient.ClearConversation();
+            }
+            txtResponsesPrompt.Clear();
+            txtResponsesResponse.Clear();
+        }
+
+        private async void btnResponsesDeleteChat_Click(object sender, RoutedEventArgs e)
+        {
+            if (_responsesClient == null || string.IsNullOrEmpty(_responsesClient.LastResponseId))
+            {
+                MessageBox.Show("No active conversation to delete.", "Info",
+                                MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string id = _responsesClient.LastResponseId;
+
+            var confirm = MessageBox.Show(
+                $"Delete stored conversation starting from response {id}?",
+                "Delete Conversation",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (confirm != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                bool ok = await _responsesClient.DeleteConversationAsync(id);
+                if (ok)
+                {
+                    MessageBox.Show("Conversation deleted on server.", "Deleted",
+                                    MessageBoxButton.OK, MessageBoxImage.Information);
+                    _responsesClient.ClearConversation();
+                }
+                else
+                {
+                    MessageBox.Show("Server did not confirm deletion.", "Warning",
+                                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error deleting conversation: {ex.Message}", "Error",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
     }
 }
