@@ -17,6 +17,7 @@ using System.Windows.Media.Imaging;
 //speechsynthesis.cs
 using TTS;
 using whisper;
+using static openAIApps.Responses;
 using static openAIApps.VideoClient;
 
 
@@ -132,12 +133,16 @@ namespace openAIApps
             _responsesClient.CurrentModel = "gpt-4o";
 
             // Tools (unchanged)
-            cmbToolsAvailable.Items.Clear();
-            cmbToolsAvailable.Items.Add(new ComboBoxItem { Content = "text", Tag = "text" });
-            cmbToolsAvailable.Items.Add(new ComboBoxItem { Content = "web_search", Tag = "web_search" });
-            cmbToolsAvailable.Items.Add(new ComboBoxItem { Content = "computer_use", Tag = "computer_use" });
-            cmbToolsAvailable.SelectedIndex = 0;
-            _responsesClient.CurrentTool = "text";
+            _responsesClient.ActiveTools.Clear();
+            _responsesClient.ActiveTools.Add("text");       // conceptual default
+            cbToolText.IsChecked = true;
+            cbToolWebSearch.IsChecked = false;
+            cbToolComputerUse.IsChecked = false;
+            _responsesClient.WebSearchContextSize = "medium";
+            cmbSearchContextSize.SelectedIndex = 1; // medium
+            cmbSearchContextSize.IsEnabled = false;
+
+
 
             // Reasoning levels (per docs)
             cmbReasoning.Items.Clear();
@@ -1140,13 +1145,53 @@ namespace openAIApps
             previewWindow.ShowDialog();
         }
 
-       
-        private void cmbToolsAvailable_SelectionChanged(object sender, SelectionChangedEventArgs e)
+
+        private void cbTool_Checked(object sender, RoutedEventArgs e)
         {
-            if (cmbToolsAvailable.SelectedItem is ComboBoxItem selected)
+            if (_responsesClient == null || sender is not CheckBox cb)
+                return;
+
+            string key = cb.Name switch
             {
-                _responsesClient.CurrentTool = selected.Tag.ToString();
+                "cbToolText" => "text",
+                "cbToolWebSearch" => "web_search",
+                "cbToolComputerUse" => "computer_use",
+                _ => null
+            };
+            
+            if (key == null)
+                return;
+
+            if (cb.IsChecked == true)
+            {
+                if (key == "text")
+                {
+                    // If "text" is checked, clear all other tools
+                    _responsesClient.ActiveTools.Clear();
+                    _responsesClient.ActiveTools.Add("text");
+                    cbToolWebSearch.IsChecked = false;
+                    cbToolComputerUse.IsChecked = false;
+                }
+                else
+                {
+                    // Turn off "text" if any real tools are enabled
+                    _responsesClient.ActiveTools.Remove("text");
+                    cbToolText.IsChecked = false;
+                    _responsesClient.ActiveTools.Add(key);
+                }
             }
+            else
+            {
+                _responsesClient.ActiveTools.Remove(key);
+
+                // If no tools left, fall back to "text"
+                if (_responsesClient.ActiveTools.Count == 0)
+                {
+                    _responsesClient.ActiveTools.Add("text");
+                    cbToolText.IsChecked = true;
+                }
+            }
+            cmbSearchContextSize.IsEnabled = cbToolWebSearch.IsChecked == true;
         }
 
         // Your existing btnResponsesSendRequest_Click stays the same, just simpler:
@@ -1157,13 +1202,23 @@ namespace openAIApps
                 MessageBox.Show("Responses client not initialized.", "Error");
                 return;
             }
-
+            string prompt = txtResponsesPrompt.Text;
             this.IsEnabled = false;
             txtResponsesResponse.Text = string.Empty;
 
             try
             {
                 string result = await _responsesClient.GetResponseAsync(txtResponsesPrompt.Text);
+                // Set user text on the last turn
+                _responsesClient.SetLastUserText(prompt);
+
+                // Refresh the ListBox binding
+                lstResponsesTurns.ItemsSource = null;
+                lstResponsesTurns.ItemsSource = _responsesClient.ConversationLog;
+
+                // Select the newest turn
+                if (_responsesClient.ConversationLog.Count > 0)
+                    lstResponsesTurns.SelectedIndex = _responsesClient.ConversationLog.Count - 1;
                 txtResponsesResponse.Text = result;
             }
             catch (Exception ex)
@@ -1225,30 +1280,27 @@ namespace openAIApps
             // If nothing selected (during init), just keep current value
         }
 
+        
         private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
         {
-            // Just clear local state – server will eventually expire data
-            if (_responsesClient != null)
-            {
-                _responsesClient.ClearConversation();
-            }
+            _responsesClient?.ClearConversation();
+            _responsesClient?.ConversationLog.Clear();
+
+            lstResponsesTurns.ItemsSource = null;
             txtResponsesPrompt.Clear();
             txtResponsesResponse.Clear();
         }
 
         private async void btnResponsesDeleteChat_Click(object sender, RoutedEventArgs e)
         {
-            if (_responsesClient == null || string.IsNullOrEmpty(_responsesClient.LastResponseId))
+            if (_responsesClient == null || !_responsesClient.ConversationActive)
             {
-                MessageBox.Show("No active conversation to delete.", "Info",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("No active conversation to delete.", "Info");
                 return;
             }
 
-            string id = _responsesClient.LastResponseId;
-
             var confirm = MessageBox.Show(
-                $"Delete stored conversation starting from response {id}?",
+                "Delete the current conversation on server and clear history?",
                 "Delete Conversation",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -1258,23 +1310,40 @@ namespace openAIApps
 
             try
             {
-                bool ok = await _responsesClient.DeleteConversationAsync(id);
+                bool ok = await _responsesClient.DeleteConversationAsync(_responsesClient.LastResponseId);
                 if (ok)
-                {
-                    MessageBox.Show("Conversation deleted on server.", "Deleted",
-                                    MessageBoxButton.OK, MessageBoxImage.Information);
-                    _responsesClient.ClearConversation();
-                }
-                else
-                {
-                    MessageBox.Show("Server did not confirm deletion.", "Warning",
-                                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
+                    MessageBox.Show("Conversation deleted.", "Deleted");
+
+                _responsesClient.ClearConversation();
+                _responsesClient.ConversationLog.Clear();
+                lstResponsesTurns.ItemsSource = null;
+                txtResponsesPrompt.Clear();
+                txtResponsesResponse.Clear();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error deleting conversation: {ex.Message}", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error deleting conversation: {ex.Message}", "Error");
+            }
+        }
+
+        
+        private void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstResponsesTurns.SelectedItem is ResponsesTurn turn)
+            {
+                txtResponsesPrompt.Text = turn.UserText ?? "";
+                txtResponsesResponse.Text = turn.AssistantText ?? "";
+            }
+        }
+        private void cmbSearchContextSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_responsesClient == null)
+                return;
+
+            if (cmbSearchContextSize.SelectedItem is ComboBoxItem selected &&
+                selected.Tag is string tag)
+            {
+                _responsesClient.WebSearchContextSize = tag; // "low", "medium", or "high"
             }
         }
 

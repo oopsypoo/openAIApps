@@ -21,6 +21,9 @@ namespace openAIApps
                                                           // NEW: conversation tracking
         public string LastResponseId { get; private set; } = null;
         public bool ConversationActive => !string.IsNullOrEmpty(LastResponseId);
+        public HashSet<string> ActiveTools { get; } = new();
+        public string WebSearchContextSize { get; set; } = "medium";
+
 
         public Responses(string apiKey)
         {
@@ -77,33 +80,30 @@ namespace openAIApps
 
         private Tool[] GetToolsForCurrentSelection()
         {
-            return CurrentTool switch
-            {
-                "text" => Array.Empty<Tool>(), // No tools, plain text
-                "web_search" => new[]
+            var tools = new List<Tool>();
+
+            // "text" means: no tools at all → leave list empty
+            if (ActiveTools.Contains("web_search"))
+                tools.Add(new WebSearchTool
                 {
-                    new WebSearchTool()
-                },
-                "reasoning" => new[]
+                    SearchContextSize = WebSearchContextSize
+                });
+
+            if (ActiveTools.Contains("computer_use"))
+                tools.Add(new ComputerUseTool
                 {
-                    new ReasoningTool()
-                },
-                "computer_use" => new[]
-                {
-                    new ComputerUseTool
-                    {
-                        DisplayWidth = 3440,
-                        DisplayHeight = 1440,
-                        Environment = "windows"
-                    }
-                },
-                _ => Array.Empty<Tool>()
-            };
+                    DisplayWidth = 3440,
+                    DisplayHeight = 1440,
+                    Environment = "windows"
+                });
+
+            return tools.ToArray();
         }
 
         private string ParseResponse(ResponsesResponse result)
         {
             var sb = new StringBuilder();
+            string assistantText = "";
 
             if (result?.Output != null)
             {
@@ -131,8 +131,20 @@ namespace openAIApps
                     }
                 }
             }
+            // Log the turn
+            assistantText = sb.ToString().TrimEnd();
+            
+            if (!string.IsNullOrEmpty(result?.Id))
+            {
+                ConversationLog.Add(new ResponsesTurn
+                {
+                    ResponseId = result.Id,
+                    // UserText will be injected from MainWindow (see below)
+                    AssistantText = assistantText
+                });
+            }
 
-            return sb.Length > 0 ? sb.ToString() : "No response content";
+            return assistantText.Length > 0 ? assistantText : "No response content";
         }
 
         private string SimulateTool(string toolName, JsonElement toolInput)
@@ -185,8 +197,10 @@ namespace openAIApps
         {
             public WebSearchTool()
             {
-                Type = "web_search";
+                Type = "web_search_preview";
             }
+            [JsonPropertyName("search_context_size")]
+            public string SearchContextSize { get; set; } = "low"; // optional: low/medium/high
         }
 
         private class ReasoningTool : Tool
@@ -275,5 +289,39 @@ namespace openAIApps
             [JsonPropertyName("effort")]
             public string Effort { get; set; }
         }
+        /// <summary>
+        /// Class for minimal log of turns (user + assistant text, plus response id)
+        /// </summary>
+        public class ResponsesTurn
+        {
+            public string ResponseId { get; set; }      // resp_...
+            public string UserText { get; set; }        // prompt you sent
+            public string AssistantText { get; set; }   // parsed output_text
+            public override string ToString()
+            {
+                if (!string.IsNullOrWhiteSpace(UserText))
+                {
+                    var trimmed = UserText.Trim();
+                    return trimmed.Length > 40 ? trimmed[..40] + "..." : trimmed;
+                }
+                return ResponseId; // fallback
+            }
+        }
+
+        public List<ResponsesTurn> ConversationLog { get; } = new();
+        /// <summary>
+        /// Sets the user text for the most recent entry in the conversation log.
+        /// </summary>
+        /// <remarks>If the conversation log contains no entries, this method does not modify
+        /// anything.</remarks>
+        /// <param name="userText">The text to associate with the last conversation entry. If the conversation log is empty, this parameter is
+        /// ignored.</param>
+        public void SetLastUserText(string userText)
+        {
+            if (ConversationLog.Count == 0) return;
+            ConversationLog[^1].UserText = userText;
+        }
+
+
     }
 }

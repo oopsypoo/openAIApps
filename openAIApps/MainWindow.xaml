@@ -396,9 +396,33 @@
                                 <ComboBoxItem Content="xhigh" Tag="xhigh"/>
                             </ComboBox>
                             <Label Content="Available Tools" />
-                            <ComboBox x:Name="cmbToolsAvailable" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbToolsAvailable_SelectionChanged"/>
                             
-                            <Button x:Name="btnResponsesNewChat" Content="New Conversation" Click="btnResponsesNewChat_Click" Margin="0,0,5,0"/>
+                            <CheckBox x:Name="cbToolText"
+                                  Content="Text (no tools)"
+                                  IsChecked="True"
+                                  Checked="cbTool_Checked"
+                                  Unchecked="cbTool_Checked"/>
+                            <CheckBox x:Name="cbToolWebSearch"
+                                  Content="Web search"
+                                  IsChecked="False"
+                                  Checked="cbTool_Checked"
+                                  Unchecked="cbTool_Checked"/>
+                            <Label Content="Search Context Size" Margin="0,10,0,0"/>
+                            <ComboBox x:Name="cmbSearchContextSize"
+                                
+                                SelectedIndex="1"  
+                                SelectionChanged="cmbSearchContextSize_SelectionChanged">
+                                <ComboBoxItem Content="low" Tag="low"/>
+                                <ComboBoxItem Content="medium" Tag="medium"/>
+                                <ComboBoxItem Content="high" Tag="high"/>
+                            </ComboBox>
+                            <CheckBox x:Name="cbToolComputerUse"
+                                  Content="Computer use (preview)"
+                                  IsChecked="False"
+                                  Checked="cbTool_Checked"
+                                  Unchecked="cbTool_Checked"/>  
+                            <Button x:Name="btnResponsesNewChat" Content="New Conversation" Click="btnResponsesNewChat_Click"/>
+                            <ListBox x:Name="lstResponsesTurns" Height="150" SelectionChanged="lstResponsesTurns_SelectionChanged" />
                             <Button x:Name="btnResponsesDeleteChat" Content="Delete Conversation" Click="btnResponsesDeleteChat_Click"/>
                         </StackPanel>
 
