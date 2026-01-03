@@ -48,7 +48,7 @@
         <!-- All text-boxes receiving the AI-response have this style -->
         <Style x:Key="TextBoxResponse" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="MinHeight" Value="250" />
+            
             <Setter Property="Margin" Value="2,0,2,0" />
             <Setter Property="IsEnabled" Value="True" />
             <Setter Property="IsReadOnly" Value="False" />
@@ -56,8 +56,8 @@
             <Setter Property="Grid.Column" Value="0" />
             <Setter Property="IsReadOnly" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="MaxHeight" Value="500" />
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <!--<Setter Property="MaxHeight" Value="300" />-->
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Visible" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TextBox}" >
@@ -375,13 +375,56 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spResponsesInput" Orientation="Vertical" Grid.ColumnSpan="1">
-                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Responses prompt</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtResponsesPrompt" />
-                        <Button Style="{StaticResource SendRequest}" x:Name="btnResponsesSendRequest" Click="btnResponsesSendRequest_Click"/>
-                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtResponsesResponse" />
-                    </StackPanel>
+                    <GroupBox x:Name="groupIO"
+          Header="IO"
+          Grid.Row="0"
+          Grid.Column="0"
+          Grid.RowSpan="5"
+          Margin="0">
+                        <Grid Margin="5">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <!-- prompt label -->
+                                <RowDefinition Height="*"/>
+                                <!-- prompt textbox -->
+                                <RowDefinition Height="Auto"/>
+                                <!-- send button -->
+                                <RowDefinition Height="Auto"/>
+                                <!-- response label -->
+                                <RowDefinition Height="*"/>
+                                <!-- response textbox -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Prompt label -->
+                            <Label Grid.Row="0"
+               Margin="2,0,2,2">
+                                Responses prompt
+                            </Label>
+
+                            <!-- Prompt textbox: fills its row, scrolls when needed -->
+                            <TextBox Grid.Row="1"
+                 Style="{StaticResource TextBoxRequest}"
+                 x:Name="txtResponsesPrompt" />
+
+                            <!-- Send button -->
+                            <Button Grid.Row="2"
+                Style="{StaticResource SendRequest}"
+                x:Name="btnResponsesSendRequest"
+                Click="btnResponsesSendRequest_Click"/>
+
+                            <!-- Response label -->
+                            <Label Grid.Row="3"
+               Margin="2,10,2,2">
+                                OpenAi response
+                            </Label>
+
+                            <!-- Response textbox: fills remaining space, scrolls, never exceeds GroupBox -->
+                            <TextBox Grid.Row="4"
+                 Style="{StaticResource TextBoxResponse}"
+                 x:Name="txtResponsesResponse" />
+                        </Grid>
+                    </GroupBox>
+
                     <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spResponses" Orientation="Vertical" Margin="5">
                             <Label Content="Model" />
@@ -396,26 +439,36 @@
                                 <ComboBoxItem Content="xhigh" Tag="xhigh"/>
                             </ComboBox>
                             <Label Content="Available Tools" />
-                            
                             <CheckBox x:Name="cbToolText"
+          
                                   Content="Text (no tools)"
                                   IsChecked="True"
                                   Checked="cbTool_Checked"
                                   Unchecked="cbTool_Checked"/>
-                            <CheckBox x:Name="cbToolWebSearch"
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <CheckBox x:Name="cbToolWebSearch"
+                                          Grid.Column="0"
                                   Content="Web search"
                                   IsChecked="False"
                                   Checked="cbTool_Checked"
                                   Unchecked="cbTool_Checked"/>
-                            <Label Content="Search Context Size" Margin="0,10,0,0"/>
-                            <ComboBox x:Name="cmbSearchContextSize"
+                                <StackPanel Grid.Column="1"  Orientation="Vertical">
+                                    <Label Content="Search Context Size" />
+                                    <ComboBox x:Name="cmbSearchContextSize"
                                 
                                 SelectedIndex="1"  
                                 SelectionChanged="cmbSearchContextSize_SelectionChanged">
-                                <ComboBoxItem Content="low" Tag="low"/>
-                                <ComboBoxItem Content="medium" Tag="medium"/>
-                                <ComboBoxItem Content="high" Tag="high"/>
-                            </ComboBox>
+                                        <ComboBoxItem Content="low" Tag="low"/>
+                                        <ComboBoxItem Content="medium" Tag="medium"/>
+                                        <ComboBoxItem Content="high" Tag="high"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
                             <CheckBox x:Name="cbToolComputerUse"
                                   Content="Computer use (preview)"
                                   IsChecked="False"
