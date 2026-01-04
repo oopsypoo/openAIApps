@@ -3,15 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:openAIApps" xmlns:c="clr-namespace:gpt"
+        xmlns:local="clr-namespace:openAIApps"
         mc:Ignorable="d"
         Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
-    <Window.DataContext>
-        <c:requestGPT />
-    </Window.DataContext>
+    
     <Window.Resources>
-        <ObjectDataProvider x:Key="rxGPT" ObjectType="{x:Type c:requestGPT}" />
-
         <!-- All text-boxes taking requests have this style -->
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
@@ -104,7 +100,7 @@
 
         <Menu DockPanel.Dock="Top" Height="18" IsEnabled="True" IsMainMenu="True">
             <MenuItem Header="File" Name="menuFile" Click="menuFile_Click" IsEnabled="True" AllowDrop="True">
-                <MenuItem Header="Save Chat" x:Name="menuSave" Click="menuSave_Click" IsEnabled="True" />
+                <MenuItem Header="Save Chat" x:Name="menuSave"  IsEnabled="False" />
                 <MenuItem Header="Exit" Name="menuExit" Click="menuExit_Click" IsEnabled="True" />
             </MenuItem>
             <MenuItem Header="Tools" Name="menuTools" IsEnabled="True" AllowDrop="True">
@@ -177,7 +173,7 @@
                     <!-- DALL-E main window/input/output controls -->
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spDalleInput" Orientation="Vertical">
                         <Label Grid.Row="0" Grid.Column="0" >Write your request below</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtDalleRequest" GotFocus="txtRequest_GotFocus"/>
+                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtDalleRequest" />
                         <Button Style="{StaticResource SendRequest}" x:Name="btnDalleSendRequest" Click="btnDalleSendRequest_Click" />
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
                         <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtDalleResponse" />

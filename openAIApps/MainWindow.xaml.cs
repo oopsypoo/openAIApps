@@ -1,5 +1,4 @@
-﻿using gpt;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
@@ -34,20 +33,8 @@ namespace openAIApps
     /// </summary>
     public partial class MainWindow : Window
     {
-
-
         const string url_openai_models = "https://api.openai.com/v1/models";
-        /// <summary>
-        /// new url for gpt-3.5-turbo, which also uses a new structure
-        /// we'll call this class GptTurbo. You add a new messages-struct that says something about the role
-        /// the role can be 1 of 4(for the moment)
-        /// system
-        /// user
-        /// assistant
-        /// </summary>
-        /// 
-        const string url_chat_completions = "https://api.openai.com/v1/chat/completions";
-
+        
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
         /// <summary>
@@ -57,14 +44,7 @@ namespace openAIApps
         private string appRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi");
         private string savepath_logs;
         private string savepath_snds;
-        //const string savepath_logs = "C:\\Users\\wwsac\\Documents\\openapi\\logs\\";
-        //const string savepath_snds = "C:\\Users\\wwsac\\Documents\\openapi\\snds\\";
-        //filename containing options to openapi
-        const string options_file = "options.json";
-        //readonly string logfile = savepath_logs + "logfile" + ".txt";
         private string logfile;
-        public static requestGPT rxGPT = new requestGPT();
-        public static responseGPT responseGPT = new responseGPT();
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
         private VideoClient _videoClient;
         private List<VideoListItem> _videoHistory = new();
@@ -170,11 +150,7 @@ namespace openAIApps
             Loaded += MainWindow_Loaded;
 
         }
-        public static requestGPT RxGPT
-        {
-            get { return rxGPT; }
-        }
-       
+        
         public void InitControls()
         {//set standard/default values to image controls
             EnsureSavePaths();
@@ -192,7 +168,7 @@ namespace openAIApps
             cmImageQuality.SelectedItem = Dalle.optImages.Quality;
 
             //Add the GPT-model-name to the tab. I've removed all references to GPT3.5Turbo
-            tpGPT.Header = rxGPT.model;
+            
 #if DALLE_VERSION3
             {
                 cbImageVariations.IsEnabled = false;
@@ -252,130 +228,7 @@ namespace openAIApps
             bitmap.EndInit();
             return bitmap;
         }
-        private async void btnSendRequest_Click(object sender, RoutedEventArgs e)
-        {
-            HttpClient thisSession = new HttpClient();
-            // disable this control/window while the http request is done so that the user cannot press other
-            // controls in this window. One  request at a time. Actually I thougt it would be just the button that would be disabled,
-            //but the whole window becomes disabled...???
-            this.IsEnabled = false;
-            SaveToLogFile(txtRequest.Text);
-            
-            if (cbGPTChat.IsChecked == false)
-                rxGPT.InitRequest(txtRequest.Text);
-            else
-            {
-                if (cmRole.SelectedIndex < 0)
-                {
-                    MessageBox.Show("You must select a role from the combobox", "Chat role-error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    this.IsEnabled = true;
-                    return;
-                }
-                else
-                    rxGPT.AddMessage(cmRole.Text, txtRequest.Text);
-            }
-            var jsonString = JsonSerializer.Serialize<requestGPT>(rxGPT);
-            thisSession.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-            thisSession.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", OpenAPIKey);
-            var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
-
-            try
-            {
-                var response = await thisSession.PostAsync(url_chat_completions, content).ConfigureAwait(false);
-                var responseString = await response.Content.ReadAsStringAsync();
-
-
-
-                //if there is an error we cannot deserialize to the class OpenAIResponse.
-                //All member-variables are null. Therefore we can just do a check on one member
-                responseGPT = JsonSerializer.Deserialize<responseGPT>(responseString);
-
-                this.Dispatcher.Invoke(() =>
-                {
-                    if (responseGPT.choices == null)
-                    {
-                        txtResponse.Text = "Server-response:\n" + response + "\n\nError:" + responseString;
-                    }
-                    else
-                    {
-                        txtResponse.Text = responseGPT.choices[0].message.content;
-                        if(SpeechSynthesis.TTSUse)
-                        { 
-                            var res = SpeechSynthesis.TTSAsync(txtResponse.Text); //this is fun S)
-                        }
-                        //we have to do everythig here...remember that we have to have a counter so that new responses always come last
-                        if (cbGPTChat.IsChecked == true)
-                        {
-                            //if chat mode, we take care of response. At this point the user has allready sent a request so we can add another
-                            //this one was new for me: (rxGPT.messages.Length - 1) = (^1) (index operators)
-                            cmHistory.Items.Add(rxGPT.messages[^1].role + ", " + rxGPT.messages[^1].content);
-                            cmHistory.Items.Add(responseGPT.choices[0].message.role + ", " + responseGPT.choices[0].message.content);
-                            rxGPT.AddMessage(responseGPT.choices[0].message.role, responseGPT.choices[0].message.content);
-                        }
-                    }
-                });
-            }
-            catch (Exception err)///not sure if this helps, but for now it seems so. Catch any error and print it.
-            {
-                this.Dispatcher.Invoke(() =>
-                {
-                    txtResponse.Text = err.Message + "\nInnerException: " + err.InnerException;
-                });
-            }
-            this.Dispatcher.Invoke(() =>
-            {
-                this.IsEnabled = true;
-            });
-        }
-            
         
-
-
-        
-
-        private void btnClearHistory_Click(object sender, RoutedEventArgs e)
-        {
-            rxGPT.SaveToLogFile();
-            rxGPT.Dispose();
-            cmHistory.Items.Clear();
-            txtRequest.Clear();
-            txtResponse.Clear();
-        }
-
-        private void cmRole_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            rxGPT.SetRole(cmRole.SelectedItem.ToString());
-        }
-
-        private void txtRequest_GotFocus(object sender, RoutedEventArgs e)
-        {
-            txtRequest.SelectAll();
-        }
-
-        private void cmRole_Initialized(object sender, EventArgs e)
-        {
-            if (this.IsEnabled)
-            {
-                if(rxGPT != null)
-                {
-                    cmRole.ItemsSource = rxGPT.gpt_roles;
-                }
-            }
-        }
-        private void cbGPTChat_Checked(object sender, RoutedEventArgs e)
-        {
-            cmHistory.IsEnabled = true;
-            btnClearHistory.IsEnabled = true;
-            cmRole.IsEnabled = true;
-            cmRole.SelectedIndex = 0;
-        }
-        private void cbGPTChat_Unchecked(object sender, RoutedEventArgs e)
-        {
-            cmHistory.IsEnabled=false;
-            btnClearHistory.IsEnabled=false;
-            cmRole.IsEnabled=false;
-        }
-
         private void cmNumberOfImages_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Dalle.optImages.noImages = (int)cmNumberOfImages.SelectedItem;
@@ -547,11 +400,6 @@ namespace openAIApps
             
         }
 
-        private void menuSave_Click(object sender, RoutedEventArgs e)
-        {
-            rxGPT.SaveToLogFile();
-        }
-
         private void btnRemoveImage_Click(object sender, RoutedEventArgs e)
         {
             imageSelected.Source = null;
@@ -670,72 +518,6 @@ namespace openAIApps
             ap.Show();
         }
 
-        private void tbName_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if(rxGPT != null)
-                rxGPT.user = tbName.Text;
-        }
-
-        private void sldrFrequencyPenalty_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if(rxGPT != null) 
-            {
-                string tempLabel = "Frequency Penalty: ";
-                rxGPT.frequency_penalty = sldrFrequencyPenalty.Value;
-                lblFreqencyPenalty.Content = tempLabel + sldrFrequencyPenalty.Value.ToString("N1");
-            }
-        }
-
-        private void sldrPresencePenalty_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if(rxGPT != null) 
-            {
-                string tempLabel = "Presence Penalty: ";
-                rxGPT.presence_penalty = sldrPresencePenalty.Value;
-                lblPresencePenalty.Content = tempLabel + sldrPresencePenalty.Value.ToString("N1");
-            }
-        }
-
-        private void bStream_Click(object sender, RoutedEventArgs e)
-        {
-            if(rxGPT != null)
-            { 
-                if (bStream.IsChecked == true)
-                    rxGPT.stream = true;
-                else
-                    rxGPT.stream = false;
-            }
-        }
-
-        private void sldrN_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if(rxGPT != null)
-            {
-                string tempLabel = "n: ";
-                rxGPT.n = (int)sldrN.Value;
-                lblN.Content = tempLabel + sldrN.Value.ToString();
-            }
-        }
-
-        private void sldrTopp_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (rxGPT != null)
-            {
-                string tempLabel = "Top_p: ";
-                rxGPT.top_p = sldrTopp.Value;
-                lblTopp.Content = tempLabel + sldrTopp.Value.ToString("N1");
-            }
-        }
-
-        private void sldrTemperature_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (rxGPT != null)
-            {
-                string tempLabel = "Temperature: ";
-                rxGPT.temperature = sldrTemperature.Value;
-                lblTemperature.Content = tempLabel+sldrTemperature.Value.ToString("N1");
-            }
-        }
 
         private void menuSpeechSynthesisTool_Click(object sender, RoutedEventArgs e)
         {

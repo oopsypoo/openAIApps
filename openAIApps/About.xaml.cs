@@ -1,5 +1,4 @@
-﻿using gpt;
-using System.Windows;
+﻿using System.Windows;
 
 
 namespace openAIApps
@@ -16,8 +15,7 @@ namespace openAIApps
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            requestGPT rxGPT = MainWindow.RxGPT;
-            tbModel.Text = "Model: " + rxGPT.model;
+            
         }
     }
 }
