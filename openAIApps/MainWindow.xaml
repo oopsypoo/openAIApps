@@ -119,61 +119,9 @@
             </MenuItem>
         </Menu>
         <TabControl x:Name="tpApps" DockPanel.Dock="Top" >
-            <!-- GPT Turbo stuff tab -->
-            <TabItem Header="GPT"  Name="tpGPT" >
-                <Grid x:Name="gridGPT" VerticalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="cdReqRes" Width="1.5*"/>
-                        <ColumnDefinition x:Name="cdOptions" Width="0.5*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition x:Name="rdLabelReq" Height="*"/>
-                        <RowDefinition x:Name="rdTextReq" Height="*" />
-                        <RowDefinition x:Name="rdBtnReq" Height="Auto" />
-                        <RowDefinition x:Name="rdLabelRes" Height="*" />
-                        <RowDefinition x:Name="rdTextRes" Height="*" />
-                    </Grid.RowDefinitions>
-                    <!-- GPT-turbo - main window/output/input controls -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spInput" Orientation="Vertical" >
-                        <Label Grid.Row="0" Grid.Column="0" >Write your request below</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtRequest" GotFocus="txtRequest_GotFocus" />
-                        <Button Style="{StaticResource SendRequest}" x:Name="btnSendRequest" Click="btnSendRequest_Click" />
-                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}" x:Name="txtResponse" Height="350" />
-                    </StackPanel>
-                    <!-- GPT-turbo - options controls -->
-                    <GroupBox x:Name="groupChatCompletions" Header="GPT Chat/Completions" Grid.Row="0" Grid.Column="1" Margin="0,0,0,0" Grid.RowSpan="5">
-                        <StackPanel x:Name="spOptions" Orientation="Vertical" Margin="5">
-                            <CheckBox x:Name="cbGPTChat" Content="Chat" IsChecked="False" IsEnabled="true" Checked="cbGPTChat_Checked" Unchecked="cbGPTChat_Unchecked"/>
-                            <Label Content="Role" />
-                            <ComboBox x:Name="cmRole" Margin="0,5,0,0" IsEnabled="False" SelectionChanged="cmRole_SelectionChanged" Initialized="cmRole_Initialized"/>
-                            <Label Content="Current Chat-history" />
-                            <ComboBox x:Name="cmHistory" Margin="0,5,0,0" Text="History" IsEnabled="False" />
-                            <Button x:Name="btnClearHistory" Margin="0,5,0,0" Content="Clear History" IsEnabled="False" Click="btnClearHistory_Click"/>
-                            <Label x:Name="lblTemperature" Content="Temperature" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTemperature" Minimum="0" Maximum="2" Value="{Binding temperature, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ValueChanged="sldrTemperature_ValueChanged"/>
-                            <Label x:Name="lblTopp" Content="Top-p" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrTopp" Minimum="0" Maximum="1" Value="{Binding Source={StaticResource rxGPT}, Path=top\_p}" ValueChanged="sldrTopp_ValueChanged"/>
-                            <Label x:Name="lblN" Content="n" />
-                            <Slider x:Name="sldrN" Minimum="1" Maximum="10" SmallChange="1" Value="{Binding Source={StaticResource rxGPT}, Path=n}" ValueChanged="sldrN_ValueChanged"/>
-                            <Label Content="stream" />
-                            <CheckBox x:Name="bStream" IsChecked="{Binding Source={StaticResource rxGPT}, Path=stream}" Click="bStream_Click"/>
-                            <Label Content="stop" />
-                            <Label Content="max_tokens" />
-                            <Label x:Name="lblPresencePenalty" Content="Presence Penalty" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrPresencePenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT}, Path=presence_penalty}" ValueChanged="sldrPresencePenalty_ValueChanged"/>
-                            <Label x:Name="lblFreqencyPenalty" Content="Frequency Penalty" />
-                            <Slider Style="{StaticResource SliderGPTOptions}" x:Name="sldrFrequencyPenalty" Minimum="-2.0" Maximum="2.0" Value="{Binding Source={StaticResource rxGPT}, Path=frequency_penalty}" ValueChanged="sldrFrequencyPenalty_ValueChanged"/>
-                            <Label Content="User" />
-                            <TextBox x:Name="tbName" Text="{Binding XPath=user,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" LostFocus="tbName_LostFocus" />
-                            <Label Content="Models" />
-                            <ComboBox x:Name="cmbAvailableModels" IsEditable="False" SelectionChanged="cmbAvailableModels_SelectionChanged" Initialized="cmbAvailableModels_Initialized" />
-                            <!-- When initialized, get models -->
-                        </StackPanel>
-                    </GroupBox>
-
-                </Grid>
-            </TabItem>
+            <!-- ******************************************** -->
+            <!-- GPT Turbo stuff, tab chat/completions removed-->
+            <!-- ******************************************** -->
             <TabItem Header="Vision" Name="tpVision">
                 <Grid x:Name="gridVision" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
@@ -375,12 +323,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <GroupBox x:Name="groupIO"
-          Header="IO"
-          Grid.Row="0"
-          Grid.Column="0"
-          Grid.RowSpan="5"
-          Margin="0">
+                    <GroupBox x:Name="groupIO" Header="IO" Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" Margin="0">
                         <Grid Margin="5">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -396,32 +339,22 @@
                             </Grid.RowDefinitions>
 
                             <!-- Prompt label -->
-                            <Label Grid.Row="0"
-               Margin="2,0,2,2">
+                            <Label Grid.Row="0" Margin="2,0,2,2">
                                 Responses prompt
                             </Label>
 
                             <!-- Prompt textbox: fills its row, scrolls when needed -->
-                            <TextBox Grid.Row="1"
-                 Style="{StaticResource TextBoxRequest}"
-                 x:Name="txtResponsesPrompt" />
+                            <TextBox Grid.Row="1" Style="{StaticResource TextBoxRequest}" x:Name="txtResponsesPrompt" />
 
                             <!-- Send button -->
-                            <Button Grid.Row="2"
-                Style="{StaticResource SendRequest}"
-                x:Name="btnResponsesSendRequest"
-                Click="btnResponsesSendRequest_Click"/>
+                            <Button Grid.Row="2" Style="{StaticResource SendRequest}" x:Name="btnResponsesSendRequest" Click="btnResponsesSendRequest_Click"/>
 
                             <!-- Response label -->
-                            <Label Grid.Row="3"
-               Margin="2,10,2,2">
+                            <Label Grid.Row="3"  Margin="2,10,2,2">
                                 OpenAi response
                             </Label>
-
-                            <!-- Response textbox: fills remaining space, scrolls, never exceeds GroupBox -->
-                            <TextBox Grid.Row="4"
-                 Style="{StaticResource TextBoxResponse}"
-                 x:Name="txtResponsesResponse" />
+                             <!-- Response textbox: fills remaining space, scrolls, never exceeds GroupBox -->
+                            <TextBox Grid.Row="4" Style="{StaticResource TextBoxResponse}" x:Name="txtResponsesResponse" />
                         </Grid>
                     </GroupBox>
 
