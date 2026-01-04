@@ -97,6 +97,9 @@ namespace openAIApps
             public string Status { get; set; }
             [JsonPropertyName("progress")]
             public int Progress { get; set; } = 0;
+            // New properties-local properties for UI state tracking
+            public bool IsDownloaded { get; set; }
+            public bool HasError { get; set; }
         }
         public async Task<VideoListResponse?> GetAllVideosAsync()
         {
@@ -223,7 +226,7 @@ namespace openAIApps
             });
         }
 
-public async Task MonitorVideoProgressAsync(string videoId, IProgress<double> progress, CancellationToken cancellationToken)
+        public async Task MonitorVideoProgressAsync(string videoId, IProgress<double> progress, CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {

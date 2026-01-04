@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
@@ -13,6 +15,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+
 //speechsynthesis.cs
 using TTS;
 using whisper;
@@ -47,7 +50,9 @@ namespace openAIApps
         private string logfile;
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
         private VideoClient _videoClient;
-        private List<VideoListItem> _videoHistory = new();
+        //private List<VideoListItem> _videoHistory = new();
+        private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
+
         private string _videoReferencePath = string.Empty;
         // near other fields
         private Responses _responsesClient;
@@ -683,7 +688,7 @@ namespace openAIApps
                 }
 
                 // --- Add to your listbox immediately ---
-                lstVideoFiles.Items.Add(new VideoClient.VideoListItem
+                _videoHistory.Add(new VideoClient.VideoListItem
                 {
                     Id = response.Id,
                     Status = response.Status,
@@ -774,16 +779,38 @@ namespace openAIApps
                 imgVideo.Source = bitmap;
             }
         }
+        private static string GetLocalVideoPath(string videoId)
+        {
+            string videosDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            return Path.Combine(videosDir, videoId + ".mp4");
+        }
+
+        private static bool IsVideoDownloaded(string videoId)
+        {
+            if (string.IsNullOrWhiteSpace(videoId))
+                return false;
+
+            string path = GetLocalVideoPath(videoId);
+            return File.Exists(path);
+        }
+
         private async void InitVideoList()
         {
             try
             {
                 var listResponse = await _videoClient.GetAllVideosAsync();
+                _videoHistory.Clear();
                 if (listResponse?.Data != null)
                 {
-                    _videoHistory = listResponse.Data;  // Populate our local list
+                    foreach (var item in listResponse.Data)
+                    {
+                        item.IsDownloaded = IsVideoDownloaded(item.Id);
+                        item.HasError = string.Equals(item.Status, "failed", StringComparison.OrdinalIgnoreCase);
+                        _videoHistory.Add(item);
+                    }
+                        
                     lstVideoFiles.ItemsSource = _videoHistory;
-                    lstVideoFiles.DisplayMemberPath = "Id";
                 }
             }
             catch (Exception ex)
@@ -818,9 +845,16 @@ namespace openAIApps
             progressWindow.Close();
 
             if (success)
+            {
+                selectedVideo.IsDownloaded = IsVideoDownloaded(selectedVideo.Id);
                 MessageBox.Show($"Video {videoId} downloaded successfully.", "Download Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
             else
+            {
+                selectedVideo.HasError = true;
                 MessageBox.Show($"Failed to download video {videoId}.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+                
         }
 
         private async void btnDeleteVideo_Click(object sender, RoutedEventArgs e)
@@ -845,13 +879,7 @@ namespace openAIApps
                 await _videoClient.DeleteVideoAsync(selectedVideo.Id);
 
                 // Remove it from the UI list
-                var videos = lstVideoFiles.ItemsSource as List<VideoListItem>;
-                if (videos != null)
-                {
-                    videos.Remove(selectedVideo);
-                    lstVideoFiles.ItemsSource = null;
-                    lstVideoFiles.ItemsSource = videos;
-                }
+                _videoHistory.Remove(selectedVideo);
 
                 MessageBox.Show("Video deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -883,10 +911,6 @@ namespace openAIApps
                 selectedVideo.Status = status.Status;
                 selectedVideo.Progress = status.Progress;
 
-                // Refresh ListBox to reflect any changes
-                lstVideoFiles.ItemsSource = null;
-                lstVideoFiles.ItemsSource = _videoHistory;
-                lstVideoFiles.DisplayMemberPath = "Id";
             }
             catch (Exception ex)
             {
@@ -1126,6 +1150,61 @@ namespace openAIApps
                 selected.Tag is string tag)
             {
                 _responsesClient.WebSearchContextSize = tag; // "low", "medium", or "high"
+            }
+        }
+        private BitmapImage GetFirstFrameAsBitmap(string videoPath)
+        {
+            string thumbPath = Path.ChangeExtension(videoPath, ".thumb.png");
+
+            if (!File.Exists(thumbPath))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = $"-y -i \"{videoPath}\" -frames:v 1 \"{thumbPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var p = Process.Start(psi);
+                p.WaitForExit();
+            }
+
+            if (!File.Exists(thumbPath))
+                throw new FileNotFoundException("Thumbnail not created", thumbPath);
+
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri(thumbPath);
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+
+        private void lstVideoFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+                return;
+
+            string videosDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            string localFilePath = Path.Combine(videosDir, selectedVideo.Id + ".mp4");
+
+            if (!File.Exists(localFilePath))
+            {
+                // Not downloaded: optionally clear or keep current preview
+                return;
+            }
+
+            // Extract first frame and show in imgVideo
+            try
+            {
+                var bitmap = GetFirstFrameAsBitmap(localFilePath);
+                imgVideo.Source = bitmap;
+            }
+            catch
+            {
+                // Ignore preview errors for now or log
             }
         }
 

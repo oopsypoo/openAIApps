@@ -272,6 +272,7 @@
                         <MediaElement x:Name="mediaVideo" Margin="0,5,0,0" Height="200" LoadedBehavior="Manual" UnloadedBehavior="Stop"/>
                     </StackPanel>
                     <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
                             <Label Content="Model" />
                             <ComboBox x:Name="cmbVideoModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbModelChanged">
@@ -293,15 +294,47 @@
                             </ComboBox>
                             <Label Content="Input Reference - select an image" />
                             <Button x:Name="btnOpenVReference" Content="Choose Image" IsEnabled="True" Click="btnOpenVReference_Click"/>
-                            <Image x:Name="imgVideo" Margin="0,5,0,0" Source="/no_pic.png" />
+                            <Image x:Name="imgVideo" Margin="0,5,0,0" MaxHeight="250" Stretch="Uniform" Source="/no_pic.png" />
                             <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
-                            <ListBox x:Name="lstVideoFiles" Margin="0,10,0,0" Height="100"/>
+                            <!-- Video history listbox with color-coded items -->
+                            <ListBox x:Name="lstVideoFiles"
+                                 ItemsSource="{Binding videoHistory}"
+                                 SelectedItem="{Binding SelectedVideo}" SelectionChanged="lstVideoFiles_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Id}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Background" Value="White" />
+                                        <Style.Triggers>
+                                            <!-- Downloaded: light green -->
+                                            <DataTrigger Binding="{Binding IsDownloaded}" Value="True">
+                                                <Setter Property="Background" Value="#FFC8FFC8"/>
+                                            </DataTrigger>
+
+                                            <!-- Error: light red -->
+                                            <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                <Setter Property="Background" Value="#FFFFC8C8"/>
+                                            </DataTrigger>
+
+                                            <!-- Not downloaded and no error: light orange -->
+                                            <DataTrigger Binding="{Binding IsDownloaded}" Value="False">
+                                                <Setter Property="Background" Value="#FFFFE0B2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+
                             <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
                             <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Click="btnDeleteVideo_Click" />
                             <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
                             <Button x:Name="btnPlayVideo" Content="Play Selected Video" IsEnabled="True" Click="btnPlayVideo_Click" />
                         </StackPanel>
-
+                        </ScrollViewer>
                     </GroupBox>
 
                 </Grid>
