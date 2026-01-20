@@ -356,9 +356,9 @@
                         <Grid Margin="5">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <!-- prompt label -->
+                                <!-- prompt label + button -->
                                 <RowDefinition Height="*"/>
-                                <!-- prompt textbox -->
+                                <!-- prompt + image preview -->
                                 <RowDefinition Height="Auto"/>
                                 <!-- send button -->
                                 <RowDefinition Height="Auto"/>
@@ -367,25 +367,76 @@
                                 <!-- response textbox -->
                             </Grid.RowDefinitions>
 
-                            <!-- Prompt label -->
-                            <Label Grid.Row="0" Margin="2,0,2,2">
-                                Responses prompt
-                            </Label>
+                            <!-- 1) Prompt label and toggle button in one row -->
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <!-- Prompt textbox: fills its row, scrolls when needed -->
-                            <TextBox Grid.Row="1" Style="{StaticResource TextBoxRequest}" x:Name="txtResponsesPrompt" />
+                                <Label Grid.Column="0" Margin="2,0,2,2">
+                                    Responses prompt
+                                </Label>
 
-                            <!-- Send button -->
-                            <Button Grid.Row="2" Style="{StaticResource SendRequest}" x:Name="btnResponsesSendRequest" Click="btnResponsesSendRequest_Click"/>
+                                <Button Grid.Column="1"
+                    x:Name="btnResponsesAttachImage"
+                    Margin="4,0,0,0"
+                    Content="Attach image"
+                    Click="btnResponsesAttachImage_Click"/>
+                            </Grid>
 
-                            <!-- Response label -->
-                            <Label Grid.Row="3"  Margin="2,10,2,2">
+                            <!-- 2) Prompt + image preview row -->
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <!-- Start at full width; will be changed in code -->
+                                    <ColumnDefinition x:Name="colResponsesPrompt" Width="*" />
+                                    <ColumnDefinition x:Name="colResponsesImage" Width="0" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Prompt textbox -->
+                                <TextBox Grid.Column="0"
+                                     Style="{StaticResource TextBoxRequest}"
+                                     x:Name="txtResponsesPrompt" />
+
+                                                        <!-- Image preview area -->
+                                                        <Border Grid.Column="1"
+                                    x:Name="borderResponsesImage"
+                                    Margin="4,0,0,0"
+                                    BorderBrush="DarkGray"
+                                    BorderThickness="1"
+                                    Background="#FFF8F8F8"
+                                    Visibility="Collapsed">
+                          <StackPanel Orientation="Vertical" Margin="4">
+                                        <Label Content="Attached image" FontStyle="Italic" />
+                                        <Image x:Name="imgResponsesPreview"
+                           Stretch="Uniform"
+                           MaxHeight="200"/>
+                                        <Button x:Name="btnResponsesRemoveImage"
+                            Content="Remove image"
+                            Margin="0,4,0,0"
+                            Click="btnResponsesRemoveImage_Click"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- 3) Send button -->
+                            <Button Grid.Row="2"
+                Style="{StaticResource SendRequest}"
+                x:Name="btnResponsesSendRequest"
+                Click="btnResponsesSendRequestClick"/>
+
+                            <!-- 4) Response label -->
+                            <Label Grid.Row="3" Margin="2,10,2,2">
                                 OpenAi response
                             </Label>
-                             <!-- Response textbox: fills remaining space, scrolls, never exceeds GroupBox -->
-                            <TextBox Grid.Row="4" Style="{StaticResource TextBoxResponse}" x:Name="txtResponsesResponse" />
+
+                            <!-- 5) Response textbox -->
+                            <TextBox Grid.Row="4"
+                 Style="{StaticResource TextBoxResponse}"
+                 x:Name="txtResponsesResponse" />
                         </Grid>
                     </GroupBox>
+
 
                     <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spResponses" Orientation="Vertical" Margin="5">

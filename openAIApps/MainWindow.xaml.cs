@@ -15,6 +15,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
 //speechsynthesis.cs
 using TTS;
@@ -52,6 +53,8 @@ namespace openAIApps
         private VideoClient _videoClient;
         //private List<VideoListItem> _videoHistory = new();
         private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
+        // Near other fields
+        private string _responsesImagePath = string.Empty;
 
         private string _videoReferencePath = string.Empty;
         // near other fields
@@ -1001,30 +1004,28 @@ namespace openAIApps
         }
 
         // Your existing btnResponsesSendRequest_Click stays the same, just simpler:
-        private async void btnResponsesSendRequest_Click(object sender, RoutedEventArgs e)
+        private async void btnResponsesSendRequestClick(object sender, RoutedEventArgs e)
         {
             if (_responsesClient == null)
             {
                 MessageBox.Show("Responses client not initialized.", "Error");
                 return;
             }
+
             string prompt = txtResponsesPrompt.Text;
             this.IsEnabled = false;
             txtResponsesResponse.Text = string.Empty;
 
             try
             {
-                string result = await _responsesClient.GetResponseAsync(txtResponsesPrompt.Text);
-                // Set user text on the last turn
-                _responsesClient.SetLastUserText(prompt);
+                string result = await _responsesClient.GetResponseAsync(prompt, _responsesImagePath);
 
-                // Refresh the ListBox binding
+                _responsesClient.SetLastUserText(prompt);
                 lstResponsesTurns.ItemsSource = null;
                 lstResponsesTurns.ItemsSource = _responsesClient.ConversationLog;
-
-                // Select the newest turn
                 if (_responsesClient.ConversationLog.Count > 0)
                     lstResponsesTurns.SelectedIndex = _responsesClient.ConversationLog.Count - 1;
+
                 txtResponsesResponse.Text = result;
             }
             catch (Exception ex)
@@ -1036,6 +1037,7 @@ namespace openAIApps
                 this.IsEnabled = true;
             }
         }
+
         private void cmbResponsesModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (cmbResponsesModel.SelectedItem is ComboBoxItem selected)
@@ -1205,6 +1207,54 @@ namespace openAIApps
             catch
             {
                 // Ignore preview errors for now or log
+            }
+        }
+        private void btnResponsesAttachImage_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Select an image for this message",
+                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All Files|*.*",
+                CheckFileExists = true
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                _responsesImagePath = dlg.FileName;
+
+                imgResponsesPreview.Source = GetImageSource(_responsesImagePath);
+                borderResponsesImage.Visibility = Visibility.Visible;
+
+                // Switch to 2/3–1/3 layout
+                colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
+                colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+            }
+
+        }
+        private void btnResponsesRemoveImage_Click(object sender, RoutedEventArgs e)
+        {
+            _responsesImagePath = string.Empty;
+            imgResponsesPreview.Source = null;
+            borderResponsesImage.Visibility = Visibility.Collapsed;
+
+            // Restore full-width prompt
+            colResponsesPrompt.Width = new GridLength(1, GridUnitType.Star);
+            colResponsesImage.Width = new GridLength(0);
+        }
+
+        public static class ImageInputHelper
+        {
+            public static string ToDataUrl(string filePath)
+            {
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                    return null;
+
+                var ext = Path.GetExtension(filePath)?.TrimStart('.').ToLowerInvariant();
+                if (ext == "jpg") ext = "jpeg";
+
+                var bytes = File.ReadAllBytes(filePath);
+                var b64 = Convert.ToBase64String(bytes);
+                return $"data:image/{ext};base64,{b64}";
             }
         }
 

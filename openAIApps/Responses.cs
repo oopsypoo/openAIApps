@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Collections.Generic;
+using static openAIApps.MainWindow;
 
 namespace openAIApps
 {
@@ -235,7 +236,7 @@ namespace openAIApps
             public string Model { get; set; }
 
             [JsonPropertyName("input")]
-            public string Input { get; set; }
+            public object Input { get; set; }
 
             [JsonPropertyName("truncation")]
             public string Truncation { get; set; } = "auto";
@@ -321,6 +322,104 @@ namespace openAIApps
             if (ConversationLog.Count == 0) return;
             ConversationLog[^1].UserText = userText;
         }
+        // In Responses.cs
+        public async Task<string> GetResponseAsync(string prompt, string imagePath)
+        {
+            var request = BuildRequestWithImage(prompt, imagePath);
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = true
+            };
+
+            var json = JsonSerializer.Serialize(request, options);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                return $"Error {response.StatusCode}: {responseString}";
+
+            var result = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
+
+            if (!string.IsNullOrEmpty(result?.Id))
+                LastResponseId = result.Id;
+
+            return ParseResponse(result);
+        }
+        private ResponsesRequest BuildRequestWithImage(string prompt, string imagePath)
+        {
+            // Convert image to data URL (may be null)
+            string dataUrl = ImageInputHelper.ToDataUrl(imagePath);
+
+            object inputObject;
+
+            if (!string.IsNullOrWhiteSpace(prompt) && !string.IsNullOrEmpty(dataUrl))
+            {
+                // Mixed text + image
+                inputObject = new[]
+                {
+            new
+            {
+                role = "user",
+                content = new object[]
+                {
+                    new { type = "input_text", text = prompt },
+                    new { type = "input_image", image_url = dataUrl }
+                }
+            }
+        };
+            }
+            else if (!string.IsNullOrWhiteSpace(prompt))
+            {
+                // Text only (keep it compatible with your old style if you want)
+                inputObject = prompt;
+            }
+            else if (!string.IsNullOrEmpty(dataUrl))
+            {
+                // Image only
+                inputObject = new[]
+                {
+            new
+            {
+                role = "user",
+                content = new object[]
+                {
+                    new { type = "input_image", image_url = dataUrl }
+                }
+            }
+        };
+            }
+            else
+            {
+                // Fallback: empty text
+                inputObject = prompt ?? string.Empty;
+            }
+
+            var request = new ResponsesRequest
+            {
+                Model = CurrentModel,
+                Input = inputObject,
+                Truncation = "auto",
+                Tools = GetToolsForCurrentSelection(),
+                Store = true,
+                PreviousResponseId = LastResponseId
+            };
+
+            if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
+            {
+                request.Reasoning = new ReasoningConfig
+                {
+                    Effort = CurrentReasoning
+                };
+            }
+
+            return request;
+        }
+
 
 
     }
