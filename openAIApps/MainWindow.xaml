@@ -339,7 +339,7 @@
 
                 </Grid>
             </TabItem>
-            <TabItem Header="Responses"  Name="tpResponses">
+            <TabItem Header="Responses"  Name="tpResponses" Height="20" VerticalAlignment="Bottom">
                 <Grid x:Name="gridResponses" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="cdResponsesReqRes" Width="1.5*"/>
@@ -409,8 +409,18 @@
                           <StackPanel Orientation="Vertical" Margin="4">
                                         <Label Content="Attached image" FontStyle="Italic" />
                                         <Image x:Name="imgResponsesPreview"
-                           Stretch="Uniform"
-                           MaxHeight="200"/>
+                                           Stretch="Uniform"
+                                           MaxHeight="200"
+                                           MouseLeftButtonDown="imgResponsesPreview_MouseLeftButtonDown">
+                                            <Image.ContextMenu>
+                                                <ContextMenu x:Name="ctxImagePreview">
+                                                    <MenuItem Header="Open" Click="MenuItemImageOpen_Click"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="Open with" Click="MenuItemImageOpenWith_Click" />
+                                                </ContextMenu>
+                                            </Image.ContextMenu>
+                                        </Image>
+
                                         <Button x:Name="btnResponsesRemoveImage"
                             Content="Remove image"
                             Margin="0,4,0,0"
@@ -486,9 +496,36 @@
                                   Content="Computer use (preview)"
                                   IsChecked="False"
                                   Checked="cbTool_Checked"
-                                  Unchecked="cbTool_Checked"/>  
+                                  Unchecked="cbTool_Checked"/>
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="cbToolImageGeneration" Grid.Column="0"
+                                  Content="Image Generation"
+                                  IsChecked="False"
+                                  Checked="cbTool_Checked"
+                                  Unchecked="cbTool_Checked"/>
+                                <StackPanel Grid.Column="1"  Orientation="Vertical">
+                                    <Label Content="Image Quality" />
+                                    <ComboBox x:Name="cmbImageGenQuality" SelectionChanged="cmbImageGenQuality_SelectionChanged">
+                                        <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
+                                        <ComboBoxItem Content="low" Tag="low"/>
+                                        <ComboBoxItem Content="medium" Tag="medium"/>
+                                        <ComboBoxItem Content="high" Tag="high"/>
+                                    </ComboBox>
+                                    <Label Content="Image Size" Margin="0,5,0,0"/>
+                                    <ComboBox x:Name="cmbImageGenSize" SelectionChanged="cmbImageGenSize_SelectionChanged" Margin="0,0,0,5">
+                                        <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
+                                        <ComboBoxItem Content="1024x1024" Tag="1024x1024"/>
+                                        <ComboBoxItem Content="1536x1024" Tag="1536x1024" />
+                                        <ComboBoxItem Content="1024x1536" Tag="1024x1536"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
                             <Button x:Name="btnResponsesNewChat" Content="New Conversation" Click="btnResponsesNewChat_Click"/>
-                            <ListBox x:Name="lstResponsesTurns" Height="150" SelectionChanged="lstResponsesTurns_SelectionChanged" />
+                            <ListBox x:Name="lstResponsesTurns" Height="150" SelectionChanged="lstResponsesTurns_SelectionChanged" MouseDoubleClick="lstResponsesTurns_MouseDoubleClick"/>
                             <Button x:Name="btnResponsesDeleteChat" Content="Delete Conversation" Click="btnResponsesDeleteChat_Click"/>
                         </StackPanel>
 

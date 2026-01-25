@@ -24,6 +24,8 @@ namespace openAIApps
         public bool ConversationActive => !string.IsNullOrEmpty(LastResponseId);
         public HashSet<string> ActiveTools { get; } = new();
         public string WebSearchContextSize { get; set; } = "medium";
+        public string ImageGenQuality { get; set; } = "auto";
+        public string ImageGenSize { get; set; } = "auto";
 
 
         public Responses(string apiKey)
@@ -97,6 +99,10 @@ namespace openAIApps
                     DisplayHeight = 1440,
                     Environment = "windows"
                 });
+            if (ActiveTools.Contains("image_generation"))
+            {
+                tools.Add(new ImageGenerationTool(ImageGenQuality, ImageGenSize));
+            }
 
             return tools.ToArray();
         }
@@ -229,6 +235,23 @@ namespace openAIApps
             public string Environment { get; set; } = "windows";
         }
 
+        private class ImageGenerationTool : Tool
+        {
+            public ImageGenerationTool(string quality, string size)
+            {
+                Type = "image_generation";
+                Quality = quality ?? "auto";
+                Size = size ?? "auto";
+            }
+
+            [JsonPropertyName("quality")]
+            public string Quality { get; set; } = "auto";
+
+            [JsonPropertyName("size")]
+            public string Size { get; set; } = "auto";
+        }
+
+
         // ---------- DTOs ----------
         private class ResponsesRequest
         {
@@ -267,8 +290,14 @@ namespace openAIApps
 
         private class OutputItem
         {
+            [JsonPropertyName("type")]
+            public string? Type { get; set; }
+
             [JsonPropertyName("content")]
             public List<ContentItem>? Content { get; set; }
+            // For image_generation_call
+            [JsonPropertyName("result")]
+            public string? Result { get; set; }
         }
 
         private class ContentItem
@@ -295,9 +324,16 @@ namespace openAIApps
         /// </summary>
         public class ResponsesTurn
         {
-            public string ResponseId { get; set; }      // resp_...
-            public string UserText { get; set; }        // prompt you sent
-            public string AssistantText { get; set; }   // parsed output_text
+            public string ResponseId { get; set; }
+            public string UserText { get; set; }
+            public string AssistantText { get; set; }
+
+            // User-side image
+            public string ImagePath { get; set; }
+
+            // Assistant-side images for this turn
+            public List<string> AssistantImagePaths { get; set; } = new();
+
             public override string ToString()
             {
                 if (!string.IsNullOrWhiteSpace(UserText))
@@ -305,11 +341,91 @@ namespace openAIApps
                     var trimmed = UserText.Trim();
                     return trimmed.Length > 40 ? trimmed[..40] + "..." : trimmed;
                 }
-                return ResponseId; // fallback
+                return ResponseId;
             }
         }
 
+        public class ResponsesResult
+{
+    public string AssistantText { get; set; }
+    public List<string> ImagePayloads { get; set; } = new();
+}
+
+        public void AddTurn(string responseId, string assistantText, string imagePath)
+        {
+            ConversationLog.Add(new ResponsesTurn
+            {
+                ResponseId = responseId,
+                AssistantText = assistantText,
+                ImagePath = imagePath
+            });
+        }
+
         public List<ResponsesTurn> ConversationLog { get; } = new();
+
+        private ResponsesResult ParseResponseRich(ResponsesResponse result)
+        {
+            var sb = new StringBuilder();
+            var images = new List<string>();
+
+            if (result?.Output != null)
+            {
+                foreach (var output in result.Output)
+                {
+                    // 1) Image generation call: result is base64 image data
+                    if (string.Equals(output.Type, "image_generation_call", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrEmpty(output.Result))
+                        {
+                            images.Add(output.Result); // pure base64
+                        }
+                        continue;
+                    }
+
+                    // 2) Normal text/tool output
+                    foreach (var contentItem in output.Content ?? new List<ContentItem>())
+                    {
+                        switch (contentItem.Type)
+                        {
+                            case "output_text":
+                                if (!string.IsNullOrEmpty(contentItem.Text))
+                                    sb.AppendLine($"🧠 {contentItem.Text}");
+                                break;
+
+                            case "tool_use":
+                                sb.AppendLine($"🛠️ Tool: {contentItem.ToolName ?? "unknown"}");
+                                if (contentItem.ToolInput != null)
+                                    sb.AppendLine($" Input: {contentItem.ToolInput}");
+                                sb.AppendLine($" [Simulated: {SimulateTool(contentItem.ToolName, contentItem.ToolInput ?? default)}]");
+                                break;
+                        }
+                    }
+                }
+            }
+
+            var assistantText = sb.ToString().TrimEnd();
+            if (string.IsNullOrEmpty(assistantText))
+                assistantText = "No response content";
+
+            if (!string.IsNullOrEmpty(result?.Id))
+            {
+                ConversationLog.Add(new ResponsesTurn
+                {
+                    ResponseId = result.Id,
+                    AssistantText = assistantText
+                    // UserText/ImagePath set from MainWindow
+                });
+            }
+
+            return new ResponsesResult
+            {
+                AssistantText = assistantText,
+                ImagePayloads = images  // base64 images from tool
+            };
+        }
+
+
+
         /// <summary>
         /// Sets the user text for the most recent entry in the conversation log.
         /// </summary>
@@ -323,7 +439,8 @@ namespace openAIApps
             ConversationLog[^1].UserText = userText;
         }
         // In Responses.cs
-        public async Task<string> GetResponseAsync(string prompt, string imagePath)
+        
+        public async Task<ResponsesResult> GetResponseAsync(string prompt, string imagePath)
         {
             var request = BuildRequestWithImage(prompt, imagePath);
 
@@ -341,15 +458,21 @@ namespace openAIApps
             var responseString = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return $"Error {response.StatusCode}: {responseString}";
+            {
+                return new ResponsesResult
+                {
+                    AssistantText = $"Error {response.StatusCode}: {responseString}"
+                };
+            }
 
             var result = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
 
             if (!string.IsNullOrEmpty(result?.Id))
                 LastResponseId = result.Id;
 
-            return ParseResponse(result);
+            return ParseResponseRich(result);
         }
+
         private ResponsesRequest BuildRequestWithImage(string prompt, string imagePath)
         {
             // Convert image to data URL (may be null)

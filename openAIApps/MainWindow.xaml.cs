@@ -1,30 +1,24 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Win32;
-
 //speechsynthesis.cs
-using TTS;
 using whisper;
-using static openAIApps.Responses;
 using static openAIApps.VideoClient;
-
-
-
+using openAIApps.Native;
 
 namespace openAIApps
 {
@@ -38,7 +32,7 @@ namespace openAIApps
     public partial class MainWindow : Window
     {
         const string url_openai_models = "https://api.openai.com/v1/models";
-        
+
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
         /// <summary>
@@ -69,14 +63,14 @@ namespace openAIApps
             Directory.CreateDirectory(savepath_snds);
             logfile = Path.Combine(savepath_logs, "logfile.txt");
         }
-        
+
         /// <summary>
         /// not sure if this is the best solution. Using namespace and reorganizing data is the thing. But this will work.
         /// </summary>
         //static Dalle rxDalle = new Dalle();
 
         //oes not do much except to save all written entries to a log file. See in the beginning of
-        //private async void btn_oai_rx_send_ClickAsync(object sender, RoutedEventArgs e)
+        //private async void btn_oai_rx_send_clickAsync(object sender, RoutedEventArgs e)
         //{
         public void SaveToLogFile(string txtRequest_Text)
         {
@@ -126,6 +120,7 @@ namespace openAIApps
             cbToolText.IsChecked = true;
             cbToolWebSearch.IsChecked = false;
             cbToolComputerUse.IsChecked = false;
+            cbImageEdit.IsChecked = false;
             _responsesClient.WebSearchContextSize = "medium";
             cmbSearchContextSize.SelectedIndex = 1; // medium
             cmbSearchContextSize.IsEnabled = false;
@@ -158,7 +153,7 @@ namespace openAIApps
             Loaded += MainWindow_Loaded;
 
         }
-        
+
         public void InitControls()
         {//set standard/default values to image controls
             EnsureSavePaths();
@@ -176,7 +171,7 @@ namespace openAIApps
             cmImageQuality.SelectedItem = Dalle.optImages.Quality;
 
             //Add the GPT-model-name to the tab. I've removed all references to GPT3.5Turbo
-            
+
 #if DALLE_VERSION3
             {
                 cbImageVariations.IsEnabled = false;
@@ -186,7 +181,7 @@ namespace openAIApps
             }
             _videoClient = new VideoClient(apiKey: OpenAPIKey);
             InitVideoList();
-            
+
 #endif
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
@@ -213,10 +208,35 @@ namespace openAIApps
         {
             this.Close();
         }
+        private string GetCurrentPreviewImagePath()
+        {
+            string path = null;
+
+            if (lstResponsesTurns.SelectedItem is Responses.ResponsesTurn turn)
+            {
+                if (turn.AssistantImagePaths != null && turn.AssistantImagePaths.Count > 0)
+                {
+                    path = turn.AssistantImagePaths[0];
+                }
+                else if (!string.IsNullOrEmpty(turn.ImagePath))
+                {
+                    path = turn.ImagePath;
+                }
+            }
+
+            if (string.IsNullOrEmpty(path))
+                path = _responsesImagePath;
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return null;
+
+            return path;
+        }
+
         public static string ExtractFileName(string path)
         {
-            if(!String.IsNullOrEmpty(path))
-            { 
+            if (!String.IsNullOrEmpty(path))
+            {
                 int index = path.LastIndexOf('\\');
                 if (index == -1)
                 {
@@ -236,7 +256,7 @@ namespace openAIApps
             bitmap.EndInit();
             return bitmap;
         }
-        
+
         private void cmNumberOfImages_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Dalle.optImages.noImages = (int)cmNumberOfImages.SelectedItem;
@@ -246,7 +266,7 @@ namespace openAIApps
         private void cmSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             Dalle.optImages.csize = (string)cmSize.SelectedItem;
-            
+
             Dalle.rxImagesEdit.size = Dalle.rxImages.size = Dalle.rxImagesVariation.size = Dalle.optImages.csize;
         }
 
@@ -255,7 +275,7 @@ namespace openAIApps
             txtDalleResponse.Text = "";
             this.IsEnabled = false;
             Dalle.rxImages.prompt = txtDalleRequest.Text;
-          
+
             try
             {
                 if (cbImageVariations.IsChecked == false && cbImageEdit.IsChecked == false)
@@ -266,18 +286,18 @@ namespace openAIApps
                 {
                     GlobalhttpResponse = await Dalle.rxImagesVariation.PostFile(OpenAPIKey);
                 }
-                else if(cbImageEdit.IsChecked == true)
+                else if (cbImageEdit.IsChecked == true)
                 {
                     Dalle.rxImagesEdit.prompt = txtDalleRequest.Text;
                     GlobalhttpResponse = await Dalle.rxImagesEdit.PostFile(OpenAPIKey);
                 }
-                
+
                 var responseString = await GlobalhttpResponse.Content.ReadAsStringAsync();
 
                 Dalle.resource = JsonSerializer.Deserialize<Dalle.responseImage>(responseString);
                 /// there's an error. just get out.
-               
-                if(Dalle.resource.data == null)
+
+                if (Dalle.resource.data == null)
                 {
                     txtDalleResponse.Text = "Server-response: \n" + GlobalhttpResponse + "\n\nError:\n" + responseString;
                     this.IsEnabled = true;
@@ -289,7 +309,7 @@ namespace openAIApps
                     Dalle.resource.DrawImages();
                 }
             }
-            catch(Exception err)
+            catch (Exception err)
             {
                 this.Dispatcher.Invoke(() =>
                 {
@@ -298,7 +318,7 @@ namespace openAIApps
                     return;
                 });
             }
-            
+
             this.Dispatcher.Invoke(() =>
             {
                 this.IsEnabled = true;
@@ -324,24 +344,24 @@ namespace openAIApps
             imageSelected.Visibility = Visibility.Hidden;
             btnRemoveMask.Visibility = Visibility.Hidden;
             btnRemoveImage.Visibility = Visibility.Hidden;
-            imageSelected.Source = null; 
+            imageSelected.Source = null;
             imageMask.Source = null;
             if (src == cbImageVariations)
                 Dalle.rxImagesVariation.image = null;
-            else if(src == cbImageEdit)
+            else if (src == cbImageEdit)
                 Dalle.rxImagesEdit.image = null;
-            
+
         }
         private void AddImageControls(object src)
         {
-            if(src == btnMaskImage || src == cbImageEdit)
-            { 
+            if (src == btnMaskImage || src == cbImageEdit)
+            {
                 lblSelectedMask.Visibility = Visibility.Visible;
                 imageMask.Visibility = Visibility.Visible;
                 btnRemoveMask.Visibility = Visibility.Visible;
             }
-            if(src == btnOpenImage || src == cbImageEdit)
-            { 
+            if (src == btnOpenImage || src == cbImageEdit)
+            {
                 lblSelectedImage.Visibility = Visibility.Visible;
                 imageSelected.Visibility = Visibility.Visible;
                 btnRemoveImage.Visibility = Visibility.Visible;
@@ -351,19 +371,19 @@ namespace openAIApps
         {
             string temp = Dalle.GetImageFileName(Dalle.GetSavepath_pics());
             if (string.IsNullOrEmpty(temp))
-            { 
-                MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK,MessageBoxImage.Error);
+            {
+                MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             string filename = ExtractFileName(temp);
-            
+
             if (cbImageVariations.IsChecked == true)
-            { 
+            {
                 Dalle.rxImagesVariation.image = filename;
                 imageSelected.Source = GetImageSource(temp);
             }
-            else if(cbImageEdit.IsChecked == true)
-            { 
+            else if (cbImageEdit.IsChecked == true)
+            {
                 Dalle.rxImagesEdit.image = filename;
                 imageSelected.Source = GetImageSource(temp);
             }
@@ -387,7 +407,7 @@ namespace openAIApps
             }
             Dalle.rxImagesEdit.mask = ExtractFileName(fullpath);
             imageMask.Source = GetImageSource(fullpath);
-            AddImageControls (sender);
+            AddImageControls(sender);
         }
 
         private void cbImageEdit_Unchecked(object sender, RoutedEventArgs e)
@@ -405,17 +425,17 @@ namespace openAIApps
             btnMaskImage.IsEnabled = true;
             cbImageVariations.IsEnabled = false;
             //
-            
+
         }
 
         private void btnRemoveImage_Click(object sender, RoutedEventArgs e)
         {
             imageSelected.Source = null;
-            btnRemoveImage.Visibility= Visibility.Hidden;
-            lblSelectedImage.Visibility= Visibility.Hidden;
-            if(cbImageVariations.IsChecked == true) 
-            { 
-                Dalle.rxImagesVariation.image = null; 
+            btnRemoveImage.Visibility = Visibility.Hidden;
+            lblSelectedImage.Visibility = Visibility.Hidden;
+            if (cbImageVariations.IsChecked == true)
+            {
+                Dalle.rxImagesVariation.image = null;
             }
             else
                 Dalle.rxImagesEdit.image = null;
@@ -424,26 +444,26 @@ namespace openAIApps
         private void btnRemoveMask_Click(object sender, RoutedEventArgs e)
         {
             imageMask.Source = null;
-            btnRemoveMask.Visibility= Visibility.Hidden;
-            lblSelectedMask.Visibility= Visibility.Hidden;
+            btnRemoveMask.Visibility = Visibility.Hidden;
+            lblSelectedMask.Visibility = Visibility.Hidden;
             Dalle.rxImagesEdit.mask = null;
         }
-        
-        
+
+
 
         private void cmbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            switch(cmbLanguage.SelectedIndex)
+            switch (cmbLanguage.SelectedIndex)
             {
-            case 0:
-                Whisper.WOptions.STT_language = "en";
-                break;
-            case 1:
-                Whisper.WOptions.STT_language = "nb";
-                break;
-            case 2:
-                Whisper.WOptions.STT_language = "tl";
-                break;
+                case 0:
+                    Whisper.WOptions.STT_language = "en";
+                    break;
+                case 1:
+                    Whisper.WOptions.STT_language = "nb";
+                    break;
+                case 2:
+                    Whisper.WOptions.STT_language = "tl";
+                    break;
             }
             Whisper.RxWhisper.language = Whisper.WOptions.STT_language;
         }
@@ -457,11 +477,11 @@ namespace openAIApps
         {
             txtWhisperResponse.Text = "";
             this.IsEnabled = true;
-            
+
             try
             {
                 GlobalhttpResponse = await Whisper.RxWhisper.PostFile(OpenAPIKey);
-                
+
                 var responseString = await GlobalhttpResponse.Content.ReadAsStringAsync();
 
                 Whisper.ResWhisper = JsonSerializer.Deserialize<Whisper.ResponseWhisper>(responseString);
@@ -477,9 +497,9 @@ namespace openAIApps
                 {
                     ///everything is ok. Draw/create the images
                     txtWhisperResponse.Text = Whisper.ResWhisper.text;
-                    
+
                     //var res = SpeechSynthesis.TTSAsync(txtWhisperResponse.Text);
-                    
+
                 }
             }
             catch (Exception err)
@@ -581,45 +601,7 @@ namespace openAIApps
                 //everything is ok. Get response
                 txtVisionResponse.Text = responseString.Message.Role + "\n" + responseString.Message.Content;
             }
-            /*
-               Vision.rxVision.messages[0].content[0].text = txtVisionRequest.Text;
-               try
-               {
-                   GlobalhttpResponse = await Vision.rxVision.PostFile(OpenAPIKey);
-
-
-                   var response = await GlobalhttpResponse.Content.ReadAsStringAsync();
-
-                   //var resource = JsonSerializer.Deserialize(responseString);
-                   /// there's an error. just get out.
-
-                   if (response == null)
-                   {
-                       txtVisionResponse.Text = "Server-response: \n" + GlobalhttpResponse + "\n\nError:\n" + response;
-                       this.IsEnabled = true;
-                       return;
-                   }
-                   else
-                   {
-                       //everything is ok. Get response
-                       txtVisionResponse.Text = response;
-                   }
-               }
-               catch (Exception err)
-               {
-                   this.Dispatcher.Invoke(() =>
-                   {
-                       txtVisionResponse.Text = err.Message + "\nInnerexception: " + err.InnerException;
-                       this.IsEnabled = true;
-                       return;
-                   });
-               }
-
-               this.Dispatcher.Invoke(() =>
-               {
-                   this.IsEnabled = true;
-               });
-          */
+            
         }
 
         private void txtVisionRequest_GotFocus(object sender, RoutedEventArgs e)
@@ -641,14 +623,9 @@ namespace openAIApps
                 MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            //string filename = ExtractFileName(temp);
-            /*byte[] imageBytes = File.ReadAllBytes(Vision.ImageFileName);
-            string base64Image = Convert.ToBase64String(imageBytes);
-            Vision.rxVision.messages[0].content[0].image_url.url = $"data:image/{fileExtension};base64,{base64Image}";
-            */
-
-            imgVision.Source = GetImageSource(Vision.ImageFileName);
             
+            imgVision.Source = GetImageSource(Vision.ImageFileName);
+
             AddImageControls(sender);
         }
 
@@ -812,7 +789,7 @@ namespace openAIApps
                         item.HasError = string.Equals(item.Status, "failed", StringComparison.OrdinalIgnoreCase);
                         _videoHistory.Add(item);
                     }
-                        
+
                     lstVideoFiles.ItemsSource = _videoHistory;
                 }
             }
@@ -857,7 +834,7 @@ namespace openAIApps
                 selectedVideo.HasError = true;
                 MessageBox.Show($"Failed to download video {videoId}.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-                
+
         }
 
         private async void btnDeleteVideo_Click(object sender, RoutedEventArgs e)
@@ -965,9 +942,10 @@ namespace openAIApps
                 "cbToolText" => "text",
                 "cbToolWebSearch" => "web_search",
                 "cbToolComputerUse" => "computer_use",
+                "cbToolImageGeneration" => "image_generation", // NEW
                 _ => null
             };
-            
+
             if (key == null)
                 return;
 
@@ -975,15 +953,15 @@ namespace openAIApps
             {
                 if (key == "text")
                 {
-                    // If "text" is checked, clear all other tools
                     _responsesClient.ActiveTools.Clear();
                     _responsesClient.ActiveTools.Add("text");
+
                     cbToolWebSearch.IsChecked = false;
                     cbToolComputerUse.IsChecked = false;
+                    cbToolImageGeneration.IsChecked = false;
                 }
                 else
                 {
-                    // Turn off "text" if any real tools are enabled
                     _responsesClient.ActiveTools.Remove("text");
                     cbToolText.IsChecked = false;
                     _responsesClient.ActiveTools.Add(key);
@@ -993,14 +971,36 @@ namespace openAIApps
             {
                 _responsesClient.ActiveTools.Remove(key);
 
-                // If no tools left, fall back to "text"
                 if (_responsesClient.ActiveTools.Count == 0)
                 {
                     _responsesClient.ActiveTools.Add("text");
                     cbToolText.IsChecked = true;
                 }
             }
-            cmbSearchContextSize.IsEnabled = cbToolWebSearch.IsChecked == true;
+
+            // Optionally enable/disable quality/size controls when checkbox changes:
+            bool imageToolOn = cbToolImageGeneration.IsChecked == true;
+            cmbImageGenQuality.IsEnabled = imageToolOn;
+            cmbImageGenSize.IsEnabled = imageToolOn;
+        }
+
+        private void ShowFirstAssistantImageOfSelectedTurn()
+        {
+            if (lstResponsesTurns.SelectedItem is Responses.ResponsesTurn turn &&
+                turn.AssistantImagePaths != null &&
+                turn.AssistantImagePaths.Count > 0)
+            {
+                string path = turn.AssistantImagePaths[0];
+                if (File.Exists(path))
+                {
+                    imgResponsesPreview.Source = GetImageSource(path);
+                    _responsesImagePath = path;
+
+                    borderResponsesImage.Visibility = Visibility.Visible;
+                    colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
+                    colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+                }
+            }
         }
 
         // Your existing btnResponsesSendRequest_Click stays the same, just simpler:
@@ -1018,15 +1018,33 @@ namespace openAIApps
 
             try
             {
-                string result = await _responsesClient.GetResponseAsync(prompt, _responsesImagePath);
+                var result = await _responsesClient.GetResponseAsync(prompt, _responsesImagePath);
 
+                // Attach user text to last turn
                 _responsesClient.SetLastUserText(prompt);
+
+                // Attach user image + assistant images to last turn
+                if (_responsesClient.ConversationLog.Count > 0)
+                {
+                    var lastTurn = _responsesClient.ConversationLog[^1];
+
+                    lastTurn.ImagePath = _responsesImagePath;
+
+                    // Save and attach assistant images
+                    var savedPaths = SaveAssistantImages(result.ImagePayloads);
+                    lastTurn.AssistantImagePaths.AddRange(savedPaths);
+                }
+
+                // Refresh listbox
                 lstResponsesTurns.ItemsSource = null;
                 lstResponsesTurns.ItemsSource = _responsesClient.ConversationLog;
                 if (_responsesClient.ConversationLog.Count > 0)
                     lstResponsesTurns.SelectedIndex = _responsesClient.ConversationLog.Count - 1;
 
-                txtResponsesResponse.Text = result;
+                txtResponsesResponse.Text = result.AssistantText;
+
+                // Optionally show first assistant image somewhere
+                ShowFirstAssistantImageOfSelectedTurn();
             }
             catch (Exception ex)
             {
@@ -1037,6 +1055,7 @@ namespace openAIApps
                 this.IsEnabled = true;
             }
         }
+
 
         private void cmbResponsesModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -1088,7 +1107,7 @@ namespace openAIApps
             // If nothing selected (during init), just keep current value
         }
 
-        
+
         private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
         {
             _responsesClient?.ClearConversation();
@@ -1134,15 +1153,55 @@ namespace openAIApps
             }
         }
 
-        
+
         private void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (lstResponsesTurns.SelectedItem is ResponsesTurn turn)
+            if (lstResponsesTurns.SelectedItem is not Responses.ResponsesTurn turn)
+                return;
+
+            // Restore text
+            txtResponsesPrompt.Text = turn.UserText ?? string.Empty;
+            txtResponsesResponse.Text = turn.AssistantText ?? string.Empty;
+
+            // 1) Restore user image (if this turn had one)
+            if (!string.IsNullOrEmpty(turn.ImagePath) && File.Exists(turn.ImagePath))
             {
-                txtResponsesPrompt.Text = turn.UserText ?? "";
-                txtResponsesResponse.Text = turn.AssistantText ?? "";
+                _responsesImagePath = turn.ImagePath;
+                imgResponsesPreview.Source = GetImageSource(turn.ImagePath);
+
+                borderResponsesImage.Visibility = Visibility.Visible;
+                colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
+                colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+            }
+            else
+            {
+                // No user image: clear preview and go back to full width
+                _responsesImagePath = string.Empty;
+                imgResponsesPreview.Source = null;
+                borderResponsesImage.Visibility = Visibility.Collapsed;
+                colResponsesPrompt.Width = new GridLength(1, GridUnitType.Star);
+                colResponsesImage.Width = new GridLength(0);
+            }
+
+            // 2) Optionally override with first assistant image (if present)
+            // If you prefer to always show assistant image in the preview instead of user image
+            // you can move this block above the "else" above.
+            if (turn.AssistantImagePaths != null && turn.AssistantImagePaths.Count > 0)
+            {
+                string firstAssistantImage = turn.AssistantImagePaths[0];
+                if (File.Exists(firstAssistantImage))
+                {
+                    imgResponsesPreview.Source = GetImageSource(firstAssistantImage);
+                    // If you want the working image to become the assistant image:
+                    _responsesImagePath = firstAssistantImage;
+
+                    borderResponsesImage.Visibility = Visibility.Visible;
+                    colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
+                    colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+                }
             }
         }
+
         private void cmbSearchContextSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_responsesClient == null)
@@ -1257,9 +1316,230 @@ namespace openAIApps
                 return $"data:image/{ext};base64,{b64}";
             }
         }
+        private string EnsureResponsesImageFolder()
+        {
+            // Reuse your existing appRoot if you like; for now keep it simple
+            string picturesRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+                "openapi_responses");
+
+            Directory.CreateDirectory(picturesRoot);
+            return picturesRoot;
+        }
+
+        private List<string> SaveAssistantImages(List<string> payloads)
+        {
+            var savedPaths = new List<string>();
+            if (payloads == null || payloads.Count == 0)
+                return savedPaths;
+
+            string folder = EnsureResponsesImageFolder();
+
+            foreach (var payload in payloads)
+            {
+                if (string.IsNullOrWhiteSpace(payload))
+                    continue;
+
+                string filePath = null;
+
+                try
+                {
+                    if (payload.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // data URL
+                        var commaIndex = payload.IndexOf(',');
+                        if (commaIndex > 0)
+                        {
+                            string meta = payload.Substring(0, commaIndex);
+                            string b64 = payload.Substring(commaIndex + 1);
+
+                            string ext = ".png";
+                            if (meta.Contains("jpeg")) ext = ".jpg";
+
+                            byte[] bytes = Convert.FromBase64String(b64);
+                            string name = $"resp_{DateTime.Now:yyyyMMdd_HHmmss_fff}{ext}";
+                            filePath = Path.Combine(folder, name);
+                            File.WriteAllBytes(filePath, bytes);
+                        }
+                    }
+                    else if (payload.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                             payload.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // TODO: implement download if needed
+                    }
+                    else
+                    {
+                        // Assume pure base64 png (image_generation_call result)
+                        byte[] bytes = Convert.FromBase64String(payload);
+                        string name = $"resp_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png";
+                        filePath = Path.Combine(folder, name);
+                        File.WriteAllBytes(filePath, bytes);
+                    }
+
+                    if (!string.IsNullOrEmpty(filePath))
+                        savedPaths.Add(filePath);
+                }
+                catch
+                {
+                    // ignore individual failures
+                }
+            }
+
+            return savedPaths;
+        }
+
+        private void cmbImageGenQuality_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_responsesClient == null)
+                return;
+
+            if (cmbImageGenQuality.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag)
+            {
+                // Tag contains "auto", "low", "medium", "high"
+                _responsesClient.ImageGenQuality = tag.ToLowerInvariant();
+            }
+        }
+
+        private void cmbImageGenSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_responsesClient == null)
+                return;
+
+            if (cmbImageGenSize.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag)
+            {
+                // Tag contains "auto" or "WxH"
+                _responsesClient.ImageGenSize = tag;
+            }
+        }
+
+        private void lstResponsesTurns_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (lstResponsesTurns.SelectedItem is not Responses.ResponsesTurn turn)
+                return;
+
+            // Prefer assistant image if available, otherwise user image
+            string path = null;
+
+            if (turn.AssistantImagePaths != null && turn.AssistantImagePaths.Count > 0)
+            {
+                path = turn.AssistantImagePaths[0];
+            }
+            else if (!string.IsNullOrEmpty(turn.ImagePath))
+            {
+                path = turn.ImagePath;
+            }
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true // open with default image viewer
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open image:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void imgResponsesPreview_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount < 2)
+                return;
+
+            var path = GetCurrentPreviewImagePath();
+            if (path == null) return;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open image:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
+        private void MenuItemImageOpen_Click(object sender, RoutedEventArgs e)
+        {
+            var path = GetCurrentPreviewImagePath();
+            if (path == null) return;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open image:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        /// <summary>
+        /// Handles the Click event of the 'Open With' menu item for an image, displaying the system 'Open with' dialog
+        /// for the currently selected image file.
+        /// </summary>
+        /// <remarks>If no image is selected or the file does not exist, an informational message is shown
+        /// and the dialog is not displayed. If an error occurs while attempting to show the 'Open with' dialog, an
+        /// error message is displayed to the user.</remarks>
+        /// <param name="sender">The source of the event, typically the menu item that was clicked.</param>
+        /// <param name="e">The event data associated with the click event.</param>
+        private void MenuItemImageOpenWith_Click(object sender, RoutedEventArgs e)
+        {
+            var path = GetCurrentPreviewImagePath();
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                MessageBox.Show("No image selected or file not found.", "Open with",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                ShellLauncher.ShowOpenWithDialog(Window.GetWindow(this), path);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not show Open with dialog:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
