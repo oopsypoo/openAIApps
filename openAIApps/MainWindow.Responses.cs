@@ -57,7 +57,6 @@ namespace openAIApps
             cbToolText.IsChecked = true;
             cbToolWebSearch.IsChecked = false;
             cbToolComputerUse.IsChecked = false;
-            cbImageEdit.IsChecked = false;
             _responsesClient.WebSearchContextSize = "medium";
             cmbSearchContextSize.SelectedIndex = 1; // medium
             cmbSearchContextSize.IsEnabled = false;

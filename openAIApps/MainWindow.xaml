@@ -116,60 +116,12 @@
         </Menu>
         <TabControl x:Name="tpApps" DockPanel.Dock="Top" >
             <!-- ******************************************** -->
-            <!-- GPT Turbo stuff, tab chat/completions removed-->
+            <!-- Centered around Responses-tab(takes over for -->
+            <!-- vision and image-generation) and video-tab.-->
+            <!-- Not giving up/removing STT or TTS (whisper) yet-->
             <!-- ******************************************** -->
             
-            <!-- DALL-E stuff tab -->
-            <TabItem Header="Img-Creation" Name="tpGPT_IMG">
-                <Grid x:Name="gridDalle" VerticalAlignment="Stretch">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="cdDalleReqRes" Width="1.5*"/>
-                        <ColumnDefinition x:Name="cdDalleOptions" Width="0.5*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <!-- DALL-E main window/input/output controls -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spDalleInput" Orientation="Vertical">
-                        <Label Grid.Row="0" Grid.Column="0" >Write your request below</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}" x:Name="txtDalleRequest" />
-                        <Button Style="{StaticResource SendRequest}" x:Name="btnDalleSendRequest" Click="btnDalleSendRequest_Click" />
-                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtDalleResponse" />
-                    </StackPanel>
-                    <!-- DALL-E - options controls -->
-                    <GroupBox x:Name="groupImageGen" Header="Image Options" Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Margin="0,0,0,0">
-                        <StackPanel Orientation="Vertical" Margin="5">
-                            <Label Margin="2,2,2,0" VerticalAlignment="Center">Number of Images</Label>
-                            <ComboBox x:Name="cmNumberOfImages" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmNumberOfImages_SelectionChanged"/>
-                            <Label Margin="2,10,2,0">Image Size</Label>
-                            <ComboBox x:Name="cmSize" Margin="0,0,0,0"  IsEnabled="True" SelectionChanged="cmSize_SelectionChanged"/>
-
-                            <Label Margin="2,10,2,0">Image Quality</Label>
-                            <ComboBox x:Name="cmImageQuality" Margin="0,0,0,0" IsEnabled="True" SelectionChanged="cmImageQuality_SelectionChanged"/>
-
-
-                            <Label Margin="2,10,2,0">Image Variations</Label>
-                            <CheckBox x:Name="cbImageVariations" Checked="cbImageVariations_Checked" IsChecked="False" Unchecked="cbImageVariations_Unchecked"/>
-                            <Button x:Name="btnOpenImage" Content="Choose Image" IsEnabled="False" Click="btnOpenImage_Click"/>
-                            <Label Margin="2,10,2,0">Edit Image</Label>
-                            <CheckBox x:Name="cbImageEdit" Checked="cbImageEdit_Checked"  IsChecked="False" Unchecked="cbImageEdit_Unchecked" />
-                            <Button x:Name="btnMaskImage" Content="Choose Mask" IsEnabled="False" Click="btnMaskImage_Click" />
-                            <Label x:Name="lblSelectedImage" Content="Currently selected image" Visibility="Hidden" />
-                            <Image x:Name="imageSelected" Visibility="Hidden" />
-                            <Button x:Name="btnRemoveImage" Content="Remove Image" Visibility="Hidden" Click="btnRemoveImage_Click"/>
-                            <Label x:Name="lblSelectedMask" Content="Currently selected mask" Visibility="Hidden" />
-                            <Image x:Name="imageMask" Visibility="Hidden" />
-                            <Button x:Name="btnRemoveMask" Content="Remove Mask" Visibility="Hidden" Click="btnRemoveMask_Click"/>
-
-                        </StackPanel>
-                    </GroupBox>
-                </Grid>
-            </TabItem>
+            
             <TabItem Header="Whisper"  Name="tpWhisper">
                 <Grid x:Name="gridWhisper" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>

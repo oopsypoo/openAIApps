@@ -45,21 +45,7 @@ namespace openAIApps
         private string _videoReferencePath = string.Empty;
         // near other fields
         private Responses _responsesClient;
-        private void AddImageControls(object src)
-        {
-            if (src == btnMaskImage || src == cbImageEdit)
-            {
-                lblSelectedMask.Visibility = Visibility.Visible;
-                imageMask.Visibility = Visibility.Visible;
-                btnRemoveMask.Visibility = Visibility.Visible;
-            }
-            if (src == btnOpenImage || src == cbImageEdit)
-            {
-                lblSelectedImage.Visibility = Visibility.Visible;
-                imageSelected.Visibility = Visibility.Visible;
-                btnRemoveImage.Visibility = Visibility.Visible;
-            }
-        }
+        
 
         private void EnsureSavePaths()
         {
@@ -104,34 +90,10 @@ namespace openAIApps
         }
 
         public void InitControls()
-        {//set standard/default values to image controls
+        {
             EnsureSavePaths();
-            foreach (var p in Dalle.optImages.optImages)
-                cmNumberOfImages.Items.Add(p);
-            cmNumberOfImages.SelectedItem = Dalle.optImages.noImages;
-
-            foreach (var p in Dalle.optImages.optSize)
-                cmSize.Items.Add(p);
-            cmSize.SelectedItem = Dalle.optImages.csize;
-
-            foreach (var p in Dalle.optImages.optQuality)
-                cmImageQuality.Items.Add(p);
-
-            cmImageQuality.SelectedItem = Dalle.optImages.Quality;
-
-            //Add the GPT-model-name to the tab. I've removed all references to GPT3.5Turbo
-
-#if DALLE_VERSION3
-            {
-                cbImageVariations.IsEnabled = false;
-                btnOpenImage.IsEnabled = false;
-                cbImageEdit.IsEnabled = false;
-                btnMaskImage.IsEnabled = false;
-            }
-            _videoClient = new VideoClient(apiKey: OpenAPIKey);
+             _videoClient = new VideoClient(apiKey: OpenAPIKey);
             InitVideoList();
-
-#endif
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
@@ -182,186 +144,6 @@ namespace openAIApps
             bitmap.EndInit();
             return bitmap;
         }
-
-        private void cmNumberOfImages_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Dalle.optImages.noImages = (int)cmNumberOfImages.SelectedItem;
-            Dalle.rxImagesEdit.n = Dalle.rxImages.n = Dalle.rxImagesVariation.n = Dalle.optImages.noImages;
-        }
-
-        private void cmSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Dalle.optImages.csize = (string)cmSize.SelectedItem;
-
-            Dalle.rxImagesEdit.size = Dalle.rxImages.size = Dalle.rxImagesVariation.size = Dalle.optImages.csize;
-        }
-
-        private async void btnDalleSendRequest_Click(object sender, RoutedEventArgs e)
-        {
-            txtDalleResponse.Text = "";
-            this.IsEnabled = false;
-            Dalle.rxImages.prompt = txtDalleRequest.Text;
-
-            try
-            {
-                if (cbImageVariations.IsChecked == false && cbImageEdit.IsChecked == false)
-                {
-                    GlobalhttpResponse = await Dalle.rxImages.PostFile(OpenAPIKey);
-                }
-                else if (cbImageVariations.IsChecked == true && cbImageEdit.IsChecked == false)
-                {
-                    GlobalhttpResponse = await Dalle.rxImagesVariation.PostFile(OpenAPIKey);
-                }
-                else if (cbImageEdit.IsChecked == true)
-                {
-                    Dalle.rxImagesEdit.prompt = txtDalleRequest.Text;
-                    GlobalhttpResponse = await Dalle.rxImagesEdit.PostFile(OpenAPIKey);
-                }
-
-                var responseString = await GlobalhttpResponse.Content.ReadAsStringAsync();
-
-                Dalle.resource = JsonSerializer.Deserialize<Dalle.responseImage>(responseString);
-                /// there's an error. just get out.
-
-                if (Dalle.resource.data == null)
-                {
-                    txtDalleResponse.Text = "Server-response: \n" + GlobalhttpResponse + "\n\nError:\n" + responseString;
-                    this.IsEnabled = true;
-                    return;
-                }
-                else
-                {
-                    ///everything is ok. Draw/create the images
-                    Dalle.resource.DrawImages();
-                }
-            }
-            catch (Exception err)
-            {
-                this.Dispatcher.Invoke(() =>
-                {
-                    txtDalleResponse.Text = err.Message + "\nInnerexception: " + err.InnerException;
-                    this.IsEnabled = true;
-                    return;
-                });
-            }
-
-            this.Dispatcher.Invoke(() =>
-            {
-                this.IsEnabled = true;
-            });
-        }
-
-        private void cbImageVariations_Checked(object sender, RoutedEventArgs e)
-        {
-            btnOpenImage.IsEnabled = true;
-            cbImageEdit.IsEnabled = false;
-            //make image visible if something is selected
-        }
-        /// <summary>
-        /// should happen when the variation-checkbox is unchecked. Make "things" hidden and reset image in rxImageVariations
-        /// or, when edit is unchecked
-        /// </summary>
-        private void RemoveImageControls(object src)
-        {
-            lblSelectedImage.Visibility = Visibility.Hidden;
-            imageSelected.Visibility = Visibility.Hidden;
-            lblSelectedMask.Visibility = Visibility.Hidden;
-            imageMask.Visibility = Visibility.Hidden;
-            imageSelected.Visibility = Visibility.Hidden;
-            btnRemoveMask.Visibility = Visibility.Hidden;
-            btnRemoveImage.Visibility = Visibility.Hidden;
-            imageSelected.Source = null;
-            imageMask.Source = null;
-            if (src == cbImageVariations)
-                Dalle.rxImagesVariation.image = null;
-            else if (src == cbImageEdit)
-                Dalle.rxImagesEdit.image = null;
-
-        }
-
-        private void btnOpenImage_Click(object sender, RoutedEventArgs e)
-        {
-            string temp = Dalle.GetImageFileName(Dalle.GetSavepath_pics());
-            if (string.IsNullOrEmpty(temp))
-            {
-                MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-            string filename = ExtractFileName(temp);
-
-            if (cbImageVariations.IsChecked == true)
-            {
-                Dalle.rxImagesVariation.image = filename;
-                imageSelected.Source = GetImageSource(temp);
-            }
-            else if (cbImageEdit.IsChecked == true)
-            {
-                Dalle.rxImagesEdit.image = filename;
-                imageSelected.Source = GetImageSource(temp);
-            }
-            AddImageControls(sender);
-        }
-
-        private void cbImageVariations_Unchecked(object sender, RoutedEventArgs e)
-        {
-            btnOpenImage.IsEnabled = false;
-            cbImageEdit.IsEnabled = true;
-            RemoveImageControls(sender);
-        }
-
-        private void btnMaskImage_Click(object sender, RoutedEventArgs e)
-        {
-            string fullpath = Dalle.GetImageFileName(Dalle.GetSavepath_pics());
-            if (string.IsNullOrEmpty(fullpath))
-            {
-                MessageBox.Show("String cannot be empty", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-            Dalle.rxImagesEdit.mask = ExtractFileName(fullpath);
-            imageMask.Source = GetImageSource(fullpath);
-            AddImageControls(sender);
-        }
-
-        private void cbImageEdit_Unchecked(object sender, RoutedEventArgs e)
-        {
-            btnOpenImage.IsEnabled = false;
-            btnMaskImage.IsEnabled = false;
-            cbImageVariations.IsEnabled = true;
-            //
-            RemoveImageControls(sender);
-        }
-
-        private void cbImageEdit_Checked(object sender, RoutedEventArgs e)
-        {
-            btnOpenImage.IsEnabled = true;
-            btnMaskImage.IsEnabled = true;
-            cbImageVariations.IsEnabled = false;
-            //
-
-        }
-
-        private void btnRemoveImage_Click(object sender, RoutedEventArgs e)
-        {
-            imageSelected.Source = null;
-            btnRemoveImage.Visibility = Visibility.Hidden;
-            lblSelectedImage.Visibility = Visibility.Hidden;
-            if (cbImageVariations.IsChecked == true)
-            {
-                Dalle.rxImagesVariation.image = null;
-            }
-            else
-                Dalle.rxImagesEdit.image = null;
-        }
-
-        private void btnRemoveMask_Click(object sender, RoutedEventArgs e)
-        {
-            imageMask.Source = null;
-            btnRemoveMask.Visibility = Visibility.Hidden;
-            lblSelectedMask.Visibility = Visibility.Hidden;
-            Dalle.rxImagesEdit.mask = null;
-        }
-
-
 
         private void cmbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -471,28 +253,6 @@ namespace openAIApps
         {
 
         }
-
-        private void cmbAvailableModels_Initialized(object sender, EventArgs e)
-        {
-
-        }
-
-        //when aulity of an image is changed...value is changed
-        private void cmImageQuality_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Dalle.optImages.Quality = (string)cmImageQuality.SelectedItem;
-
-            Dalle.rxImages.quality = Dalle.optImages.Quality;
-            //Dalle.rxImagesEdit.size = Dalle.rxImages.size = Dalle.rxImagesVariation.size = Dalle.optImages.csize;
-
-        }
-
-        private void menuCreateAssistant_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-
     }
 }
 
