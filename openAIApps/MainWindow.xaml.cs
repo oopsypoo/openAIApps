@@ -45,7 +45,21 @@ namespace openAIApps
         private string _videoReferencePath = string.Empty;
         // near other fields
         private Responses _responsesClient;
-
+        private void AddImageControls(object src)
+        {
+            if (src == btnMaskImage || src == cbImageEdit)
+            {
+                lblSelectedMask.Visibility = Visibility.Visible;
+                imageMask.Visibility = Visibility.Visible;
+                btnRemoveMask.Visibility = Visibility.Visible;
+            }
+            if (src == btnOpenImage || src == cbImageEdit)
+            {
+                lblSelectedImage.Visibility = Visibility.Visible;
+                imageSelected.Visibility = Visibility.Visible;
+                btnRemoveImage.Visibility = Visibility.Visible;
+            }
+        }
 
         private void EnsureSavePaths()
         {
