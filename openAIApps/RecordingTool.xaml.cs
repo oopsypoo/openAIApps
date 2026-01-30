@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using whisper;
+
 using whisper.AudioTools;
 
 namespace openAIApps
@@ -19,11 +15,12 @@ namespace openAIApps
     /// <summary>
     /// Interaction logic for Window1.xaml
     /// </summary>
+    /// //initial directory for audio-files
+    
     public partial class RecordingTool : Window
     {
-        //initial directory for audio-files
-        const string savepath_snds = "D:\\Users\\frode\\Documents\\openapi\\snds\\";
-        
+
+        string savepath_snds = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi\\snds");
         public static AudioTools AuxRecord = new AudioTools();
         public RecordingTool()
         {

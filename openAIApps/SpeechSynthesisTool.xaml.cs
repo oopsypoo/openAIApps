@@ -14,7 +14,8 @@ namespace openAIApps
     /// </summary>
     public partial class SpeechSynthesisTool : Window
     {
-        const string savepath = "D:\\Users\\frode\\Documents\\openapi\\speech.txt";
+        static readonly string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi\\snds");
+        static readonly string savepath = Path.Combine(path, "speech.txt");
         public static void SaveControlDataToFile(StackPanel sp)
         {
             using (StreamWriter writer = new StreamWriter(savepath))

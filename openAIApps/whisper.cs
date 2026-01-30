@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Windows.Controls;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 
@@ -37,8 +38,13 @@ namespace whisper
 
             if (ofd.ShowDialog() == true)
             {
-                //return full path and filename
+                // store filename and full path
+                // RxWhisper.file is the filename used in the multipart form
                 RxWhisper.file = ofd.SafeFileName;
+                // WOptions.STT_audiofile must contain the full path used to open the FileStream
+                WOptions.STT_audiofile = ofd.FileName;
+                // also keep a copy on the Whisper class
+                full_audiofilename = ofd.FileName;
                 return ofd.FileName;
             }
             return null;
@@ -70,36 +76,46 @@ namespace whisper
             public string model { get; set; }
             public string prompt { get; set; }
             public string response_format { get; set; }
-            public int temperature { get; set; }
-            /// <summary>
-            /// language in ISO-639-1 format
-            /// </summary>
+            public double temperature { get; set; }
             public string language { get; set; }
+
             public RequestWhisper()
             {
-                //set defaults
                 file = "";
                 model = whisper_model;
                 prompt = "";
                 response_format = "json";
-                temperature = 0;
+                temperature = 0.0;
                 language = "en";
             }
+
             public async Task<HttpResponseMessage> PostFile(string key)
             {
                 using (var httpClient = new HttpClient())
                 {
-                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", key);
+
                     using (var content = new MultipartFormDataContent())
                     {
-                        using (var fileStream = new FileStream(WOptions.STT_audiofile, FileMode.Open, FileAccess.Read))
+                        double temp = System.Math.Clamp(temperature, 0.0, 2.0);
+
+                        using (var fileStream = new FileStream(Whisper.WOptions.STT_audiofile, FileMode.Open, FileAccess.Read))
                         {
                             content.Add(new StreamContent(fileStream), "file", file);
                             content.Add(new StringContent(model), "model");
-                            content.Add(new StringContent(prompt), "prompt");
-                            content.Add(new StringContent(prompt), "response_format");
-                            content.Add(new StringContent(prompt), "temperature");
-                            content.Add(new StringContent(prompt), "language");
+
+                            if (!string.IsNullOrEmpty(prompt))
+                                content.Add(new StringContent(prompt), "prompt");
+
+                            if (!string.IsNullOrEmpty(response_format))
+                                content.Add(new StringContent(response_format), "response_format");
+
+                            content.Add(new StringContent(
+                                temp.ToString(System.Globalization.CultureInfo.InvariantCulture)), "temperature");
+
+                            if (!string.IsNullOrEmpty(language))
+                                content.Add(new StringContent(language), "language");
 
                             var res = await httpClient.PostAsync(Whisper.WOptions.STT_Type, content);
                             return res;

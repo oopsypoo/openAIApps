@@ -24,7 +24,7 @@ namespace openAIApps
     {
         AudioTools rec = new AudioTools();
         //initial directory for audio-files
-        const string savepath_snds = "D:\\Users\\frode\\Documents\\openapi\\snds\\";
+        string savepath_snds = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi\\snds");
         bool Selected_wavfile = false;
         bool Selected_file = false;
         public ConvertWavFile()

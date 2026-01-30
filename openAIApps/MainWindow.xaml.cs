@@ -373,48 +373,48 @@ namespace openAIApps
 
         private async void btnWhisperSendRequest_Click(object sender, RoutedEventArgs e)
         {
-            txtWhisperResponse.Text = "";
-            this.IsEnabled = true;
+            txtWhisperResponse.Text = string.Empty;
+            IsEnabled = false;
 
             try
             {
                 GlobalhttpResponse = await Whisper.RxWhisper.PostFile(OpenAPIKey);
-
                 var responseString = await GlobalhttpResponse.Content.ReadAsStringAsync();
 
-                Whisper.ResWhisper = JsonSerializer.Deserialize<Whisper.ResponseWhisper>(responseString);
-                /// there's an error. just get out.
-
-                if (Whisper.ResWhisper.text == null)
+                // Try parse into ResponseWhisper; if it fails or text is null, show raw body
+                Whisper.ResWhisper = null;
+                try
                 {
-                    txtDalleResponse.Text = "Server-response: \n" + GlobalhttpResponse + "\n\nError:\n" + responseString;
-                    this.IsEnabled = true;
-                    return;
+                    Whisper.ResWhisper =
+                        JsonSerializer.Deserialize<Whisper.ResponseWhisper>(responseString);
+                }
+                catch
+                {
+                    // ignore, will fall back to raw body
+                }
+
+                if (!GlobalhttpResponse.IsSuccessStatusCode || Whisper.ResWhisper?.text == null)
+                {
+                    txtWhisperResponse.Text =
+                        "Server-response:\n" + GlobalhttpResponse +
+                        "\n\nBody:\n" + responseString;
                 }
                 else
                 {
-                    ///everything is ok. Draw/create the images
                     txtWhisperResponse.Text = Whisper.ResWhisper.text;
-
-                    //var res = SpeechSynthesis.TTSAsync(txtWhisperResponse.Text);
-
                 }
             }
             catch (Exception err)
             {
-                this.Dispatcher.Invoke(() =>
-                {
-                    txtWhisperResponse.Text = err.Message + "\nInnerexception: " + err.InnerException;
-                    this.IsEnabled = true;
-                    return;
-                });
+                txtWhisperResponse.Text =
+                    err.Message + "\nInnerexception: " + err.InnerException;
             }
-
-            this.Dispatcher.Invoke(() =>
+            finally
             {
-                this.IsEnabled = true;
-            });
+                IsEnabled = true;
+            }
         }
+
         /// <summary>
         /// Opens an audio file for transcription or translation
         /// </summary>
