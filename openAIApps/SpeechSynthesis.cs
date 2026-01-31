@@ -1,13 +1,9 @@
-﻿using System;
+﻿using Microsoft.CognitiveServices.Speech;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
-using Microsoft.CognitiveServices.Speech;
 
 
 
@@ -19,8 +15,8 @@ namespace TTS
         static readonly string speechRegion = Environment.GetEnvironmentVariable("SPEECH_REGION");
         public static string TTSChosenVoice = "en-SG-LunaNeural";
         public static bool TTSUse = false;
-        public static List<VoiceDescription> NeuralVoices = new List<VoiceDescription>() 
-                                            { 
+        public static List<VoiceDescription> NeuralVoices = new List<VoiceDescription>()
+                                            {
                                             new VoiceDescription("en", "AU","en-AU-AnnetteNeural","Female"),
                                            new VoiceDescription("en", "AU","en-AU-CarlyNeural","Female"),
                                            new VoiceDescription("en", "AU","en-AU-CarlyNeural","Female"),
@@ -104,7 +100,7 @@ namespace TTS
 
 
         };
-        
+
 
         public class VoiceDescription
         {
@@ -112,8 +108,8 @@ namespace TTS
             private string Locale { get; set; }
             private string DisplayName { get; set; }
             private string Gender { get; set; }
-            
-           
+
+
             public VoiceDescription(string language, string locale, string displayName, string gender)
             {
                 Language = language;
@@ -121,7 +117,7 @@ namespace TTS
                 DisplayName = displayName;
                 Gender = gender;
             }
-            
+
             /// <summary>
             /// 
             /// </summary>
@@ -185,7 +181,7 @@ namespace TTS
             /// <returns></returns>
             public static List<string> GetUniqueLocales(string language)
             {
-                List<string> uniqueLocales = NeuralVoices.Where(v=>v.Language == language).Select(v => v.Locale).Distinct().ToList();
+                List<string> uniqueLocales = NeuralVoices.Where(v => v.Language == language).Select(v => v.Locale).Distinct().ToList();
                 return uniqueLocales;
             }
             /// <summary>
@@ -234,7 +230,7 @@ namespace TTS
             }
         }
 
-        
+
         static void OutputSpeechSynthesisResult(SpeechSynthesisResult speechSynthesisResult, string text)
         {
             switch (speechSynthesisResult.Reason)
@@ -261,9 +257,9 @@ namespace TTS
         {
             var speechConfig = SpeechConfig.FromSubscription(speechKey, speechRegion);
             // The language of the voice that speaks.
-            
+
             speechConfig.SpeechSynthesisVoiceName = TTSChosenVoice;
-            
+
             using (var speechSynthesizer = new SpeechSynthesizer(speechConfig))
             {
                 var speechSynthesisResult = await speechSynthesizer.SpeakTextAsync(input);

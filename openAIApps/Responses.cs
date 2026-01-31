@@ -54,7 +54,7 @@ namespace openAIApps
                 return $"Error {response.StatusCode}: {responseString}";
 
             var result = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
-            
+
             // NEW: remember conversation id
             if (!string.IsNullOrEmpty(result?.Id))
                 LastResponseId = result.Id;
@@ -140,7 +140,7 @@ namespace openAIApps
             }
             // Log the turn
             assistantText = sb.ToString().TrimEnd();
-            
+
             if (!string.IsNullOrEmpty(result?.Id))
             {
                 ConversationLog.Add(new ResponsesTurn
@@ -161,13 +161,13 @@ namespace openAIApps
             ? "no input"
             : toolInput.GetRawText();
 
-                return toolName switch
-                {
-                    "web_search" => $"Web search would execute: {inputText}",
-                    "reasoning" => $"Reasoning step executed with input: {inputText}",
-                    "computer_use_preview" => "Computer use action simulated (requires access)",
-                    _ => $"Tool execution simulated: {inputText}"
-                };
+            return toolName switch
+            {
+                "web_search" => $"Web search would execute: {inputText}",
+                "reasoning" => $"Reasoning step executed with input: {inputText}",
+                "computer_use_preview" => "Computer use action simulated (requires access)",
+                _ => $"Tool execution simulated: {inputText}"
+            };
         }
 
         public void Dispose()
@@ -266,7 +266,7 @@ namespace openAIApps
 
             [JsonPropertyName("tools")]
             public Tool[] Tools { get; set; }
-            
+
             [JsonPropertyName("reasoning")]
             public ReasoningConfig Reasoning { get; set; }
             [JsonPropertyName("store")]
@@ -346,10 +346,10 @@ namespace openAIApps
         }
 
         public class ResponsesResult
-{
-    public string AssistantText { get; set; }
-    public List<string> ImagePayloads { get; set; } = new();
-}
+        {
+            public string AssistantText { get; set; }
+            public List<string> ImagePayloads { get; set; } = new();
+        }
 
         public void AddTurn(string responseId, string assistantText, string imagePath)
         {
@@ -439,7 +439,7 @@ namespace openAIApps
             ConversationLog[^1].UserText = userText;
         }
         // In Responses.cs
-        
+
         public async Task<ResponsesResult> GetResponseAsync(string prompt, string imagePath)
         {
             var request = BuildRequestWithImage(prompt, imagePath);

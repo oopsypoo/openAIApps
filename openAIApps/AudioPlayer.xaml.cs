@@ -1,22 +1,9 @@
 ﻿using Microsoft.Win32;
-using NAudio.Wave.SampleProviders;
-using NAudio.Wave;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using whisper.AudioTools;
-using System.Media;
 
 namespace openAIApps
 {
@@ -27,8 +14,8 @@ namespace openAIApps
     {
         string savepath_snds = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi\\snds");
         AudioTools rec = new AudioTools();
-        
-    public AudioPlayer()
+
+        public AudioPlayer()
         {
             InitializeComponent();
             pbProgressPlay.AddHandler(MouseLeftButtonDownEvent, new MouseButtonEventHandler(pbProgressPlay_MouseDown), true);
@@ -61,7 +48,7 @@ namespace openAIApps
         private void btnOpenFile_Click(object sender, RoutedEventArgs e)
         {
             OpenFile(savepath_snds);
-            if(!string.IsNullOrEmpty(rec.filename_full)) 
+            if (!string.IsNullOrEmpty(rec.filename_full))
             {
                 lblCurrentFile.Content = rec.filename_full;
                 btnPlayFile.IsEnabled = true;
@@ -69,16 +56,16 @@ namespace openAIApps
                 txtbInPlayFileInfo.Text = "Duration: " + rec.InMetadata.Duration + "\nFormat: " + rec.InMetadata.AudioData.Format +
                     "\nChannelOutput: " + rec.InMetadata.AudioData.ChannelOutput + "\nSampleRate: " + rec.InMetadata.AudioData.SampleRate + "\nBitRateKbs: " + rec.InMetadata.AudioData.BitRateKbs;
                 pbProgressPlay.Maximum = rec.InMetadata.Duration.TotalMilliseconds;
-                
+
                 //pbProgressPlay.Maximum = 100;
             }
         }
 
         private void btnPlayFile_Click(object sender, RoutedEventArgs e)
         {
-            if(rec.filename_full == null)
+            if (rec.filename_full == null)
             {
-                MessageBox.Show("You must select a file to play", "Error", MessageBoxButton.OK, MessageBoxImage.Stop); 
+                MessageBox.Show("You must select a file to play", "Error", MessageBoxButton.OK, MessageBoxImage.Stop);
                 return;
             }
             rec.ProgressChanged += (sender, msIntoFile) =>
@@ -98,7 +85,7 @@ namespace openAIApps
             btnPauseFile.Content = "Pause";
             btnPauseFile.IsEnabled = false;
         }
-        
+
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -111,7 +98,7 @@ namespace openAIApps
         {
             bool pause_state = false;
             rec.PausePlaying(ref pause_state);
-            if(pause_state == true)
+            if (pause_state == true)
                 btnPauseFile.Content = "Continue Playing";
             else
                 btnPauseFile.Content = "Pause";

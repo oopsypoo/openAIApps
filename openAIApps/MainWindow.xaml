@@ -104,10 +104,11 @@
                 <MenuItem Header="Exit" Name="menuExit" Click="menuExit_Click" IsEnabled="True" />
             </MenuItem>
             <MenuItem Header="Tools" Name="menuTools" IsEnabled="True" AllowDrop="True">
-                <MenuItem Header="Record" Name="menuRecord" Click="menuRecord_Click" IsEnabled="True" />
+                <MenuItem Header="Record sound" Name="menuRecord" Click="menuRecord_Click" IsEnabled="True" />
                 <MenuItem Header="Convert WAV" Name="menuConvert" Click="menuConvert_Click"  IsEnabled="True" />
-                <MenuItem Header="Play File" Name="menuPlayFile" Click="menuPlayFile_Click"  IsEnabled="True" />
+                <MenuItem Header="Play Sound File" Name="menuPlayFile" Click="menuPlayFile_Click"  IsEnabled="True" />
                 <MenuItem Header="SpeechSynthesis Options" Name="menuSpeechSynthesisTool" Click="menuSpeechSynthesisTool_Click" IsEnabled="True" />
+                <MenuItem Header="Available Models" Name="menuAvlblMdls" Click="menuAvailableModels_Click" IsEnabled="True" />
             </MenuItem>
             <MenuItem Header="Help" Name="menuHelp" Click="menuHelp_Click" IsEnabled="True" AllowDrop="True">
                 <MenuItem Header="About" Name="menuAbout" Click="menuAbout_Click" IsEnabled="True"/>

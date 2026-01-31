@@ -1,9 +1,7 @@
-﻿using System.IO;
+﻿using Microsoft.Win32;
+using System.IO;
 using System.Net.Http;
-using System.Text.Json;
-using System.Windows.Controls;
 using System.Threading.Tasks;
-using Microsoft.Win32;
 
 
 namespace whisper
@@ -17,7 +15,7 @@ namespace whisper
         public static ResponseWhisper ResWhisper = new ResponseWhisper();
         const string url_transcriptions = "https://api.openai.com/v1/audio/transcriptions";
         const string url_translations = "https://api.openai.com/v1/audio/translations";
-        
+
         const string whisper_model = "whisper-1";
         public static string full_audiofilename = "";
 

@@ -1,8 +1,5 @@
-﻿using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using TTS;
@@ -20,11 +17,11 @@ namespace openAIApps
         {
             using (StreamWriter writer = new StreamWriter(savepath))
             {
-                foreach(var child in sp.Children)
+                foreach (var child in sp.Children)
                 {
-                    if(child is ComboBox)
+                    if (child is ComboBox)
                     {
-                        if(((ComboBox)child).SelectedValue == null)
+                        if (((ComboBox)child).SelectedValue == null)
                         {
                             writer.Close();
                             MessageBox.Show("A value cannot be null. Please choose a value from the dropdown to save", "Null value", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -32,22 +29,22 @@ namespace openAIApps
                         }
                         writer.WriteLine(((ComboBox)child).SelectedValue);
                     }
-                    else if(child is CheckBox)
+                    else if (child is CheckBox)
                     {
-                        if(((CheckBox)child).IsChecked == true)
+                        if (((CheckBox)child).IsChecked == true)
                             writer.WriteLine(1);
                         else
                             writer.WriteLine(0);
                     }
                 }
             }
-            
+
         }
         public static void GetSavedSpeechData(StackPanel sp)
         {
 
-            try 
-            { 
+            try
+            {
                 using (StreamReader reader = new StreamReader(savepath))
                 {
                     foreach (var child in sp.Children)
@@ -58,7 +55,7 @@ namespace openAIApps
                         }
                         else if (child is CheckBox)
                         {
-                            if(reader.ReadLine() == "1")
+                            if (reader.ReadLine() == "1")
                                 ((CheckBox)child).IsChecked = true;
                             else
                                 ((CheckBox)child).IsChecked = false;
@@ -66,7 +63,7 @@ namespace openAIApps
                     }
                 }
             }
-            catch (IOException err) 
+            catch (IOException err)
             {
                 switch (err)
                 {
@@ -84,7 +81,7 @@ namespace openAIApps
         /// </summary>
         public void Init()
         {
-           //Get all unique languages from neuealvoices-list
+            //Get all unique languages from neuealvoices-list
             this.lbTTSLanguages.ItemsSource = SpeechSynthesis.VoiceDescription.GetUniqueLanguages();
             this.lbTTSLanguages.SelectedIndex = 0;
             //get all locales based on selected index = 0 
@@ -111,24 +108,24 @@ namespace openAIApps
             if (lbTTSLanguages.ItemsSource != null && lbTTSLocale.ItemsSource != null && lbTTSGender.ItemsSource != null)
             {
                 //update Locale and gender
-                if(sender == lbTTSLanguages)
+                if (sender == lbTTSLanguages)
                 {
                     lbTTSLocale.ItemsSource = SpeechSynthesis.VoiceDescription.GetUniqueLocales(lbTTSLanguages.SelectedValue.ToString());
-                    if(lbTTSLocale.SelectedValue != null)
+                    if (lbTTSLocale.SelectedValue != null)
                         lbTTSGender.ItemsSource = SpeechSynthesis.VoiceDescription.GetUniqueGenders(lbTTSLanguages.SelectedValue.ToString(), lbTTSLocale.SelectedValue.ToString());
                 }
                 //update Locale and gender
-                else if (sender == lbTTSLocale) 
+                else if (sender == lbTTSLocale)
                 {
                     lbTTSGender.ItemsSource = SpeechSynthesis.VoiceDescription.GetUniqueGenders(lbTTSLanguages.SelectedValue.ToString());
-                    if(lbTTSLocale.SelectedValue != null)
+                    if (lbTTSLocale.SelectedValue != null)
                         lbTTSGender.ItemsSource = SpeechSynthesis.VoiceDescription.GetUniqueGenders(lbTTSLanguages.SelectedValue.ToString(), lbTTSLocale.SelectedValue.ToString());
                 }
-                else if(sender == lbTTSGender) 
-                { 
+                else if (sender == lbTTSGender)
+                {
                     //lbTTSGender.SelectedIndex = 0;
                 }
-                if(lbTTSLocale.SelectedValue != null && lbTTSGender != null)
+                if (lbTTSLocale.SelectedValue != null && lbTTSGender != null)
                     this.lbTTVoices.ItemsSource = SpeechSynthesis.VoiceDescription.GetDisplayNames(lbTTSLanguages.SelectedValue.ToString(), lbTTSLocale.SelectedValue.ToString(), lbTTSGender.SelectedValue.ToString());
             }
         }
@@ -145,7 +142,7 @@ namespace openAIApps
 
         private void lbTTVoices_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if(lbTTVoices.SelectedValue != null)
+            if (lbTTVoices.SelectedValue != null)
                 SpeechSynthesis.TTSChosenVoice = this.lbTTVoices.SelectedValue.ToString();
         }
         /// <summary>

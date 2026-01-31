@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
 
 using whisper.AudioTools;
 
@@ -16,7 +10,7 @@ namespace openAIApps
     /// Interaction logic for Window1.xaml
     /// </summary>
     /// //initial directory for audio-files
-    
+
     public partial class RecordingTool : Window
     {
 
@@ -26,7 +20,7 @@ namespace openAIApps
         {
             InitializeComponent();
         }
-       
+
         /// <summary>
         /// Start recording to file(wav) for the moment
         /// </summary>

@@ -2,29 +2,28 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
-using System.Text.Json;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 //speechsynthesis.cs
-using whisper;
 using static openAIApps.VideoClient;
 
 namespace openAIApps
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// My former app OAiGPT3 was kind of messy and alot has changed since from openai.com
-    /// Seems like alot of the models are allready "out-of-date" and focus is going to be GPT3.5
-    /// So I'm going to rearrange and start adding apps in "tabs" instead. Main focus will be on model
-    /// gpt3.5-turbo and DALL-E
+    /// Interaction logic for MainWindow.xaml. Code for different tabs are in their respective files.
+    /// MainWindow.Responses.xaml.cs, MainWindow.Video.cs, MainWindow.Whisper.cs
+    /// menu-items are still here, with some menu-'actions'
     /// </summary>
     public partial class MainWindow : Window
     {
         const string url_openai_models = "https://api.openai.com/v1/models";
-
+        /// <summary>
+        /// Represents the OpenAI API key retrieved from the environment variable named "OPENAI_API_KEY".
+        /// </summary>
+        /// <remarks>This value is typically used to authenticate requests to the OpenAI API. Ensure that
+        /// the environment variable is set before accessing this field to avoid authentication failures.</remarks>
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
         /// <summary>
@@ -45,7 +44,8 @@ namespace openAIApps
         private string _videoReferencePath = string.Empty;
         // near other fields
         private Responses _responsesClient;
-        
+
+        private readonly HttpClient _httpClient = new(); // Or inject as singleton
 
         private void EnsureSavePaths()
         {
@@ -56,24 +56,6 @@ namespace openAIApps
             logfile = Path.Combine(savepath_logs, "logfile.txt");
         }
 
-        /// <summary>
-        /// not sure if this is the best solution. Using namespace and reorganizing data is the thing. But this will work.
-        /// </summary>
-        //static Dalle rxDalle = new Dalle();
-
-        //oes not do much except to save all written entries to a log file. See in the beginning of
-        //private async void btn_oai_rx_send_clickAsync(object sender, RoutedEventArgs e)
-        //{
-        public void SaveToLogFile(string txtRequest_Text)
-        {
-            string logEntry = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ": " + txtRequest_Text;
-
-            using (StreamWriter sw = File.AppendText(logfile))
-            {
-                sw.WriteLine(logEntry);
-            }
-        }
-        // In InitControls(), after creating _responsesClient:
 
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -92,7 +74,7 @@ namespace openAIApps
         public void InitControls()
         {
             EnsureSavePaths();
-             _videoClient = new VideoClient(apiKey: OpenAPIKey);
+            _videoClient = new VideoClient(apiKey: OpenAPIKey);
             InitVideoList();
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
@@ -145,82 +127,7 @@ namespace openAIApps
             return bitmap;
         }
 
-        private void cmbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            switch (cmbLanguage.SelectedIndex)
-            {
-                case 0:
-                    Whisper.WOptions.STT_language = "en";
-                    break;
-                case 1:
-                    Whisper.WOptions.STT_language = "nb";
-                    break;
-                case 2:
-                    Whisper.WOptions.STT_language = "tl";
-                    break;
-            }
-            Whisper.RxWhisper.language = Whisper.WOptions.STT_language;
-        }
 
-        private void cmbSpeachToText_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            Whisper.WOptions.STT_Type = Whisper.WhisperEndpoints[cmbSpeachToText.SelectedIndex];
-        }
-
-        private async void btnWhisperSendRequest_Click(object sender, RoutedEventArgs e)
-        {
-            txtWhisperResponse.Text = string.Empty;
-            IsEnabled = false;
-
-            try
-            {
-                GlobalhttpResponse = await Whisper.RxWhisper.PostFile(OpenAPIKey);
-                var responseString = await GlobalhttpResponse.Content.ReadAsStringAsync();
-
-                // Try parse into ResponseWhisper; if it fails or text is null, show raw body
-                Whisper.ResWhisper = null;
-                try
-                {
-                    Whisper.ResWhisper =
-                        JsonSerializer.Deserialize<Whisper.ResponseWhisper>(responseString);
-                }
-                catch
-                {
-                    // ignore, will fall back to raw body
-                }
-
-                if (!GlobalhttpResponse.IsSuccessStatusCode || Whisper.ResWhisper?.text == null)
-                {
-                    txtWhisperResponse.Text =
-                        "Server-response:\n" + GlobalhttpResponse +
-                        "\n\nBody:\n" + responseString;
-                }
-                else
-                {
-                    txtWhisperResponse.Text = Whisper.ResWhisper.text;
-                }
-            }
-            catch (Exception err)
-            {
-                txtWhisperResponse.Text =
-                    err.Message + "\nInnerexception: " + err.InnerException;
-            }
-            finally
-            {
-                IsEnabled = true;
-            }
-        }
-
-        /// <summary>
-        /// Opens an audio file for transcription or translation
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void btnAudioOpenFile_Click(object sender, RoutedEventArgs e)
-        {
-            Whisper.full_audiofilename = Whisper.WOptions.STT_audiofile = Whisper.GetAudioFileName(savepath_snds);
-            lblSelectedAudioFile.Content = Whisper.full_audiofilename;
-        }
         private void menuRecord_Click(object sender, RoutedEventArgs e)
         {
             RecordingTool rt = new RecordingTool();
@@ -247,28 +154,32 @@ namespace openAIApps
             speechSynthesisTool.ShowDialog();
         }
 
-        /// 
-        /// available models...hmmm..do later next two functions are meant to fill and handle ComboBox cmbAvailableModels
-        private void cmbAvailableModels_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
 
+        private async void menuAvailableModels_Click(object sender, RoutedEventArgs e)
+        {
+            // pass what the dialog needs: HttpClient and API key
+            var availableModels = new AvailableModels(_httpClient, OpenAPIKey);
+
+            try
+            {
+                // fetch models BEFORE showing dialog (or inside dialog, see below)
+                var models = await availableModels.GetAvailableModelsAsync(_httpClient, OpenAPIKey, url_openai_models);
+                availableModels.UpdateAvailableModels(models);
+
+                // now show the populated dialog
+                availableModels.ShowDialog();
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"HTTP error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unexpected error: {ex.Message}");
+            }
         }
+
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

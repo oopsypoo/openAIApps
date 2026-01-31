@@ -1,21 +1,21 @@
-﻿using System;
-using NAudio.Wave;
-using NAudio.MediaFoundation;
-using Microsoft.Win32;
-using System.IO;
-using System.Windows;
-using System.Media;
-using MediaToolkit;
+﻿using MediaToolkit;
 using MediaToolkit.Model;
 using MediaToolkit.Options;
+using Microsoft.Win32;
+using NAudio.MediaFoundation;
+using NAudio.Wave;
+using System;
+using System.IO;
+using System.Media;
 using System.Timers;
+using System.Windows;
 
 
 namespace whisper.AudioTools
 {
     ///let's test the MediaToolkit
     ///
-    
+
     /// <summary>
     /// Records sounds. Helper class for this module. Mostly for testing, but can be handly in any situation.
     /// At the moment only wav files are handled. Easiest. The filter si for future reference
@@ -28,7 +28,7 @@ namespace whisper.AudioTools
         private WaveInEvent waveIn = null;
         //private WaveOutEvent waveOut;
         private WaveOutEvent waveOutDevice; //with the waveout oabject it's easy to pause and spooling
-        
+
         private WaveFileWriter writer;
         private Timer progressTimer;
         private AudioFileReader audioFileReader = null;
@@ -43,7 +43,7 @@ namespace whisper.AudioTools
         public event EventHandler PlaybackStarted;
         public event EventHandler PlaybackPaused;
         public event EventHandler PlaybackStopped;
-        
+
 
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace whisper.AudioTools
             sfd.DefaultExt = extension;
             //sfd.Filter = "Sound Files(*.wav; *.mp3;)|*.wav; *.mp3";
             sfd.Filter = extension + " Files(*." + extension + ";)|*." + extension + ";";
-            if(string.IsNullOrEmpty(filename)) 
+            if (string.IsNullOrEmpty(filename))
             {
                 sfd.FileName = "sample." + extension;
             }
@@ -83,7 +83,7 @@ namespace whisper.AudioTools
                 filename = sfd.SafeFileName;
                 filename_full = sfd.FileName;
                 File.Create(filename_full).Close();
-                
+
                 return filename_full;
             }
             return null;
@@ -143,8 +143,8 @@ namespace whisper.AudioTools
                 // Initialize a new engine instance
                 var engine = new Engine();
                 // Convert the WAV file to WebM format using the engine
-                    
-                var outputOptions = new ConversionOptions { AudioSampleRate = AudioSampleRate.Default  };
+
+                var outputOptions = new ConversionOptions { AudioSampleRate = AudioSampleRate.Default };
                 var outputMedia = new MediaFile { Filename = savefile };
                 engine.Convert(inputFile, outputMedia, outputOptions);
                 engine.GetMetadata(outputMedia);
@@ -165,14 +165,14 @@ namespace whisper.AudioTools
             }
             else
             {
-                
+
                 MediaFoundationApi.Startup();
                 using (var reader = new WaveFileReader(wav_file))
                 {
                     try
                     {
                         var extension = Path.GetExtension(savefile).ToLower();
-                        switch(extension)
+                        switch (extension)
                         {
                             case ".mp3":
                                 MediaFoundationEncoder.EncodeToMp3(reader, savefile);
@@ -186,7 +186,7 @@ namespace whisper.AudioTools
                             default:
                                 MessageBox.Show(extension + " is not supported. Only files of type \"mp3\", \"aac\" or \"wma\" are supported", "Extension error", MessageBoxButton.OK, MessageBoxImage.Error);
                                 throw new ArgumentException();
-                                
+
                         }
                         reader.Close();
                     }
@@ -219,7 +219,7 @@ namespace whisper.AudioTools
                 throw new FileNotFoundException("File not found!", filePath);
             }
 
-            
+
             waveOutDevice = new WaveOutEvent();
             if (Path.GetExtension(filePath).Equals(".wav", StringComparison.OrdinalIgnoreCase))
             {
@@ -244,29 +244,29 @@ namespace whisper.AudioTools
             else
             {
                 this.windows_media_resource = false;
-            
+
                 audioFileReader = new AudioFileReader(filePath);
                 waveOutDevice.Init(audioFileReader);
                 waveOutDevice.Play();
-                    
+
                 progressTimer = new Timer(1); // set timer interval to 1 msecond
                 progressTimer.Elapsed += OnProgressTimerTick;
                 progressTimer.Start();
                 // Subscribe to the PlaybackStopped event
                 waveOutDevice.PlaybackStopped += OnPlaybackStopped;
-                    
+
             }
         }
         private void OnProgressTimerTick(object sender, ElapsedEventArgs e)
         {
             audioLengthMS = audioFileReader.CurrentTime.TotalMilliseconds;
-            
+
             Application.Current.Dispatcher.Invoke(() =>
             {
                 ProgressChanged?.Invoke(this, audioLengthMS);
             });
         }
-        
+
         private void OnPlaybackStopped(object sender, StoppedEventArgs e)
         {
             // Dispose the WaveOutEvent object to release system resources
@@ -277,10 +277,10 @@ namespace whisper.AudioTools
         }
         public void StopPlaying()
         {
-            switch(windows_media_resource)
+            switch (windows_media_resource)
             {
                 case true:
-                    if(wavPlayer != null)
+                    if (wavPlayer != null)
                         wavPlayer.Stop();
                     break;
                 case false:
@@ -294,8 +294,8 @@ namespace whisper.AudioTools
         }
         public void PausePlaying(ref bool Paused)
         {
-            if(waveOutDevice != null)
-            { 
+            if (waveOutDevice != null)
+            {
                 if (progressTimer.Enabled == true)
                 {
                     waveOutDevice.Pause();
@@ -303,7 +303,7 @@ namespace whisper.AudioTools
                     Paused = true;
                 }
                 else
-                { 
+                {
                     waveOutDevice.Play();
                     progressTimer.Start();
                     Paused = false;
@@ -312,18 +312,18 @@ namespace whisper.AudioTools
         }
         public void Dispose()
         {
-            if(wavPlayer != null)
+            if (wavPlayer != null)
             {
                 wavPlayer.Stop();
                 wavPlayer = null;
             }
-            if(waveOutDevice != null)
+            if (waveOutDevice != null)
             {
                 waveOutDevice?.Stop();
                 waveOutDevice = null;
             }
             if (audioFileReader != null)
-            { 
+            {
                 audioFileReader.Close();
                 //audioFileReader.Dispose();
             }
@@ -354,7 +354,7 @@ namespace whisper.AudioTools
         {
             //just check
             if (waveOutDevice.PlaybackState != PlaybackState.Paused)
-            { 
+            {
                 waveOutDevice.Pause();
                 progressTimer?.Stop();
             }
@@ -363,7 +363,7 @@ namespace whisper.AudioTools
             waveOutDevice.Play();
             progressTimer.Start();
         }
-        
+
     }
-    
+
 }
