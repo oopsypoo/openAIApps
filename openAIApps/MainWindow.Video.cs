@@ -132,6 +132,12 @@ namespace openAIApps
             {
                 _videoReferencePath = dlg.FileName;
 
+                // Make sure VideoClient knows about it
+                if (_videoClient != null)
+                {
+                    _videoClient.ReferenceFilePath = _videoReferencePath;
+                }
+
                 // Display preview in the Image control
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
@@ -142,6 +148,7 @@ namespace openAIApps
                 imgVideo.Source = bitmap;
             }
         }
+
         private static string GetLocalVideoPath(string videoId)
         {
             string videosDir = Path.Combine(

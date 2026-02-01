@@ -174,12 +174,12 @@ namespace openAIApps
             {
                 // --- Multipart/form-data request ---
                 using var form = new MultipartFormDataContent
-        {
-            { new StringContent(request.Model), "model" },
-            { new StringContent(request.Prompt), "prompt" },
-            { new StringContent(request.Size), "size" },
-            { new StringContent(request.Seconds), "seconds" } // already string
-        };
+                {
+                    { new StringContent(request.Model), "model" },
+                    { new StringContent(request.Prompt), "prompt" },
+                    { new StringContent(request.Size), "size" },
+                    { new StringContent(request.Seconds), "seconds" } // already string
+                };
 
                 // Add the reference image
                 var fileBytes = await File.ReadAllBytesAsync(this.ReferenceFilePath);
