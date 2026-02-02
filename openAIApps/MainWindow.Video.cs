@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -24,110 +25,168 @@ namespace openAIApps
         {
 
         }
+        private async Task HandleVideoJobAsync(ResponseVideo jobResponse)
+        {
+            // Show JSON (with error if any)
+            if (jobResponse?.Error != null)
+            {
+                txtVideoResponse.Text =
+                    $"Error code: {jobResponse.Error.Code}\r\nMessage: {jobResponse.Error.Message}\r\n\r\n" +
+                    JsonSerializer.Serialize(jobResponse, new JsonSerializerOptions { WriteIndented = true });
+
+                MessageBox.Show(
+                    $"Video error: {jobResponse.Error.Code}\n{jobResponse.Error.Message}",
+                    "Video Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            txtVideoResponse.Text = JsonSerializer.Serialize(
+                jobResponse,
+                new JsonSerializerOptions { WriteIndented = true });
+
+            if (jobResponse == null || string.IsNullOrEmpty(jobResponse.Id))
+            {
+                MessageBox.Show("Video request failed. No video ID returned.",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Add to list (or update if already present)
+            var existing = _videoHistory.FirstOrDefault(v => v.Id == jobResponse.Id);
+            if (existing == null)
+            {
+                _videoHistory.Add(new VideoClient.VideoListItem
+                {
+                    Id = jobResponse.Id,
+                    Status = jobResponse.Status,
+                    Progress = jobResponse.Progress,
+                    Model = jobResponse.Model
+                });
+            }
+            else
+            {
+                existing.Status = jobResponse.Status;
+                existing.Progress = jobResponse.Progress;
+            }
+
+            // Progress window
+            var progressWindow = new ProgressWindow("Processing video...");
+            progressWindow.Owner = this;
+
+            var cts = new CancellationTokenSource();
+            progressWindow.Canceled += (s, _) => cts.Cancel();
+
+            progressWindow.Show();
+
+            var progress = new Progress<double>(value =>
+            {
+                progressWindow.UpdateProgress(value);
+            });
+
+            await _videoClient.MonitorVideoProgressAsync(jobResponse.Id, progress, cts.Token);
+
+            progressWindow.Close();
+
+            // Final status
+            var finalStatus = await _videoClient.GetVideoStatusAsync(jobResponse.Id);
+            if (finalStatus != null)
+            {
+                txtVideoResponse.Text = JsonSerializer.Serialize(
+                    finalStatus,
+                    new JsonSerializerOptions { WriteIndented = true });
+
+                var item = _videoHistory.FirstOrDefault(v => v.Id == finalStatus.Id);
+                if (item != null)
+                {
+                    item.Status = finalStatus.Status;
+                    item.Progress = finalStatus.Progress;
+                }
+
+                if (finalStatus.Status == "completed")
+                {
+                    MessageBox.Show(
+                        $"Video {finalStatus.Id} created successfully!",
+                        "Done", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else if (finalStatus.Status == "failed")
+                {
+                    MessageBox.Show(
+                        $"Video {finalStatus.Id} failed to generate.",
+                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"Video {finalStatus.Id} has status: {finalStatus.Status}",
+                        "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            else
+            {
+                MessageBox.Show(
+                    "Could not retrieve final video status.",
+                    "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         private async void btnVideoSendRequest_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // Build request from your UI controls
-                var request = new VideoClient.RequestVideo
-                {
-                    Prompt = txtVideoPrompt.Text,
-                    Model = cmbVideoModel.Text,
-                    Seconds = cmbVideoLength.Text,
-                    Size = cmbVideoSize.Text
-                };
+                ResponseVideo? jobResponse;
 
-                // Create the video job
-                var response = await _videoClient.CreateVideoAsync(request);
-                if (response?.Error != null)
+                if (cbVideoRemix.IsChecked == true)
                 {
-                    txtVideoResponse.Text =
-                        $"Error code: {response.Error.Code}\r\nMessage: {response.Error.Message}\r\n\r\n" +
-                        JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+                    if (lstVideoFiles.SelectedItem is not VideoListItem selected)
+                    {
+                        MessageBox.Show(
+                            "Select a completed video to remix first.",
+                            "No Selection",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    var remixPrompt = txtVideoPrompt.Text;
+                    jobResponse = await _videoClient.RemixVideoAsync(selected.Id, remixPrompt);
                 }
                 else
                 {
-                    txtVideoResponse.Text =
-                        JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
-                }
-                // Show raw JSON in your response text box
-                //txtVideoResponse.Text = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
-                
+                    var request = new VideoClient.RequestVideo
+                    {
+                        Prompt = txtVideoPrompt.Text,
+                        Model = cmbVideoModel.Text,
+                        Seconds = cmbVideoLength.Text,
+                        Size = cmbVideoSize.Text
+                    };
 
-                // --- Handle invalid response ---
-                if (response == null || string.IsNullOrEmpty(response.Id))
+                    jobResponse = await _videoClient.CreateVideoAsync(request);
+                }
+
+                if (jobResponse == null)
                 {
-                    MessageBox.Show("Video creation request failed. No video ID returned.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(
+                        "Video request failed (no response).",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                     return;
                 }
 
-                // --- Add to your listbox immediately ---
-                _videoHistory.Add(new VideoClient.VideoListItem
-                {
-                    Id = response.Id,
-                    Status = response.Status,
-                    Progress = response.Progress,
-                    Model = response.Model
-                });
-
-                // --- Create and show progress window ---
-                var progressWindow = new ProgressWindow("Creating video...");
-                progressWindow.Owner = this;
-
-                var cts = new CancellationTokenSource();
-                progressWindow.Canceled += (s, _) => cts.Cancel();
-
-                progressWindow.Show();
-
-                // --- Track progress using the client helper ---
-                var progress = new Progress<double>(value =>
-                {
-                    progressWindow.UpdateProgress(value);
-                });
-
-                await _videoClient.MonitorVideoProgressAsync(response.Id, progress, cts.Token);
-
-                progressWindow.Close();
-
-                // --- Check final status ---
-                var finalStatus = await _videoClient.GetVideoStatusAsync(response.Id);
-
-                if (finalStatus != null)
-                {
-                    txtVideoResponse.Text = JsonSerializer.Serialize(finalStatus, new JsonSerializerOptions { WriteIndented = true });
-
-                    // Update listbox item if found
-                    var existing = lstVideoFiles.Items.OfType<VideoClient.VideoListItem>().FirstOrDefault(v => v.Id == finalStatus.Id);
-                    if (existing != null)
-                    {
-                        existing.Status = finalStatus.Status;
-                        existing.Progress = finalStatus.Progress;
-                        lstVideoFiles.Items.Refresh();
-                    }
-
-                    if (finalStatus.Status == "completed")
-                    {
-                        MessageBox.Show($"✅ Video {finalStatus.Id} created successfully!", "Done", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else if (finalStatus.Status == "failed")
-                    {
-                        MessageBox.Show($"❌ Video {finalStatus.Id} failed to generate.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"⚠️ Video {finalStatus.Id} has status: {finalStatus.Status}", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Could not retrieve final video status.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
+                await HandleVideoJobAsync(jobResponse);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Unexpected error: {ex.Message}", "Exception", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    $"Unexpected error: {ex.Message}",
+                    "Exception",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
         }
+
 
 
         private void btnOpenVReference_Click(object sender, RoutedEventArgs e)
@@ -229,6 +288,8 @@ namespace openAIApps
             {
                 selectedVideo.IsDownloaded = IsVideoDownloaded(selectedVideo.Id);
                 MessageBox.Show($"Video {videoId} downloaded successfully.", "Download Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                //update list(item color) to green
+                selectedVideo.IsDownloaded = true;
             }
             else
             {

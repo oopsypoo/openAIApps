@@ -8,13 +8,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Web.Http;
 
 namespace openAIApps
 {
     internal class VideoClient : IDisposable
     {
         private const string VideoEndpoint = "https://api.openai.com/v1/videos";
-        private readonly HttpClient _httpClient;
+        private readonly System.Net.Http.HttpClient _httpClient;
         /// <summary>
         /// If user chooses to use a reference video for variation or editing, ref: RequestVideo.InputReference. THis is local path to that file.
         /// Data in RequestVideo.InputReference must be base64-encoded file data/multipart form data. See CreateVideoAsync method.
@@ -126,7 +127,7 @@ namespace openAIApps
         {
             var requestUri = $"{VideoEndpoint}/{videoId}/content";
 
-            using var response = await _httpClient.GetAsync(requestUri, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await _httpClient.GetAsync(requestUri, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
 
             if (!response.IsSuccessStatusCode)
                 return false;
@@ -177,7 +178,7 @@ namespace openAIApps
         }
         public async Task<ResponseVideo> CreateVideoAsync(RequestVideo request)
         {
-            HttpResponseMessage response;
+            System.Net.Http.HttpResponseMessage response;
 
             // Check if a reference image was selected
             if (!string.IsNullOrEmpty(this.ReferenceFilePath) && File.Exists(this.ReferenceFilePath))
@@ -226,6 +227,39 @@ namespace openAIApps
             {
                 PropertyNameCaseInsensitive = true
             });
+        }
+        public async Task<ResponseVideo?> RemixVideoAsync(string videoId, string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(videoId))
+                throw new ArgumentException("Video ID cannot be null or empty.", nameof(videoId));
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt cannot be null or empty.", nameof(prompt));
+
+            var url = $"{VideoEndpoint}/{videoId}/remix";
+
+            var body = new
+            {
+                prompt = prompt
+                // add other supported fields here if the API allows (e.g. model, seconds, size)
+            };
+
+            var json = JsonSerializer.Serialize(body);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var response = await _httpClient.PostAsync(url, content);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Let your UI inspect the error inside ResponseVideo.Error
+                return JsonSerializer.Deserialize<ResponseVideo>(
+                    responseJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+
+            return JsonSerializer.Deserialize<ResponseVideo>(
+                responseJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
 
         public async Task MonitorVideoProgressAsync(string videoId, IProgress<double> progress, CancellationToken cancellationToken)
@@ -296,7 +330,7 @@ namespace openAIApps
         // Constructor to initialize _httpClient
         public VideoClient(string apiKey)
         {
-            _httpClient = new HttpClient
+            _httpClient = new System.Net.Http.HttpClient
             {
                 BaseAddress = new Uri(VideoEndpoint)
             };

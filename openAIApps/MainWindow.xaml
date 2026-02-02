@@ -208,10 +208,12 @@
                                 <ComboBoxItem Content="1024x1792" />
                                 <ComboBoxItem Content="1792x1024" />
                             </ComboBox>
+                            
                             <Label Content="Input Reference - select an image" />
                             <Button x:Name="btnOpenVReference" Content="Choose Image" IsEnabled="True" Click="btnOpenVReference_Click"/>
                             <Image x:Name="imgVideo" Margin="0,5,0,0" MaxHeight="250" Stretch="Uniform" Source="/no_pic.png" />
-                            <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
+                                
+                                <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
                             <!-- Video history listbox with color-coded items -->
                             <ListBox x:Name="lstVideoFiles"
                                  ItemsSource="{Binding videoHistory}"
@@ -244,7 +246,7 @@
                                     </Style>
                                 </ListBox.ItemContainerStyle>
                             </ListBox>
-
+                            <CheckBox x:Name="cbVideoRemix" Content="Remix selected video" Margin="0,0,0,4"/>
                             <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
                             <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Click="btnDeleteVideo_Click" />
                             <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
