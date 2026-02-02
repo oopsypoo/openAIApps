@@ -64,6 +64,16 @@ namespace openAIApps
 
             [JsonPropertyName("quality")]
             public string Quality { get; set; }
+            [JsonPropertyName("error")]
+            public VideoError Error { get; set; }
+        }
+        public class VideoError
+        {
+            [JsonPropertyName("code")]
+            public string Code { get; set; }
+
+            [JsonPropertyName("message")]
+            public string Message { get; set; }
         }
         public class VideoListResponse
         {

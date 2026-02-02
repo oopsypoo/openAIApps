@@ -39,9 +39,20 @@ namespace openAIApps
 
                 // Create the video job
                 var response = await _videoClient.CreateVideoAsync(request);
-
+                if (response?.Error != null)
+                {
+                    txtVideoResponse.Text =
+                        $"Error code: {response.Error.Code}\r\nMessage: {response.Error.Message}\r\n\r\n" +
+                        JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+                }
+                else
+                {
+                    txtVideoResponse.Text =
+                        JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+                }
                 // Show raw JSON in your response text box
-                txtVideoResponse.Text = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+                //txtVideoResponse.Text = JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true });
+                
 
                 // --- Handle invalid response ---
                 if (response == null || string.IsNullOrEmpty(response.Id))
