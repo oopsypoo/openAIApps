@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -68,7 +69,7 @@ namespace openAIApps
                 Model = CurrentModel,
                 Input = prompt,
                 Truncation = "auto",
-                Tools = GetToolsForCurrentSelection(),
+                Tools = GetToolsForCurrentSelection().Cast<object>().ToArray(),
                 Store = true,                             // keep responses on server
                 PreviousResponseId = LastResponseId       // link to last turn if any
             };
@@ -77,7 +78,11 @@ namespace openAIApps
             {
                 request.Reasoning = new ReasoningConfig { Effort = CurrentReasoning };
             }
-
+            // Enable tools when any tool other than "text" is active
+            if (!ActiveTools.Contains("text") && request.Tools?.Length > 0)
+            {
+                request.ToolChoice = new { type = "auto" }; // or "required"
+            }
             return request;
         }
 
@@ -92,7 +97,7 @@ namespace openAIApps
                     SearchContextSize = WebSearchContextSize
                 });
 
-            if (ActiveTools.Contains("computer_use"))
+            if (ActiveTools.Contains("computer_use_preview"))
                 tools.Add(new ComputerUseTool
                 {
                     DisplayWidth = 3440,
@@ -265,7 +270,12 @@ namespace openAIApps
             public string Truncation { get; set; } = "auto";
 
             [JsonPropertyName("tools")]
-            public Tool[] Tools { get; set; }
+            //public Tool[] Tools { get; set; }
+            //serializing as object[] to allow empty array or null
+            public Object[] Tools { get; set; }
+
+            [JsonPropertyName("tool_choice")]
+            public object ToolChoice { get; set; }
 
             [JsonPropertyName("reasoning")]
             public ReasoningConfig Reasoning { get; set; }
@@ -527,7 +537,7 @@ namespace openAIApps
                 Model = CurrentModel,
                 Input = inputObject,
                 Truncation = "auto",
-                Tools = GetToolsForCurrentSelection(),
+                Tools = GetToolsForCurrentSelection().Cast<object>().ToArray(),
                 Store = true,
                 PreviousResponseId = LastResponseId
             };

@@ -109,7 +109,7 @@ namespace openAIApps
             {
                 "cbToolText" => "text",
                 "cbToolWebSearch" => "web_search",
-                "cbToolComputerUse" => "computer_use",
+                "cbToolComputerUse" => "computer_use_preview",
                 "cbToolImageGeneration" => "image_generation", // NEW
                 _ => null
             };
