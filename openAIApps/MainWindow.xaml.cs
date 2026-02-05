@@ -6,7 +6,8 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-//speechsynthesis.cs
+
+
 using static openAIApps.VideoClient;
 
 namespace openAIApps
@@ -30,10 +31,14 @@ namespace openAIApps
         /// make these paths more general-purpose in the future
         /// </summary>
         //all logs are stored here
-        private string appRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "openapi");
+        
+        private AppSettings _settings;
         private string savepath_logs;
         private string savepath_snds;
+        private string savepath_images;
+        private string savepath_videos;
         private string logfile;
+
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
         private VideoClient _videoClient;
         //private List<VideoListItem> _videoHistory = new();
@@ -49,11 +54,18 @@ namespace openAIApps
 
         private void EnsureSavePaths()
         {
-            savepath_logs = Path.Combine(appRoot, "logs");
-            savepath_snds = Path.Combine(appRoot, "snds");
+            _settings ??= AppSettings.LoadSettings();  // Load once
+
+            savepath_logs = Path.Combine(_settings.AppRoot, _settings.LogsFolder);
+            savepath_snds = Path.Combine(_settings.AppRoot, _settings.SoundsFolder);
+            savepath_images = Path.Combine(_settings.AppRoot, _settings.ImagesFolder);
+            savepath_videos = Path.Combine(_settings.AppRoot, _settings.VideosFolder);
+            logfile = Path.Combine(savepath_logs, "logfile.txt");
+
             Directory.CreateDirectory(savepath_logs);
             Directory.CreateDirectory(savepath_snds);
-            logfile = Path.Combine(savepath_logs, "logfile.txt");
+            Directory.CreateDirectory(savepath_images);
+            Directory.CreateDirectory(savepath_videos);
         }
 
 
@@ -179,6 +191,15 @@ namespace openAIApps
             }
         }
 
+        private void menuSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new SettingsWindow(_settings);
+            bool? result = window.ShowDialog();
+            if (result == true)  // Or: if (result.HasValue && result.Value)
+            {
+                EnsureSavePaths();  // Refresh paths only on save
+            }
+        }
     }
 }
 

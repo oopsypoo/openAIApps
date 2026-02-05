@@ -100,7 +100,7 @@
 
         <Menu DockPanel.Dock="Top" Height="18" IsEnabled="True" IsMainMenu="True">
             <MenuItem Header="File" Name="menuFile" Click="menuFile_Click" IsEnabled="True" AllowDrop="True">
-                <MenuItem Header="Save Chat" x:Name="menuSave"  IsEnabled="False" />
+                <MenuItem Header="Settings" x:Name="menuSettings"  IsEnabled="True" Click="menuSettings_Click"/>
                 <MenuItem Header="Exit" Name="menuExit" Click="menuExit_Click" IsEnabled="True" />
             </MenuItem>
             <MenuItem Header="Tools" Name="menuTools" IsEnabled="True" AllowDrop="True">
