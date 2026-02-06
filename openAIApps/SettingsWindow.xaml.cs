@@ -19,24 +19,67 @@ namespace openAIApps
             DataContext = settings;
         }
 
+        /* private void BrowseAppRoot_Click(object sender, RoutedEventArgs e)
+         {
+             var dialog = new Microsoft.Win32.OpenFileDialog
+             {
+                 ValidateNames = false,
+                 CheckFileExists = false,
+                 CheckPathExists = true,
+                 FileName = "Select Folder"
+             };
+
+             if (dialog.ShowDialog() == true)
+             {
+                 var folder = Path.GetDirectoryName(dialog.FileName)!;
+                 if (Directory.Exists(folder))
+                 {
+                     AppRootTextBox.Text = folder; // updates Settings.AppRoot via binding
+                     UpdateSubPathsFromAppRoot();
+                 }
+             }
+         }*/
         private void BrowseAppRoot_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog
+            var dialog = new Microsoft.Win32.OpenFolderDialog
             {
-                ValidateNames = false,
-                CheckFileExists = false,
-                CheckPathExists = true,
-                FileName = "Select Folder"
+                Title = "Select Application Root Directory",
+                InitialDirectory = Directory.Exists(AppRootTextBox.Text) ? AppRootTextBox.Text : string.Empty
             };
 
             if (dialog.ShowDialog() == true)
             {
-                var folder = Path.GetDirectoryName(dialog.FileName)!;
-                if (Directory.Exists(folder))
+                string selectedPath = dialog.FolderName;
+
+                if (HasWritePermission(selectedPath))
                 {
-                    AppRootTextBox.Text = folder; // updates Settings.AppRoot via binding
+                    AppRootTextBox.Text = selectedPath;
                     UpdateSubPathsFromAppRoot();
                 }
+                else
+                {
+                    MessageBox.Show("You don't have permission to write to this folder. Please choose a different location (like your Documents folder).",
+                                    "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        private bool HasWritePermission(string folderPath)
+        {
+            try
+            {
+                // Generate a random temp file name
+                string tempFilePath = Path.Combine(folderPath, Path.GetRandomFileName());
+
+                // Try to create and immediately delete it
+                using (FileStream fs = File.Create(tempFilePath)) { }
+                File.Delete(tempFilePath);
+
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -47,29 +90,38 @@ namespace openAIApps
 
         private void BrowseFolder(System.Windows.Controls.TextBox textBox)
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog
+            var dialog = new Microsoft.Win32.OpenFolderDialog
             {
-                ValidateNames = false,
-                CheckFileExists = false,
-                CheckPathExists = true,
-                FileName = "Select Folder"
+                Title = "Select the save location",
+                InitialDirectory = Directory.Exists(textBox.Text) ? textBox.Text : string.Empty
             };
 
             if (dialog.ShowDialog() == true)
             {
-                var folder = Path.GetDirectoryName(dialog.FileName)!;
-                if (Directory.Exists(folder))
-                    textBox.Text = folder; // updates bound Settings property
+                string folder = dialog.FolderName;
+
+                if (HasWritePermission(folder))
+                {
+                    textBox.Text = folder;
+                }
+                else
+                {
+                    MessageBox.Show("The application does not have permission to write to this folder. Please select a different location.",
+                                    "Permission Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
         }
 
         private void UpdateSubPathsFromAppRoot()
         {
             var appRoot = AppRootTextBox.Text;
-            if (string.IsNullOrEmpty(appRoot))
+
+            // If the user clears the Root, we shouldn't try to build subpaths
+            if (string.IsNullOrWhiteSpace(appRoot))
                 return;
 
-            // Auto-fill default subfolders when AppRoot changes
+            // We just update the UI text boxes. 
+            // Your EnsureSavePaths() will handle the actual directory creation later.
             LogsTextBox.Text = Path.Combine(appRoot, "logs");
             SoundsTextBox.Text = Path.Combine(appRoot, "snds");
             ImagesTextBox.Text = Path.Combine(appRoot, "images");
