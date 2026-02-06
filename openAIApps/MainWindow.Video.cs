@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -219,14 +220,14 @@ namespace openAIApps
             }
         }
 
-        private static string GetLocalVideoPath(string videoId)
+        private string GetLocalVideoPath(string videoId)
         {
-            string videosDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            //string videosDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            string videosDir = _settings.VideosFolder;
             return Path.Combine(videosDir, videoId + ".mp4");
         }
 
-        private static bool IsVideoDownloaded(string videoId)
+        private bool IsVideoDownloaded(string videoId)
         {
             if (string.IsNullOrWhiteSpace(videoId))
                 return false;
@@ -378,7 +379,8 @@ namespace openAIApps
                 return;
             }
 
-            string videosDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            //string videosDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            string videosDir = _settings.VideosFolder;
             string localFilePath = Path.Combine(videosDir, $"{selectedVideo.Id}.mp4");
 
             if (!File.Exists(localFilePath))
@@ -391,6 +393,62 @@ namespace openAIApps
             // Open preview window
             var previewWindow = new VideoPreviewWindow(localFilePath);
             previewWindow.ShowDialog();
+        }
+
+        private BitmapImage GetFirstFrameAsBitmap(string videoPath)
+        {
+            string thumbPath = Path.ChangeExtension(videoPath, ".thumb.png");
+
+            if (!File.Exists(thumbPath))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "ffmpeg",
+                    Arguments = $"-y -i \"{videoPath}\" -frames:v 1 \"{thumbPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var p = Process.Start(psi);
+                p.WaitForExit();
+            }
+
+            if (!File.Exists(thumbPath))
+                throw new FileNotFoundException("Thumbnail not created", thumbPath);
+
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.UriSource = new Uri(thumbPath);
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+
+        private void lstVideoFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+                return;
+
+            //string videosDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            string videosDir = _settings.VideosFolder;
+            string localFilePath = Path.Combine(videosDir, selectedVideo.Id + ".mp4");
+
+            if (!File.Exists(localFilePath))
+            {
+                // Not downloaded: optionally clear or keep current preview
+                return;
+            }
+
+            // Extract first frame and show in imgVideo
+            try
+            {
+                var bitmap = GetFirstFrameAsBitmap(localFilePath);
+                imgVideo.Source = bitmap;
+            }
+            catch
+            {
+                // Ignore preview errors for now or log
+            }
         }
     }
 }

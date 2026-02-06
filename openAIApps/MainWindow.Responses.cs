@@ -381,68 +381,16 @@ namespace openAIApps
                 _responsesClient.WebSearchContextSize = tag; // "low", "medium", or "high"
             }
         }
-        private BitmapImage GetFirstFrameAsBitmap(string videoPath)
-        {
-            string thumbPath = Path.ChangeExtension(videoPath, ".thumb.png");
-
-            if (!File.Exists(thumbPath))
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = $"-y -i \"{videoPath}\" -frames:v 1 \"{thumbPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using var p = Process.Start(psi);
-                p.WaitForExit();
-            }
-
-            if (!File.Exists(thumbPath))
-                throw new FileNotFoundException("Thumbnail not created", thumbPath);
-
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.UriSource = new Uri(thumbPath);
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.EndInit();
-            bmp.Freeze();
-            return bmp;
-        }
-
-        private void lstVideoFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
-                return;
-
-            string videosDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
-            string localFilePath = Path.Combine(videosDir, selectedVideo.Id + ".mp4");
-
-            if (!File.Exists(localFilePath))
-            {
-                // Not downloaded: optionally clear or keep current preview
-                return;
-            }
-
-            // Extract first frame and show in imgVideo
-            try
-            {
-                var bitmap = GetFirstFrameAsBitmap(localFilePath);
-                imgVideo.Source = bitmap;
-            }
-            catch
-            {
-                // Ignore preview errors for now or log
-            }
-        }
+        
+        
         private void btnResponsesAttachImage_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFileDialog
             {
                 Title = "Select an image for this message",
                 Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All Files|*.*",
-                CheckFileExists = true
+                CheckFileExists = true,
+                InitialDirectory = _settings.ImagesFolder
             };
 
             if (dlg.ShowDialog() == true)
@@ -486,11 +434,8 @@ namespace openAIApps
         }
         private string EnsureResponsesImageFolder()
         {
-            // Reuse your existing appRoot if you like; for now keep it simple
-            string picturesRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-                "openapi_responses");
-
+            //string picturesRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),"openapi_responses");
+            string picturesRoot = _settings.ImagesFolder;
             Directory.CreateDirectory(picturesRoot);
             return picturesRoot;
         }
