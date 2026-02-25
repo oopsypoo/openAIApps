@@ -1,4 +1,5 @@
-﻿using System;
+﻿#pragma warning disable CS8632 // annotation for nullable ref types should only be used in code within a '#nullable' annotations context
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;

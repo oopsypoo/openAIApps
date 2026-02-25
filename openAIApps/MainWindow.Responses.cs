@@ -1,9 +1,14 @@
-﻿using Microsoft.Win32;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Win32;
+using openAIApps.Data;
 using openAIApps.Native;
+using openAIApps.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -104,7 +109,13 @@ namespace openAIApps
         {
             if (_responsesClient == null || sender is not CheckBox cb)
                 return;
-
+            if (sender == cbToolComputerUse && cbToolComputerUse.IsChecked == true)
+            {
+                // Disable and uncheck others
+                cbToolImageGeneration.IsChecked = false;
+                cbToolWebSearch.IsChecked = false;
+                // ... etc
+            }
             string key = cb.Name switch
             {
                 "cbToolText" => "text",
@@ -145,82 +156,130 @@ namespace openAIApps
                     cbToolText.IsChecked = true;
                 }
             }
-
+            
             // Optionally enable/disable quality/size controls when checkbox changes:
             bool imageToolOn = cbToolImageGeneration.IsChecked == true;
             cmbImageGenQuality.IsEnabled = imageToolOn;
             cmbImageGenSize.IsEnabled = imageToolOn;
+
+            bool webSearchOn = cbToolWebSearch.IsChecked == true;
+            cmbSearchContextSize.IsEnabled = webSearchOn;
         }
 
         private void ShowFirstAssistantImageOfSelectedTurn()
         {
-            if (lstResponsesTurns.SelectedItem is Responses.ResponsesTurn turn &&
-                turn.AssistantImagePaths != null &&
-                turn.AssistantImagePaths.Count > 0)
+            // 1. Check if the selected item is our new ChatMessage model
+            if (lstResponsesTurns.SelectedItem is ChatMessage message)
             {
-                string path = turn.AssistantImagePaths[0];
-                if (File.Exists(path))
+                // 2. Look at the MediaFiles collection we defined in the database model
+                if (message.MediaFiles != null && message.MediaFiles.Count > 0)
                 {
-                    imgResponsesPreview.Source = GetImageSource(path);
-                    _responsesImagePath = path;
+                    // Grab the path from the first media file (usually the generated image)
+                    string path = message.MediaFiles.FirstOrDefault()?.LocalPath;
 
-                    borderResponsesImage.Visibility = Visibility.Visible;
-                    colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
-                    colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    {
+                        imgResponsesPreview.Source = GetImageSource(path);
+                        _responsesImagePath = path;
+
+                        // Show the UI elements
+                        borderResponsesImage.Visibility = Visibility.Visible;
+                        colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
+                        colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+                        return; // Image found and shown
+                    }
                 }
             }
-        }
 
-        // Your existing btnResponsesSendRequest_Click stays the same, just simpler:
+            // 3. Fallback: If no image found, hide the preview area
+            borderResponsesImage.Visibility = Visibility.Collapsed;
+            colResponsesPrompt.Width = new GridLength(1, GridUnitType.Star); // Reset layout
+            colResponsesImage.Width = new GridLength(0);
+        }
         private async void btnResponsesSendRequestClick(object sender, RoutedEventArgs e)
         {
-            if (_responsesClient == null)
-            {
-                MessageBox.Show("Responses client not initialized.", "Error");
-                return;
-            }
+            string userPrompt = txtResponsesPrompt.Text;
+            if (string.IsNullOrWhiteSpace(userPrompt)) return;
 
-            string prompt = txtResponsesPrompt.Text;
             this.IsEnabled = false;
-            txtResponsesResponse.Text = string.Empty;
-
             try
             {
-                var result = await _responsesClient.GetResponseAsync(prompt, _responsesImagePath);
+                // Capture UI "Snapshot"
+                string model = cmbResponsesModel.Text;
+                string reasoning = cmbReasoning.Text;
+                string imgSize = cmbImageGenSize.Text;
+                string imgQual = cmbImageGenQuality.Text;
+                string searchSize = cmbSearchContextSize.Text;
 
-                // Attach user text to last turn
-                _responsesClient.SetLastUserText(prompt);
+                // Helper to get active tools as a string
+                var activeToolsList = new List<string>();
+                if (cbToolImageGeneration.IsChecked == true) activeToolsList.Add("image_generation");
+                if (cbToolWebSearch.IsChecked == true) activeToolsList.Add("web_tool");
+                if (cbToolComputerUse.IsChecked == true) activeToolsList.Add("computer_use");
+                string toolsCsv = string.Join(",", activeToolsList);
 
-                // Attach user image + assistant images to last turn
-                if (_responsesClient.ConversationLog.Count > 0)
+                // 1. Get or Create Session
+                int sid = await EnsureSessionActiveAsync(EndpointType.Responses, userPrompt);
+
+                // Save User Prompt with the DNA
+                await _historyService.AddMessageAsync(sid, "user", userPrompt,
+                    model: model, reasoning: reasoning, tools: toolsCsv,
+                    imgSize: imgSize, imgQual: imgQual, searchSize: searchSize);
+
+                // 3. Fetch the full history (now includes the prompt from step 2)
+                var context = await _historyService.GetContextForApiAsync(sid);
+
+                // 4. Call API with the full context
+                var result = await _responsesClient.GetChatCompletionAsync(context);
+
+                if (result != null)
                 {
-                    var lastTurn = _responsesClient.ConversationLog[^1];
+                    // Save Assistant Response with the SAME DNA
+                    int assistantMsgId = await _historyService.AddMessageAsync(sid, "assistant", result.AssistantText,
+                        result.RawJson, model: model, reasoning: reasoning, tools: toolsCsv,
+                        imgSize: imgSize, imgQual: imgQual, searchSize: searchSize);
 
-                    lastTurn.ImagePath = _responsesImagePath;
+                    // 6. If images were generated, save those paths too
+                    if (result.ImagePayloads?.Count > 0)
+                    {
+                        var paths = SaveAssistantImages(result.ImagePayloads);
+                        foreach (var path in paths)
+                            await _historyService.LinkMediaAsync(assistantMsgId, path, "image/png");
+                    }
 
-                    // Save and attach assistant images
-                    var savedPaths = SaveAssistantImages(result.ImagePayloads);
-                    lastTurn.AssistantImagePaths.AddRange(savedPaths);
+                    // 7. Refresh UI from the Single Source of Truth (Database)
+                    await RefreshCurrentChatUI(sid);
+                    txtResponsesResponse.Text = result.AssistantText;
+                    //txtResponsesPrompt.Clear();
                 }
-
-                // Refresh listbox
-                lstResponsesTurns.ItemsSource = null;
-                lstResponsesTurns.ItemsSource = _responsesClient.ConversationLog;
-                if (_responsesClient.ConversationLog.Count > 0)
-                    lstResponsesTurns.SelectedIndex = _responsesClient.ConversationLog.Count - 1;
-
-                txtResponsesResponse.Text = result.AssistantText;
-
-                // Optionally show first assistant image somewhere
-                ShowFirstAssistantImageOfSelectedTurn();
             }
             catch (Exception ex)
             {
-                txtResponsesResponse.Text = $"Error: {ex.Message}";
+                MessageBox.Show($"Execution Error: {ex.Message}");
             }
             finally
             {
                 this.IsEnabled = true;
+            }
+        }
+
+        // New helper to keep UI in sync with DB
+        private async Task RefreshCurrentChatUI(int sessionId)
+        {
+            if (sessionId <= 0) return;
+
+            // Get the full list of ChatMessage objects from SQLite
+            var history = await _historyService.GetFullSessionHistoryAsync(sessionId);
+
+            // Update the ListBox
+            lstResponsesTurns.ItemsSource = history;
+
+            // Auto-scroll to the bottom so the newest message is visible
+            if (lstResponsesTurns.Items.Count > 0)
+            {
+                var lastMsg = history.Last();
+                lstResponsesTurns.SelectedItem = lastMsg;
+                lstResponsesTurns.ScrollIntoView(lastMsg);
             }
         }
 
@@ -278,94 +337,80 @@ namespace openAIApps
 
         private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
         {
-            _responsesClient?.ClearConversation();
-            _responsesClient?.ConversationLog.Clear();
+            //_currentResponsesSessionId = 0;
+            _activeResponsesSessionId = null;
 
+            // 2. Clear the UI elements
             lstResponsesTurns.ItemsSource = null;
-            txtResponsesPrompt.Clear();
             txtResponsesResponse.Clear();
+            txtResponsesPrompt.Clear();
+
+            // Optional: Reset the client-side context tracking
+            //_responsesClient.LastResponseId = null;
+
+            StatusText.Text = "New session started. History will be saved once you send a message.";
         }
 
         private async void btnResponsesDeleteChat_Click(object sender, RoutedEventArgs e)
         {
-            if (_responsesClient == null || !_responsesClient.ConversationActive)
+            if (_activeResponsesSessionId == null) return;
+
+            var confirm = MessageBox.Show("Delete this conversation from history?", "Confirm", MessageBoxButton.YesNo);
+            if (confirm == MessageBoxResult.Yes)
             {
-                MessageBox.Show("No active conversation to delete.", "Info");
-                return;
-            }
-
-            var confirm = MessageBox.Show(
-                "Delete the current conversation on server and clear history?",
-                "Delete Conversation",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (confirm != MessageBoxResult.Yes)
-                return;
-
-            try
-            {
-                bool ok = await _responsesClient.DeleteConversationAsync(_responsesClient.LastResponseId);
-                if (ok)
-                    MessageBox.Show("Conversation deleted.", "Deleted");
-
-                _responsesClient.ClearConversation();
-                _responsesClient.ConversationLog.Clear();
-                lstResponsesTurns.ItemsSource = null;
-                txtResponsesPrompt.Clear();
-                txtResponsesResponse.Clear();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error deleting conversation: {ex.Message}", "Error");
+                if (_activeResponsesSessionId != null)
+                {
+                    // Delete from SQLite and clear UI
+                    StatusText.Text = "Deleting session...: " + _activeResponsesSessionId.Value;
+                    await _historyService.DeleteSessionAsync(_activeResponsesSessionId.Value);
+                    //await DeleteSessionWithMediaAsync(_historyService.);
+                    _activeResponsesSessionId = null;
+                    lstResponsesTurns.ItemsSource = null;
+                    txtResponsesPrompt.Clear();
+                    txtResponsesResponse.Clear();
+                    RefreshLogsTab();
+                }
             }
         }
+        private async Task DeleteSessionWithMediaAsync(ChatSession session)
+        {
+            // Join Media with Messages to filter by SessionId
+            var mediaFiles = await _context.Media
+                .Join(_context.Messages,
+                        media => media.ChatMessageId,
+                        msg => msg.Id,
+                        (media, msg) => new { media, msg })
+                .Where(x => x.msg.ChatSessionId == session.Id)
+                .Select(x => x.media)
+                .ToListAsync();
 
+            // 2. Delete local files from disk
+            foreach (var file in mediaFiles)
+            {
+                if (File.Exists(file.LocalPath)) File.Delete(file.LocalPath);
+            }
 
+            // 3. Remove session (Cascading delete handles the DB records)
+            _context.Sessions.Remove(session);
+            await _context.SaveChangesAsync();
+            
+        }
         private void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (lstResponsesTurns.SelectedItem is not Responses.ResponsesTurn turn)
-                return;
-
-            // Restore text
-            txtResponsesPrompt.Text = turn.UserText ?? string.Empty;
-            txtResponsesResponse.Text = turn.AssistantText ?? string.Empty;
-
-            // 1) Restore user image (if this turn had one)
-            if (!string.IsNullOrEmpty(turn.ImagePath) && File.Exists(turn.ImagePath))
+            if (lstResponsesTurns.SelectedItem is ChatMessage selectedMsg)
             {
-                _responsesImagePath = turn.ImagePath;
-                imgResponsesPreview.Source = GetImageSource(turn.ImagePath);
-
-                borderResponsesImage.Visibility = Visibility.Visible;
-                colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
-                colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
-            }
-            else
-            {
-                // No user image: clear preview and go back to full width
-                _responsesImagePath = string.Empty;
-                imgResponsesPreview.Source = null;
-                borderResponsesImage.Visibility = Visibility.Collapsed;
-                colResponsesPrompt.Width = new GridLength(1, GridUnitType.Star);
-                colResponsesImage.Width = new GridLength(0);
-            }
-
-            // 2) Optionally override with first assistant image (if present)
-            // If you prefer to always show assistant image in the preview instead of user image
-            // you can move this block above the "else" above.
-            if (turn.AssistantImagePaths != null && turn.AssistantImagePaths.Count > 0)
-            {
-                string firstAssistantImage = turn.AssistantImagePaths[0];
-                if (File.Exists(firstAssistantImage))
+                if (selectedMsg.Role.ToLower() == "user")
                 {
-                    imgResponsesPreview.Source = GetImageSource(firstAssistantImage);
-                    // If you want the working image to become the assistant image:
-                    _responsesImagePath = firstAssistantImage;
-
-                    borderResponsesImage.Visibility = Visibility.Visible;
-                    colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
-                    colResponsesImage.Width = new GridLength(1, GridUnitType.Star);
+                    txtResponsesPrompt.Text = selectedMsg.Content;
+                    // Clear the response box or leave it? Usually better to clear 
+                    // so the user knows this is a "Prompt" selection
+                    txtResponsesResponse.Text = string.Empty;
+                }
+                else if (selectedMsg.Role.ToLower() == "assistant")
+                {
+                    txtResponsesResponse.Text = selectedMsg.Content;
+                    // Show image if this message has one
+                    ShowFirstAssistantImageOfSelectedTurn();
                 }
             }
         }

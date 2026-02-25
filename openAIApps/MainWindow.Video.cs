@@ -1,4 +1,6 @@
-﻿using System;
+﻿using openAIApps.Data;
+using openAIApps.Services;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -107,6 +109,19 @@ namespace openAIApps
 
                 if (finalStatus.Status == "completed")
                 {
+                    if (jobResponse.Status == "completed")
+                    {
+                        // 1. Ensure we have a DB session [cite: 267]
+                        int sessionId = await EnsureSessionActiveAsync(EndpointType.Video, txtVideoPrompt.Text);
+
+                        // 2. Log the completion
+                        int msgId = await _historyService.AddMessageAsync(sessionId, "assistant", "Video Generated: " + jobResponse.Id);
+
+                        // 3. Link the local file path to this database entry
+                        string videosDir = _settings.VideosFolder; // [cite: 185]
+                        string localFilePath = Path.Combine(videosDir, jobResponse.Id + ".mp4");
+                        await _historyService.LinkMediaAsync(msgId, localFilePath, "video/mp4");
+                    }
                     MessageBox.Show(
                         $"Video {finalStatus.Id} created successfully!",
                         "Done", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -131,7 +146,47 @@ namespace openAIApps
                     "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
+        private async void btnVideoGenerateClick(object sender, RoutedEventArgs e)
+        {
+            string prompt = txtVideoPrompt.Text;
+            int sessionId = await EnsureSessionActiveAsync(EndpointType.Video, prompt);
 
+            // Save the prompt
+            int userMsgId = await _historyService.AddMessageAsync(sessionId, "user", prompt);
+
+            // Call Video API
+            var videoResult = await _videoClient.CreateVideoAsync(new VideoClient.RequestVideo
+            {
+                Prompt = prompt,
+                Model = cmbVideoModel.Text,
+                Seconds = cmbVideoLength.Text,
+                Size = cmbVideoSize.Text
+            });
+            // Log the outcome regardless of success
+            // Check success based on the actual ResponseVideo model [cite: 531]
+            bool isSuccess = videoResult != null && videoResult.Error == null && !string.IsNullOrEmpty(videoResult.Id);
+            string statusMessage = isSuccess ? "Video generated successfully." : $"Error: {videoResult?.Error?.Message ?? "Unknown Error"}";
+
+            // Log the outcome to history
+            int assistantMsgId = await _historyService.AddMessageAsync(
+                sessionId,
+                "assistant",
+                statusMessage,
+                // Note: You need a RawJson property or use JsonSerializer if your client doesn't provide it
+                JsonSerializer.Serialize(videoResult)
+            );
+
+            if (isSuccess)
+            {
+                // Link the local file path created in your existing video-save logic
+                await _historyService.LinkMediaAsync(assistantMsgId, savepath_videos, "completed");
+            }
+            else
+            {
+                // Log the failure status for the search utility
+                await _historyService.LinkMediaAsync(assistantMsgId, "", videoResult.Status); // e.g., "content_filter"
+            }
+        }
         private async void btnVideoSendRequest_Click(object sender, RoutedEventArgs e)
         {
             try

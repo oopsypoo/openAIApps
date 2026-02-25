@@ -1,7 +1,10 @@
-﻿using System;
+﻿#pragma warning disable CS8632 // annotation for nullable ref types should only be used in code within a '#nullable' annotations context
+using openAIApps.Data;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -33,6 +36,46 @@ namespace openAIApps
         {
             _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+
+        }
+        // Updated to accept the DB-rehydrated history
+        // Responses.cs
+
+        public async Task<ResponsesResult> GetChatCompletionAsync(List<object> openAIContext)
+        {
+            // 1. Build the request object using our new overload
+            var request = BuildRequest(openAIContext);
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = true
+            };
+
+            // 2. Serialize and Send
+            var json = JsonSerializer.Serialize(request, options);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            //using var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
+            var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"OpenAI Error {response.StatusCode}: {responseString}");
+            }
+
+            // 3. Deserialize the raw response
+            var apiResponse = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
+
+            // 4. Update the LastResponseId so the next turn links correctly
+            if (!string.IsNullOrEmpty(apiResponse?.Id))
+            {
+                LastResponseId = apiResponse.Id;
+            }
+
+            // 5. IMPORTANT: Use the "Rich" parser to extract Text AND Images
+            return ParseResponseRich(apiResponse);
         }
 
         public async Task<string> GetResponseAsync(string prompt)
@@ -70,7 +113,7 @@ namespace openAIApps
                 Input = prompt,
                 Truncation = "auto",
                 Tools = GetToolsForCurrentSelection().Cast<object>().ToArray(),
-                Store = true,                             // keep responses on server
+                Store = false,                             // do not keep responses on server
                 PreviousResponseId = LastResponseId       // link to last turn if any
             };
 
@@ -81,11 +124,44 @@ namespace openAIApps
             // Enable tools when any tool other than "text" is active
             if (!ActiveTools.Contains("text") && request.Tools?.Length > 0)
             {
-                request.ToolChoice = new { type = "auto" }; // or "required"
+                request.ToolChoice = new { type = "image_generation" }; // or "required"
             }
             return request;
         }
+        // Responses.cs
 
+        /// <summary>
+        /// Overload for SQLite: Builds a request using the full conversation context.
+        /// </summary>
+        private ResponsesRequest BuildRequest(List<object> context)
+        {
+            var request = new ResponsesRequest
+            {
+                Model = CurrentModel,
+                Input = context,
+                Store = false,
+                // REMOVE PreviousResponseId when sending full context list
+                PreviousResponseId = null
+            };
+
+            var tools = GetToolsForCurrentSelection();
+            if (tools != null && tools.Length > 0)
+            {
+                request.Tools = tools.Cast<object>().ToArray();
+
+                // Force the tool if Image Gen is the only goal, otherwise use auto
+                if (ActiveTools.Contains("image-generation") && ActiveTools.Count == 1)
+                {
+                    request.ToolChoice = new { type = "function", function = new { name = "generate_image" } };
+                }
+                else
+                {
+                    request.ToolChoice = "auto";
+                }
+            }
+
+            return request;
+        }
         private Tool[] GetToolsForCurrentSelection()
         {
             var tools = new List<Tool>();
@@ -146,15 +222,6 @@ namespace openAIApps
             // Log the turn
             assistantText = sb.ToString().TrimEnd();
 
-            if (!string.IsNullOrEmpty(result?.Id))
-            {
-                ConversationLog.Add(new ResponsesTurn
-                {
-                    ResponseId = result.Id,
-                    // UserText will be injected from MainWindow (see below)
-                    AssistantText = assistantText
-                });
-            }
 
             return assistantText.Length > 0 ? assistantText : "No response content";
         }
@@ -280,7 +347,7 @@ namespace openAIApps
             [JsonPropertyName("reasoning")]
             public ReasoningConfig Reasoning { get; set; }
             [JsonPropertyName("store")]
-            public bool Store { get; set; } = true;
+            public bool Store { get; set; } = false;
 
             [JsonPropertyName("previous_response_id")]
             public string PreviousResponseId { get; set; }
@@ -358,20 +425,12 @@ namespace openAIApps
         public class ResponsesResult
         {
             public string AssistantText { get; set; }
+            public string RawJson { get; set; }
             public List<string> ImagePayloads { get; set; } = new();
+            // You can add this if you want the if(result.IsSuccess) syntax:
+            public bool IsSuccess => !string.IsNullOrEmpty(AssistantText);
         }
 
-        public void AddTurn(string responseId, string assistantText, string imagePath)
-        {
-            ConversationLog.Add(new ResponsesTurn
-            {
-                ResponseId = responseId,
-                AssistantText = assistantText,
-                ImagePath = imagePath
-            });
-        }
-
-        public List<ResponsesTurn> ConversationLog { get; } = new();
 
         private ResponsesResult ParseResponseRich(ResponsesResponse result)
         {
@@ -417,15 +476,7 @@ namespace openAIApps
             if (string.IsNullOrEmpty(assistantText))
                 assistantText = "No response content";
 
-            if (!string.IsNullOrEmpty(result?.Id))
-            {
-                ConversationLog.Add(new ResponsesTurn
-                {
-                    ResponseId = result.Id,
-                    AssistantText = assistantText
-                    // UserText/ImagePath set from MainWindow
-                });
-            }
+            
 
             return new ResponsesResult
             {
@@ -435,19 +486,6 @@ namespace openAIApps
         }
 
 
-
-        /// <summary>
-        /// Sets the user text for the most recent entry in the conversation log.
-        /// </summary>
-        /// <remarks>If the conversation log contains no entries, this method does not modify
-        /// anything.</remarks>
-        /// <param name="userText">The text to associate with the last conversation entry. If the conversation log is empty, this parameter is
-        /// ignored.</param>
-        public void SetLastUserText(string userText)
-        {
-            if (ConversationLog.Count == 0) return;
-            ConversationLog[^1].UserText = userText;
-        }
         // In Responses.cs
 
         public async Task<ResponsesResult> GetResponseAsync(string prompt, string imagePath)
@@ -538,7 +576,7 @@ namespace openAIApps
                 Input = inputObject,
                 Truncation = "auto",
                 Tools = GetToolsForCurrentSelection().Cast<object>().ToArray(),
-                Store = true,
+                Store = false,
                 PreviousResponseId = LastResponseId
             };
 

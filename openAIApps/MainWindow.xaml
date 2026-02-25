@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:openAIApps"
         mc:Ignorable="d"
         Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
-    
+
     <Window.Resources>
         <!-- All text-boxes taking requests have this style -->
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
@@ -44,7 +44,7 @@
         <!-- All text-boxes receiving the AI-response have this style -->
         <Style x:Key="TextBoxResponse" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
-            
+
             <Setter Property="Margin" Value="2,0,2,0" />
             <Setter Property="IsEnabled" Value="True" />
             <Setter Property="IsReadOnly" Value="False" />
@@ -115,19 +115,20 @@
                 <MenuItem Header="ThisAssist" Name="menuThisAssistant" Click="menuThisAssistant_Click" IsEnabled="True"/>
             </MenuItem>
         </Menu>
-        <TabControl x:Name="tpApps" DockPanel.Dock="Top" >
+        <TabControl x:Name="tabMain" DockPanel.Dock="Top" SelectionChanged="tabMain_SelectionChanged">
             <!-- ******************************************** -->
             <!-- Centered around Responses-tab(takes over for -->
             <!-- vision and image-generation) and video-tab.-->
             <!-- Not giving up/removing STT or TTS (whisper) yet-->
             <!-- ******************************************** -->
-            
-            
+
+
             <TabItem Header="Whisper"  Name="tpWhisper">
                 <Grid x:Name="gridWhisper" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="cdWhisperReqRes" Width="1.5*"/>
-                        <ColumnDefinition x:Name="cdWhisperOptions" Width="0.5*"/>
+                        <ColumnDefinition x:Name="cdWhisperReqRes" Width="185*"/>
+                        <ColumnDefinition Width="621*"/>
+                        <ColumnDefinition x:Name="cdWhisperOptions" Width="269*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -136,14 +137,14 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical" Grid.ColumnSpan="1" >
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical" Grid.ColumnSpan="3" Margin="0,0,268,0" >
                         <Label Grid.Row="0" Grid.Column="0">OpenAi response</Label>
                         <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPrompt" />
                         <Button  Grid.Column="0" Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
                         <Label Grid.Row="3" Grid.Column="0">OpenAi response</Label>
                         <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperResponse" />
                     </StackPanel>
-                    <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
+                    <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spWhisper" Orientation="Vertical" Margin="5">
                             <Label Content="Speach to text" />
                             <ComboBox x:Name="cmbSpeachToText" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbSpeachToText_SelectionChanged">
@@ -189,75 +190,75 @@
                     </StackPanel>
                     <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
-                            <Label Content="Model" />
-                            <ComboBox x:Name="cmbVideoModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbModelChanged">
-                                <ComboBoxItem IsSelected="True" Content="sora-2" />
-                                <ComboBoxItem Content="sora-2-pro" />
-                            </ComboBox>
-                            <Label Content="Video Length" />
-                            <ComboBox x:Name="cmbVideoLength" SelectionChanged="cmbVideoLengthChanged">
-                                <ComboBoxItem IsSelected="True" Content="4" />
-                                <ComboBoxItem Content="8" />
-                                <ComboBoxItem Content="12" />
-                            </ComboBox>
-                            <Label Content="Video Size" />
-                            <ComboBox x:Name="cmbVideoSize" SelectionChanged="cmbVideoSizeChanged">
-                                <ComboBoxItem IsSelected="True" Content="720x1280" />
-                                <ComboBoxItem Content="1280x720" />
-                                <ComboBoxItem Content="1024x1792" />
-                                <ComboBoxItem Content="1792x1024" />
-                            </ComboBox>
-                            
-                            <Label Content="Input Reference - select an image" />
-                            <Button x:Name="btnOpenVReference" Content="Choose Image" IsEnabled="True" Click="btnOpenVReference_Click"/>
-                            <Image x:Name="imgVideo" Margin="0,5,0,0" MaxHeight="250" Stretch="Uniform" Source="/no_pic.png" />
-                                
+                            <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
+                                <Label Content="Model" />
+                                <ComboBox x:Name="cmbVideoModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbModelChanged">
+                                    <ComboBoxItem IsSelected="True" Content="sora-2" />
+                                    <ComboBoxItem Content="sora-2-pro" />
+                                </ComboBox>
+                                <Label Content="Video Length" />
+                                <ComboBox x:Name="cmbVideoLength" SelectionChanged="cmbVideoLengthChanged">
+                                    <ComboBoxItem IsSelected="True" Content="4" />
+                                    <ComboBoxItem Content="8" />
+                                    <ComboBoxItem Content="12" />
+                                </ComboBox>
+                                <Label Content="Video Size" />
+                                <ComboBox x:Name="cmbVideoSize" SelectionChanged="cmbVideoSizeChanged">
+                                    <ComboBoxItem IsSelected="True" Content="720x1280" />
+                                    <ComboBoxItem Content="1280x720" />
+                                    <ComboBoxItem Content="1024x1792" />
+                                    <ComboBoxItem Content="1792x1024" />
+                                </ComboBox>
+
+                                <Label Content="Input Reference - select an image" />
+                                <Button x:Name="btnOpenVReference" Content="Choose Image" IsEnabled="True" Click="btnOpenVReference_Click"/>
+                                <Image x:Name="imgVideo" Margin="0,5,0,0" MaxHeight="250" Stretch="Uniform" Source="/no_pic.png" />
+
                                 <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
-                            <!-- Video history listbox with color-coded items -->
-                            <ListBox x:Name="lstVideoFiles"
+                                <!-- Video history listbox with color-coded items -->
+                                <ListBox x:Name="lstVideoFiles"
                                  ItemsSource="{Binding videoHistory}"
                                  SelectedItem="{Binding SelectedVideo}" SelectionChanged="lstVideoFiles_SelectionChanged">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Id}" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Id}" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
 
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
-                                        <Setter Property="Background" Value="White" />
-                                        <Style.Triggers>
-                                            <!-- Downloaded: light green -->
-                                            <DataTrigger Binding="{Binding IsDownloaded}" Value="True">
-                                                <Setter Property="Background" Value="#FFC8FFC8"/>
-                                            </DataTrigger>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Background" Value="White" />
+                                            <Style.Triggers>
+                                                <!-- Downloaded: light green -->
+                                                <DataTrigger Binding="{Binding IsDownloaded}" Value="True">
+                                                    <Setter Property="Background" Value="#FFC8FFC8"/>
+                                                </DataTrigger>
 
-                                            <!-- Error: light red -->
-                                            <DataTrigger Binding="{Binding HasError}" Value="True">
-                                                <Setter Property="Background" Value="#FFFFC8C8"/>
-                                            </DataTrigger>
+                                                <!-- Error: light red -->
+                                                <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                    <Setter Property="Background" Value="#FFFFC8C8"/>
+                                                </DataTrigger>
 
-                                            <!-- Not downloaded and no error: light orange -->
-                                            <DataTrigger Binding="{Binding IsDownloaded}" Value="False">
-                                                <Setter Property="Background" Value="#FFFFE0B2"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
-                            </ListBox>
-                            <CheckBox x:Name="cbVideoRemix" Content="Remix selected video" Margin="0,0,0,4"/>
-                            <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
-                            <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Click="btnDeleteVideo_Click" />
-                            <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
-                            <Button x:Name="btnPlayVideo" Content="Play Selected Video" IsEnabled="True" Click="btnPlayVideo_Click" />
-                        </StackPanel>
+                                                <!-- Not downloaded and no error: light orange -->
+                                                <DataTrigger Binding="{Binding IsDownloaded}" Value="False">
+                                                    <Setter Property="Background" Value="#FFFFE0B2"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                </ListBox>
+                                <CheckBox x:Name="cbVideoRemix" Content="Remix selected video" Margin="0,0,0,4"/>
+                                <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
+                                <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Click="btnDeleteVideo_Click" />
+                                <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
+                                <Button x:Name="btnPlayVideo" Content="Play Selected Video" IsEnabled="True" Click="btnPlayVideo_Click" />
+                            </StackPanel>
                         </ScrollViewer>
                     </GroupBox>
 
                 </Grid>
             </TabItem>
-            <TabItem Header="Responses"  Name="tpResponses" Height="20" VerticalAlignment="Bottom">
+            <TabItem Header="Responses" Name="tpResponses" Height="20" VerticalAlignment="Bottom">
                 <Grid x:Name="gridResponses" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="cdResponsesReqRes" Width="1.5*"/>
@@ -316,15 +317,15 @@
                                      Style="{StaticResource TextBoxRequest}"
                                      x:Name="txtResponsesPrompt" />
 
-                                                        <!-- Image preview area -->
-                                                        <Border Grid.Column="1"
+                                <!-- Image preview area -->
+                                <Border Grid.Column="1"
                                     x:Name="borderResponsesImage"
                                     Margin="4,0,0,0"
                                     BorderBrush="DarkGray"
                                     BorderThickness="1"
                                     Background="#FFF8F8F8"
                                     Visibility="Collapsed">
-                          <StackPanel Orientation="Vertical" Margin="4">
+                                    <StackPanel Orientation="Vertical" Margin="4">
                                         <Label Content="Attached image" FontStyle="Italic" />
                                         <Image x:Name="imgResponsesPreview"
                                            Stretch="Uniform"
@@ -391,7 +392,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                
+
                                 <CheckBox x:Name="cbToolWebSearch"
                                           Grid.Column="0"
                                   Content="Web search"
@@ -427,14 +428,14 @@
                                   Unchecked="cbTool_Checked"/>
                                 <StackPanel Grid.Column="1"  Orientation="Vertical">
                                     <Label Content="Image Quality" />
-                                    <ComboBox x:Name="cmbImageGenQuality" SelectionChanged="cmbImageGenQuality_SelectionChanged">
+                                    <ComboBox x:Name="cmbImageGenQuality" IsEnabled="False" SelectionChanged="cmbImageGenQuality_SelectionChanged">
                                         <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
                                         <ComboBoxItem Content="low" Tag="low"/>
                                         <ComboBoxItem Content="medium" Tag="medium"/>
                                         <ComboBoxItem Content="high" Tag="high"/>
                                     </ComboBox>
                                     <Label Content="Image Size" Margin="0,5,0,0"/>
-                                    <ComboBox x:Name="cmbImageGenSize" SelectionChanged="cmbImageGenSize_SelectionChanged" Margin="0,0,0,5">
+                                    <ComboBox x:Name="cmbImageGenSize"  IsEnabled="False" SelectionChanged="cmbImageGenSize_SelectionChanged" Margin="0,0,0,5" >
                                         <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
                                         <ComboBoxItem Content="1024x1024" Tag="1024x1024"/>
                                         <ComboBoxItem Content="1536x1024" Tag="1536x1024" />
@@ -443,7 +444,16 @@
                                 </StackPanel>
                             </Grid>
                             <Button x:Name="btnResponsesNewChat" Content="New Conversation" Click="btnResponsesNewChat_Click"/>
-                            <ListBox x:Name="lstResponsesTurns" Height="150" SelectionChanged="lstResponsesTurns_SelectionChanged" MouseDoubleClick="lstResponsesTurns_MouseDoubleClick"/>
+                            <ListBox x:Name="lstResponsesTurns" Height="150" SelectionChanged="lstResponsesTurns_SelectionChanged" MouseDoubleClick="lstResponsesTurns_MouseDoubleClick">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="5">
+                                            <TextBlock Text="{Binding Role}" FontWeight="Bold" Foreground="Gray" FontSize="10"/>
+                                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                             <Button x:Name="btnResponsesDeleteChat" Content="Delete Conversation" Click="btnResponsesDeleteChat_Click"/>
                         </StackPanel>
 
@@ -452,7 +462,69 @@
 
                 </Grid>
             </TabItem>
-        </TabControl>
+            <TabItem Header="Logs" x:Name="tabLogs">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
+                    <StackPanel Orientation="Horizontal" Margin="10,5">
+                        <TextBlock Text="Filter by Type: " VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="cbLogTypeFilter" Width="120" SelectionChanged="OnLogFilterChanged">
+                            <ComboBoxItem Content="All"/>
+                            <ComboBoxItem Content="Images"/>
+                            <ComboBoxItem Content="Web"/>
+                        </ComboBox>
+                        <Label Content="Search Logs:" VerticalAlignment="Center"/>
+                        <TextBox x:Name="txtLogSearch" Width="300" Margin="10,0" TextChanged="TxtLogSearch_TextChanged"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="dgUnifiedLogs" 
+                      Grid.Row="1" 
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      MouseDoubleClick="OnLogEntryDoubleClick"
+                      Background="White"
+                      RowBackground="White"
+                      AlternatingRowBackground="#F9F9F9"
+                      Margin="10">  
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding LastUsedAt, StringFormat=\{0:dd.MM HH:mm\}}" Width="100"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding Endpoint}" Width="80"/>
+
+                            <DataGridTextColumn Header="Last Prompt" Binding="{Binding Title}" Width="250">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Width="50" Header="Del">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="🗑" 
+                                            Click="OnDeleteSessionClick" 
+                                            Focusable="False"
+                                            Background="Transparent" 
+                                            BorderThickness="0"
+                                            VerticalAlignment="Center" 
+                                            HorizontalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="Ready" />
+            </StatusBarItem>
+        </StatusBar>
     </DockPanel>
 </Window>

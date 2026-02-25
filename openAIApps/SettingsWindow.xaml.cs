@@ -87,7 +87,10 @@ namespace openAIApps
         private void BrowseSounds_Click(object sender, RoutedEventArgs e) => BrowseFolder(SoundsTextBox);
         private void BrowseImages_Click(object sender, RoutedEventArgs e) => BrowseFolder(ImagesTextBox);
         private void BrowseVideos_Click(object sender, RoutedEventArgs e) => BrowseFolder(VideosTextBox);
-
+        /// <summary>
+        /// Opens a folder browser dialog to select a folder for the given TextBox. It checks if the application has write permission to the selected folder before updating the TextBox.
+        /// </summary>
+        /// <param name="textBox"></param>
         private void BrowseFolder(System.Windows.Controls.TextBox textBox)
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog
