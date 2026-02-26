@@ -76,9 +76,11 @@ namespace openAIApps
             }
             else if (type == EndpointType.Video && _activeVideoSessionId == null)
             {
+                // Use your existing tracking variable for videos
                 _activeVideoSessionId = await _historyService.StartNewSessionAsync(ExtractTitle(firstPrompt), type);
             }
 
+            // Return the appropriate ID based on the endpoint type
             return (type == EndpointType.Responses ? _activeResponsesSessionId : _activeVideoSessionId)!.Value;
         }
 
@@ -292,6 +294,25 @@ namespace openAIApps
                     }
 
                     StatusText.Text = $"Loaded: {selectedSession.Title}";
+                }
+                else if (selectedSession.Endpoint == EndpointType.Video)
+                {
+                    tabMain.SelectedIndex = 1;
+                    // 2. Load the prompt from the database
+                    var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
+                    var lastUserMsg = history.LastOrDefault(m => m.Role.ToLower() == "user");
+
+                    if (lastUserMsg != null)
+                    {
+                        // Rehydrate the UI with the saved settings
+                        txtVideoPrompt.Text = lastUserMsg.Content;
+                        cmbVideoModel.Text = lastUserMsg.ModelUsed;
+                        cmbVideoLength.Text = lastUserMsg.VideoLength;
+                        cmbVideoSize.Text = lastUserMsg.VideoSize;
+                        cbVideoRemix.IsChecked = lastUserMsg.IsRemix;
+                    }
+                    // Implement similar logic for video sessions if needed
+                    StatusText.Text = $"Loaded video session: {selectedSession.Title}";
                 }
             }
         }

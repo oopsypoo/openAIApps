@@ -124,7 +124,7 @@ namespace openAIApps
             var responseJson = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<ResponseVideo>(responseJson);
         }
-        public async Task<bool> DownloadVideoAsync(string videoId, IProgress<double>? progress = null)
+        public async Task<bool> DownloadVideoAsync(string folder, string videoId, IProgress<double>? progress = null)
         {
             var requestUri = $"{VideoEndpoint}/{videoId}/content";
 
@@ -133,7 +133,7 @@ namespace openAIApps
             if (!response.IsSuccessStatusCode)
                 return false;
 
-            var videosDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+            var videosDir = folder;
             Directory.CreateDirectory(videosDir);
 
             var filePath = Path.Combine(videosDir, $"{videoId}.mp4");

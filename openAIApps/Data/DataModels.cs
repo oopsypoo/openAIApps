@@ -29,30 +29,36 @@ public class ChatSession(EndpointType endpoint, string type, string title)
 // Use 'chatSessionId' (camelCase) to match 'ChatSessionId' (PascalCase)
 public class ChatMessage
 {
-    // EF Core needs this empty constructor to load data from SQLite
     public ChatMessage() { }
 
     [Key]
     public int Id { get; set; }
-
     public int ChatSessionId { get; set; }
-    public string Role { get; set; } = string.Empty; // "user" or "assistant"
-    public string Content { get; set; } = string.Empty;
-
-    // --- The "DNA" Columns ---
-    public string? ModelUsed { get; set; }
-    public string? ReasoningLevel { get; set; }
-    public string? ActiveTools { get; set; }
-    public string? ImageSize { get; set; }
-    public string? ImageQuality { get; set; }
-    public string? SearchContextSize { get; set; }
-
-    public string? RawJson { get; set; }
+    public string Role { get; set; }
+    public string Content { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
+    // --- Responses DNA ---
+    public string ModelUsed { get; set; }
+    public string ReasoningLevel { get; set; }
+    public string ActiveTools { get; set; }
+    public string SearchContextSize { get; set; }
+
+    // --- Image DNA ---
+    public string ImageSize { get; set; }
+    public string ImageQuality { get; set; }
+
+    // --- Video DNA ---
+    public string VideoLength { get; set; }     // From cmbVideoLength
+    public string VideoSize { get; set; }       // From cmbVideoSize
+    public bool IsRemix { get; set; }           // From cbVideoRemix
+    public string RemoteId { get; set; }        // OpenAI's video_id for future remixes
+
+    public string RawJson { get; set; }
+
     // Navigation properties
-    public ChatSession ChatSession { get; set; } = null!;
-    public ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();
+    public virtual ChatSession ChatSession { get; set; } = null!;
+    public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();
 }
 
 public class MediaFile(int chatMessageId, string localPath, string mediaType)

@@ -183,7 +183,7 @@
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spVideoInput" Orientation="Vertical" Grid.ColumnSpan="1">
                         <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
                         <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtVideoPrompt" />
-                        <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoSendRequest_Click"/>
+                        <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoGenerateClick"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
                         <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtVideoResponse" />
                         <MediaElement x:Name="mediaVideo" Margin="0,5,0,0" Height="200" LoadedBehavior="Manual" UnloadedBehavior="Stop"/>

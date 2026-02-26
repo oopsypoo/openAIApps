@@ -37,7 +37,11 @@ public class HistoryService(AppDbContext context)
     string tools = null,
     string imgSize = null,
     string imgQual = null,
-    string searchSize = null)
+    string searchSize = null,
+    string videoLength = null,   // New: Video Tab
+    string videoSize = null,     // New: Video Tab
+    bool isRemix = false,        // New: Video Tab
+    string remoteId = null)      // New: Video Tab (OpenAI video_id)
     {
         var msg = new ChatMessage
         {
@@ -50,13 +54,18 @@ public class HistoryService(AppDbContext context)
             ActiveTools = tools,
             ImageSize = imgSize,
             ImageQuality = imgQual,
-            SearchContextSize = searchSize
+            SearchContextSize = searchSize,
+            VideoLength = videoLength,
+            VideoSize = videoSize,
+            IsRemix = isRemix,
+            RemoteId = remoteId,
+            Timestamp = DateTime.UtcNow
         };
 
         context.Messages.Add(msg);
         await context.SaveChangesAsync();
 
-        // Update the session's LastUsedAt timestamp while we're at it
+        // Refresh the session timestamp
         var session = await context.Sessions.FindAsync(sessionId);
         if (session != null) session.LastUsedAt = DateTime.Now;
         await context.SaveChangesAsync();
@@ -135,5 +144,11 @@ public class HistoryService(AppDbContext context)
         // Use the correct DbSet name 'Media' from AppDbContext 
         context.Media.Add(media);
         await context.SaveChangesAsync();
+    }
+    public async Task<ChatMessage> GetMessageByRemoteVideoIdAsync(string videoId)
+    {
+        // Find the message that holds this specific OpenAI Video ID
+        return await context.Messages
+            .FirstOrDefaultAsync(m => m.RemoteId == videoId);
     }
 }
