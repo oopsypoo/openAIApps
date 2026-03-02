@@ -151,4 +151,26 @@ public class HistoryService(AppDbContext context)
         return await context.Messages
             .FirstOrDefaultAsync(m => m.RemoteId == videoId);
     }
+    public async Task<List<ChatSession>> GetFilteredSessionsAsync(string searchTerm, string endpointFilter)
+    {
+        var query = context.Sessions.Include(s => s.Messages).AsQueryable();
+
+        // 1. Filter by Type
+        if (endpointFilter != "All")
+        {
+            if (Enum.TryParse<EndpointType>(endpointFilter, out var type))
+                query = query.Where(s => s.Endpoint == type);
+        }
+
+        // 2. Deep Search: Looks at Title AND every message content in that session
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            string lowerTerm = searchTerm.ToLower();
+            query = query.Where(s =>
+                s.Title.ToLower().Contains(lowerTerm) ||
+                s.Messages.Any(m => m.Content.ToLower().Contains(lowerTerm)));
+        }
+
+        return await query.OrderByDescending(s => s.LastUsedAt).ToListAsync();
+    }
 }

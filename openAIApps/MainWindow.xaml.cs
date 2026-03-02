@@ -250,95 +250,91 @@ namespace openAIApps
             dgUnifiedLogs.ItemsSource = sessions; // Directly bind to the new list
         }
         // \openAIApps\MainWindow.xaml.cs
+        // Helper to walk up the visual tree to find the DataGridRow
+        private static DataGridRow? FindParentDataGridRow(DependencyObject? source)
+        {
+            while (source != null)
+            {
+                if (source is DataGridRow row) return row;
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return null;
+        }
+
         private async void OnLogEntryDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // 1. Get the data item from CurrentItem instead of SelectedItem
-            // This is often more reliable than 'row.Item' which can be 'Disconnected'
-            var selectedSession = dgUnifiedLogs.CurrentItem as ChatSession;
+            // Try to resolve the row from the event's OriginalSource
+            var source = e.OriginalSource as DependencyObject;
+            var row = FindParentDataGridRow(source);
 
-            // 2. If CurrentItem is null, try to fall back to the visual hit test
-            if (selectedSession == null)
+            // If we couldn't find a row, fall back to selected item on the grid
+            var selectedSession = row?.DataContext as ChatSession
+                              ?? dgUnifiedLogs.SelectedItem as ChatSession;
+
+            if (selectedSession == null) return;
+
+            // Isolate context to prevent "cross-tab logging"
+            _activeResponsesSessionId = null;
+            _activeVideoSessionId = null;
+
+            if (selectedSession.Endpoint == EndpointType.Video)
             {
-                if (e.OriginalSource is DependencyObject dep)
+                tabMain.SelectedIndex = 1; // Switch to Video Tab
+                _activeVideoSessionId = selectedSession.Id;
+
+                var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
+
+                var userMsg = history.FirstOrDefault(m => m.Role.ToLower() == "user");
+                if (userMsg != null)
                 {
-                    while (dep != null && !(dep is DataGridRow))
+                    txtVideoPrompt.Text = userMsg.Content;
+                    cmbVideoModel.Text = userMsg.ModelUsed;
+                    cmbVideoLength.Text = userMsg.VideoLength;
+                    cmbVideoSize.Text = userMsg.VideoSize;
+                    cbVideoRemix.IsChecked = userMsg.IsRemix;
+                }
+
+                var assistantMsg = history.LastOrDefault(m => m.Role.ToLower() == "assistant");
+                if (assistantMsg != null && !string.IsNullOrEmpty(assistantMsg.RemoteId))
+                {
+                    var itemToSelect = _videoHistory.FirstOrDefault(v => v.Id == assistantMsg.RemoteId);
+                    if (itemToSelect != null)
                     {
-                        dep = VisualTreeHelper.GetParent(dep);
-                    }
-                    if (dep is DataGridRow row && row.Item is ChatSession session && !row.Item.ToString().Contains("DisconnectedItem"))
-                    {
-                        selectedSession = session;
+                        lstVideoFiles.SelectedItem = itemToSelect;
+                        lstVideoFiles.ScrollIntoView(itemToSelect);
                     }
                 }
             }
-
-            // 3. Process the session if we found a valid one
-            if (selectedSession != null)
+            else if (selectedSession.Endpoint == EndpointType.Responses)
             {
+                tabMain.SelectedIndex = 0; // Switch to Responses Tab
                 _activeResponsesSessionId = selectedSession.Id;
-
-                if (selectedSession.Endpoint == EndpointType.Responses)
-                {
-                    tabMain.SelectedIndex = 2;
-                    txtResponsesResponse.Clear();
-
-                    // Reload UI from SQLite
-                    await RefreshCurrentChatUI(selectedSession.Id);
-
-                    // Populate the large response box
-                    var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
-                    var lastAssistant = history.LastOrDefault(m => m.Role.ToLower() == "assistant");
-                    if (lastAssistant != null)
-                    {
-                        txtResponsesResponse.Text = lastAssistant.Content;
-                    }
-
-                    StatusText.Text = $"Loaded: {selectedSession.Title}";
-                }
-                else if (selectedSession.Endpoint == EndpointType.Video)
-                {
-                    tabMain.SelectedIndex = 1;
-                    // 2. Load the prompt from the database
-                    var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
-                    var lastUserMsg = history.LastOrDefault(m => m.Role.ToLower() == "user");
-
-                    if (lastUserMsg != null)
-                    {
-                        // Rehydrate the UI with the saved settings
-                        txtVideoPrompt.Text = lastUserMsg.Content;
-                        cmbVideoModel.Text = lastUserMsg.ModelUsed;
-                        cmbVideoLength.Text = lastUserMsg.VideoLength;
-                        cmbVideoSize.Text = lastUserMsg.VideoSize;
-                        cbVideoRemix.IsChecked = lastUserMsg.IsRemix;
-                    }
-                    // Implement similar logic for video sessions if needed
-                    StatusText.Text = $"Loaded video session: {selectedSession.Title}";
-                }
+                await RefreshChatUI(selectedSession.Id);
             }
         }
 
-        private async void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e)
+        private async Task RefreshChatUI(int sessionId)
         {
-            string query = txtLogSearch.Text.Trim();
+            // 1. Fetch the full message history for this session from the DB
+            var history = await _historyService.GetFullSessionHistoryAsync(sessionId);
 
-            if (string.IsNullOrWhiteSpace(query))
+            // 2. Bind the history to your ListBox
+            lstResponsesTurns.ItemsSource = history;
+
+            // 3. Auto-scroll to the bottom so the user sees the latest exchange
+            if (lstResponsesTurns.Items.Count > 0)
             {
-                // Load the 50 most recent if search is empty
-                dgUnifiedLogs.ItemsSource = await _historyService.GetRecentSessionsAsync();
-                return;
+                var lastMsg = history.Last();
+                lstResponsesTurns.ScrollIntoView(lastMsg);
             }
 
-            // Modern C# Search Logic
-            var results = await _context.Sessions
-                .Where(s => s.Title.Contains(query) ||
-                            s.Messages.Any(m => m.Content.Contains(query)))
-                .OrderByDescending(s => s.LastUsedAt)
-                .ToListAsync();
-
-            dgUnifiedLogs.ItemsSource = results;
+            // 4. Update the prompt textbox with the last user message to allow easy editing/resending
+            var lastUserMsg = history.LastOrDefault(m => m.Role.ToLower() == "user");
+            if (lastUserMsg != null)
+            {
+                txtResponsesPrompt.Text = lastUserMsg.Content;
+            }
         }
-        
-
         private void tabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             RefreshLogsTab();
@@ -346,33 +342,43 @@ namespace openAIApps
         // 1. Delete Session
         private async void OnDeleteSessionClick(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.DataContext is ChatSession session)
+            var button = sender as Button;
+            // Prefer CommandParameter if set, otherwise fall back to DataContext
+            var session = (button?.CommandParameter ?? button?.DataContext) as ChatSession;
+
+            if (session == null) return;
+
+            var confirm = MessageBox.Show($"Permanently delete '{session.Title}'?",
+                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (confirm == MessageBoxResult.Yes)
             {
-                var result = MessageBox.Show($"Delete session '{session.Title}'?", "Confirm", MessageBoxButton.YesNo);
-                if (result == MessageBoxResult.Yes)
-                {
-                    await _historyService.DeleteSessionAsync(session.Id);
-                    RefreshLogsTab(); // Refresh the list
-                }
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine("Delete clicked but DataContext was null or wrong type!");
+                await _historyService.DeleteSessionAsync(session.Id);
+                ApplyFilters(); // Refresh the grid
             }
         }
 
-        // 2. Filter Sessions
-        private async void OnLogFilterChanged(object sender, SelectionChangedEventArgs e)
+        private async void ApplyFilters()
         {
-            if (cbLogTypeFilter.SelectedItem is ComboBoxItem item)
-            {
-                string filter = item.Content.ToString();
-                // You'll need to update your HistoryService to accept a filter string
-                var sessions = await _historyService.GetRecentSessionsAsync(filter);
-                dgUnifiedLogs.ItemsSource = sessions;
-            }
+            if(_historyService == null) return; // Safety check
+            string query = txtLogSearch.Text.Trim();
+            string typeFilter = (cbLogTypeFilter.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "All";
+
+            // Call the service with 'Deep Search' enabled
+            var results = await _historyService.GetFilteredSessionsAsync(query, typeFilter);
+            dgUnifiedLogs.ItemsSource = results;
+        }
+
+        private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
+        private void OnLogFilterChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
+        private void dgUnifiedLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
         }
     }
 }
+
+
+
 
 

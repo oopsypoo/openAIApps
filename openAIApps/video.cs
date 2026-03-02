@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using Windows.Web.Http;
 
 namespace openAIApps
@@ -161,21 +162,39 @@ namespace openAIApps
             return true;
         }
 
-        public async Task<bool> DeleteVideoAsync(string videoId)
+        public async Task<bool> DeleteVideoAsync(string videoId, string folderPath)
         {
+            // 1. Delete from OpenAI
             var url = $"{VideoEndpoint}/{videoId}";
             using var response = await _httpClient.DeleteAsync(url);
 
-            if (response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
             {
-                return true;
-            }
-            else
-            {
-                // Optional: read response content for error details
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Failed to delete video: {errorContent}");
+                throw new Exception($"OpenAI Delete Failed: {errorContent}");
             }
+
+            // 2. Handle Local File Deletion
+            if (Directory.Exists(folderPath))
+            {
+                string[] extensions = { ".mp4", ".thumb.png" };
+
+                foreach (var ext in extensions)
+                {
+                    string fullPath = Path.Combine(folderPath, videoId + ext);
+                    if (File.Exists(fullPath))
+                    {
+                        try { File.Delete(fullPath); }
+                        catch (Exception ex)
+                        {
+                            // Log to console/debug, don't crash the whole process for a locked file
+                            System.Diagnostics.Debug.WriteLine($"Failed to delete {ext}: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            return true;
         }
         public async Task<ResponseVideo> CreateVideoAsync(RequestVideo request)
         {

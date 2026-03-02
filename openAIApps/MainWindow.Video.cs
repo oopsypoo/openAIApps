@@ -30,36 +30,14 @@ namespace openAIApps
         }
         private async Task HandleVideoJobAsync(VideoClient.ResponseVideo jobResponse, int sessionId, int assistantMsgId)
         {
-            // Safety check #1: The object itself
-            if (jobResponse == null) return;
-
-            // Safety check #2: The ID
-            if (string.IsNullOrEmpty(jobResponse.Id))
-            {
-                System.Diagnostics.Debug.WriteLine("HandleVideoJobAsync aborted: jobResponse.Id is null.");
-                return;
-            }
-            // 1. Initial Error Check
-            if (jobResponse?.Error != null)
-            {
-                txtVideoResponse.Text = $"Error: {jobResponse.Error.Message}";
-                MessageBox.Show(jobResponse.Error.Message, "Video Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            // 2. Add/Update Video History List (The UI ListBox)
+            // Update the UI listbox
             var existing = _videoHistory.FirstOrDefault(v => v.Id == jobResponse.Id);
             if (existing == null)
             {
-                _videoHistory.Add(new VideoClient.VideoListItem
-                {
-                    Id = jobResponse.Id,
-                    Status = jobResponse.Status,
-                    Model = jobResponse.Model
-                });
+                _videoHistory.Add(new VideoClient.VideoListItem { Id = jobResponse.Id, Status = jobResponse.Status });
             }
 
-            // 3. Start Progress Window & Polling
+            // Show Progress
             var progressWindow = new ProgressWindow("Processing video...");
             progressWindow.Owner = this;
             var cts = new CancellationTokenSource();
@@ -67,39 +45,31 @@ namespace openAIApps
             progressWindow.Show();
 
             var progress = new Progress<double>(value => progressWindow.UpdateProgress(value));
-
-            // Poll the OpenAI API until finished or canceled
             await _videoClient.MonitorVideoProgressAsync(jobResponse.Id, progress, cts.Token);
             progressWindow.Close();
 
-            // 4. Final Status Check
+            // Final check
             var finalStatus = await _videoClient.GetVideoStatusAsync(jobResponse.Id);
+
+            // Display final JSON
+            var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+            txtVideoResponse.Text = JsonSerializer.Serialize(finalStatus, jsonOptions);
+
             if (finalStatus != null && finalStatus.Status == "completed")
             {
-                // --- DATABASE INTEGRATION START ---
-                // Construct the local path where your VideoClient saves the file
-                string videosDir = _settings.VideosFolder;
-                string localFilePath = Path.Combine(videosDir, jobResponse.Id + ".mp4");
-
-                // Update the Assistant Message to show success
-                // Note: Using the specific assistantMsgId we passed in
-                await _historyService.AddMessageAsync(sessionId, "assistant", $"Video {jobResponse.Id} completed.",
-                    remoteId: jobResponse.Id);
-
-                // LINK THE MEDIA: This is what makes the preview work in the Logs!
+                string localFilePath = Path.Combine(_settings.VideosFolder, jobResponse.Id + ".mp4");
                 await _historyService.LinkMediaAsync(assistantMsgId, localFilePath, "video/mp4");
-                // --- DATABASE INTEGRATION END ---
-
-                // Update UI
-                txtVideoResponse.Text = JsonSerializer.Serialize(finalStatus, new JsonSerializerOptions { WriteIndented = true });
-                MessageBox.Show("Video created and saved locally!", "Done", MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusText.Text = "Video Ready.";
             }
-            else
+            else if (finalStatus?.Error != null)
             {
-                string error = finalStatus?.Status ?? "Unknown failure";
-                MessageBox.Show($"Video {jobResponse.Id} failed: {error}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // THIS handles if it fails mid-way through processing
+                string errorDetail = $"Code: {finalStatus.Error.Code}\nMessage: {finalStatus.Error.Message}";
+                await _historyService.AddMessageAsync(sessionId, "assistant", $"Processing Failed: {finalStatus.Error.Message}");
+                MessageBox.Show(errorDetail, "Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+        
         private async void btnVideoGenerateClick(object sender, RoutedEventArgs e)
         {
             string prompt = txtVideoPrompt.Text;
@@ -132,7 +102,25 @@ namespace openAIApps
                     Size = cmbVideoSize.Text
                 });
             }
-            
+            // NEW ERROR LOGGING LOGIC ---
+            var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+            string rawJson = JsonSerializer.Serialize(videoResult, jsonOptions);
+
+            // Always show the JSON in the text box immediately so you can see billing/safety errors
+            txtVideoResponse.Text = rawJson;
+
+            if (videoResult == null || videoResult.Error != null)
+            {
+                string errorMsg = videoResult?.Error?.Message ?? "Unknown API Error";
+                StatusText.Text = $"Failed: {videoResult?.Error?.Code ?? "400"}";
+
+                // Log the failure to the database so it's in your history
+                await _historyService.AddMessageAsync(sessionId, "assistant", $"Error: {errorMsg}", rawJson: rawJson);
+
+                MessageBox.Show($"API Error: {errorMsg}", "Generation Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                return; // STOP HERE. Do not call HandleVideoJobAsync.
+            }
+            // --- END ERROR LOGGING ---
             // 3. Log Initial Assistant Response (Task Created)
             int assistantMsgId = await _historyService.AddMessageAsync(
                 sessionId, "assistant", "Video task initiated...",
@@ -270,33 +258,36 @@ namespace openAIApps
 
         private async void btnDeleteVideo_Click(object sender, RoutedEventArgs e)
         {
-            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
-            {
-                MessageBox.Show("Please select a video to delete.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            if (lstVideoFiles.SelectedItem is not VideoClient.VideoListItem selectedVideo) return;
 
+            // Ask once, and be specific
             var confirm = MessageBox.Show(
-                $"Are you sure you want to delete video {selectedVideo.Id}?",
-                "Confirm Delete",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                $"Permanently delete video {selectedVideo.Id} from OpenAI and local storage?",
+                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
-            if (confirm != MessageBoxResult.Yes)
-                return;
+            if (confirm != MessageBoxResult.Yes) return;
 
             try
             {
-                await _videoClient.DeleteVideoAsync(selectedVideo.Id);
+                // Instruction: Delete everything associated with this ID
+                await _videoClient.DeleteVideoAsync(selectedVideo.Id, _settings.VideosFolder);
 
-                // Remove it from the UI list
+                // Database Cleanup
+                var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
+                if (message != null)
+                {
+                    await _historyService.DeleteSessionAsync(message.ChatSessionId);
+                    if (_activeVideoSessionId == message.ChatSessionId) ResetVideoUI();
+                }
+
                 _videoHistory.Remove(selectedVideo);
+                RefreshLogsTab();
 
-                MessageBox.Show("Video deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusText.Text = "Video and logs deleted.";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to delete video:\n{ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error: {ex.Message}", "Delete Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -435,6 +426,43 @@ namespace openAIApps
 
                 StatusText.Text = $"Video loaded from log. ID: {selectedVideo.Id}";
             }
+        }
+        private void ResetVideoUI()
+        {
+            // 1. Clear State
+            _activeVideoSessionId = null;
+            _videoReferencePath = string.Empty;
+            //_videoPath = string.Empty;
+
+            // 2. Clear UI
+            txtVideoPrompt.Text = string.Empty;
+            txtVideoResponse.Text = string.Empty;
+            imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative)); ; // Or your 'no_pic.png' placeholder
+            cbVideoRemix.IsChecked = false;
+
+            // 3. Reset ComboBoxes to defaults
+            cmbVideoModel.SelectedIndex = 0;
+            cmbVideoLength.SelectedIndex = 0;
+            cmbVideoSize.SelectedIndex = 0;
+
+            StatusText.Text = "Ready for a new video session.";
+        }
+        private void txtVideoPrompt_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // If the user starts typing a NEW prompt while looking at an OLD session...
+            // AND it is not a Remix attempt...
+            if (_activeVideoSessionId != null && cbVideoRemix.IsChecked == false)
+            {
+                // We "Detach" from the old session. 
+                // This ensures the next 'Generate' creates a NEW session with a NEW title.
+                _activeVideoSessionId = null;
+                StatusText.Text = "New prompt detected: A new session will be created.";
+            }
+        }
+
+        private void btnNewVideSession_Click(object sender, RoutedEventArgs e)
+        {
+            ResetVideoUI();
         }
     }
 }

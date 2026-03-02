@@ -182,7 +182,7 @@
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spVideoInput" Orientation="Vertical" Grid.ColumnSpan="1">
                         <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtVideoPrompt" />
+                        <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtVideoPrompt" TextChanged="txtVideoPrompt_TextChanged"/>
                         <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoGenerateClick"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
                         <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtVideoResponse" />
@@ -249,9 +249,11 @@
                                 </ListBox>
                                 <CheckBox x:Name="cbVideoRemix" Content="Remix selected video" Margin="0,0,0,4"/>
                                 <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
-                                <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Click="btnDeleteVideo_Click" />
+                                
                                 <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
                                 <Button x:Name="btnPlayVideo" Content="Play Selected Video" IsEnabled="True" Click="btnPlayVideo_Click" />
+                                <Button x:Name="btnNewVideSession" Content="New Session" Margin="0,4,0,4" Background="LightGreen" IsEnabled="True" Click="btnNewVideSession_Click" />
+                                <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Background="#FFF64343" Click="btnDeleteVideo_Click" />
                             </StackPanel>
                         </ScrollViewer>
                     </GroupBox>
@@ -471,34 +473,91 @@
 
                     <StackPanel Orientation="Horizontal" Margin="10,5">
                         <TextBlock Text="Filter by Type: " VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <ComboBox x:Name="cbLogTypeFilter" Width="120" SelectionChanged="OnLogFilterChanged">
+                        <ComboBox x:Name="cbLogTypeFilter" Width="120" SelectionChanged="OnLogFilterChanged" SelectedIndex="0">
                             <ComboBoxItem Content="All"/>
+                            <ComboBoxItem Content="Responses"/>
+                            <ComboBoxItem Content="Video"/>
                             <ComboBoxItem Content="Images"/>
-                            <ComboBoxItem Content="Web"/>
                         </ComboBox>
-                        <Label Content="Search Logs:" VerticalAlignment="Center"/>
+
+                        <Label Content="Search Logs:" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <TextBox x:Name="txtLogSearch" Width="300" Margin="10,0" TextChanged="TxtLogSearch_TextChanged"/>
                     </StackPanel>
 
                     <DataGrid x:Name="dgUnifiedLogs" 
-                      Grid.Row="1" 
-                      AutoGenerateColumns="False" 
-                      IsReadOnly="True"
-                      SelectionMode="Single"
-                      SelectionUnit="FullRow"
-                      MouseDoubleClick="OnLogEntryDoubleClick"
-                      Background="White"
-                      RowBackground="White"
-                      AlternatingRowBackground="#F9F9F9"
-                      Margin="10">  
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Date" Binding="{Binding LastUsedAt, StringFormat=\{0:dd.MM HH:mm\}}" Width="100"/>
-                            <DataGridTextColumn Header="Type" Binding="{Binding Endpoint}" Width="80"/>
+                  Grid.Row="1" 
+                  AutoGenerateColumns="False" 
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  SelectionUnit="FullRow"
+                  CanUserAddRows="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="None"
+                  SelectionChanged="dgUnifiedLogs_SelectionChanged">
 
-                            <DataGridTextColumn Header="Last Prompt" Binding="{Binding Title}" Width="250">
+                        <DataGrid.Resources>
+                            <SolidColorBrush x:Key="ActiveSelectionBrush" Color="#0078D7"/>
+                            <SolidColorBrush x:Key="InactiveSelectionBrush" Color="#5A9BD5"/>
+                            <SolidColorBrush x:Key="SelectionForegroundBrush" Color="White"/>
+                        </DataGrid.Resources>
+
+                        <!-- RowStyle added to ensure visible row highlighting on selection and hover -->
+                        <!-- Row background on selection/hover -->
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <EventSetter Event="MouseDoubleClick" Handler="OnLogEntryDoubleClick"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Style.Triggers>
+                                    <!-- Active selection -->
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                            <Condition Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Background" Value="{StaticResource ActiveSelectionBrush}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource SelectionForegroundBrush}"/>
+                                    </MultiDataTrigger>
+
+                                    <!-- Inactive selection (when grid loses focus) -->
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                            <Condition Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=DataGrid}}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Background" Value="{StaticResource InactiveSelectionBrush}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource SelectionForegroundBrush}"/>
+                                    </MultiDataTrigger>
+
+                                    <!-- Optional: hover highlight -->
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#E6F2FF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <!-- Ensure cells also adopt the selection colors -->
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="{Binding Background, RelativeSource={RelativeSource AncestorType=DataGridRow}}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource SelectionForegroundBrush}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.CellStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding LastUsedAt, StringFormat=\{0:dd.MM HH:mm\}}" Width="110"/>
+                            <DataGridTextColumn Header="Type" Binding="{Binding Endpoint}" Width="90"/>
+
+                            <DataGridTextColumn Header="Last Prompt" Binding="{Binding Title}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="Padding" Value="5,0"/>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -507,12 +566,15 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Content="🗑" 
-                                            Click="OnDeleteSessionClick" 
-                                            Focusable="False"
-                                            Background="Transparent" 
-                                            BorderThickness="0"
-                                            VerticalAlignment="Center" 
-                                            HorizontalAlignment="Center"/>
+                                        Click="OnDeleteSessionClick" 
+                                        CommandParameter="{Binding}"
+                                        Focusable="False"
+                                        Cursor="Hand"
+                                        Background="Transparent" 
+                                        BorderThickness="0"
+                                        FontSize="14"
+                                        VerticalAlignment="Center" 
+                                        HorizontalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
