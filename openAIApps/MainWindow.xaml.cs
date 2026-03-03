@@ -263,15 +263,11 @@ namespace openAIApps
 
         private async void OnLogEntryDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Try to resolve the row from the event's OriginalSource
-            var source = e.OriginalSource as DependencyObject;
-            var row = FindParentDataGridRow(source);
-
-            // If we couldn't find a row, fall back to selected item on the grid
-            var selectedSession = row?.DataContext as ChatSession
-                              ?? dgUnifiedLogs.SelectedItem as ChatSession;
-
-            if (selectedSession == null) return;
+            // Now that IsSynchronizedWithCurrentItem="True" is set, 
+            // SelectedItem is rock-solid.
+            var selectedSession = dgUnifiedLogs.SelectedItem as ChatSession;
+            if (selectedSession == null)
+                return;
 
             // Isolate context to prevent "cross-tab logging"
             _activeResponsesSessionId = null;
@@ -307,12 +303,12 @@ namespace openAIApps
             }
             else if (selectedSession.Endpoint == EndpointType.Responses)
             {
-                tabMain.SelectedIndex = 0; // Switch to Responses Tab
+                tabMain.SelectedIndex = 2; // Switch to Responses Tab
                 _activeResponsesSessionId = selectedSession.Id;
                 await RefreshChatUI(selectedSession.Id);
             }
+            
         }
-
         private async Task RefreshChatUI(int sessionId)
         {
             // 1. Fetch the full message history for this session from the DB

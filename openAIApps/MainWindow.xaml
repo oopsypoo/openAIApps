@@ -485,16 +485,17 @@
                     </StackPanel>
 
                     <DataGrid x:Name="dgUnifiedLogs" 
-                  Grid.Row="1" 
-                  AutoGenerateColumns="False" 
-                  IsReadOnly="True"
-                  SelectionMode="Single"
-                  SelectionUnit="FullRow"
-                  CanUserAddRows="False"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="None"
-                  SelectionChanged="dgUnifiedLogs_SelectionChanged">
-
+                              IsSynchronizedWithCurrentItem="True"
+                              Grid.Row="1" 
+                              AutoGenerateColumns="False" 
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              SelectionUnit="FullRow"
+                              CanUserAddRows="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="None"
+                              SelectionChanged="dgUnifiedLogs_SelectionChanged">
+                        
                         <DataGrid.Resources>
                             <SolidColorBrush x:Key="ActiveSelectionBrush" Color="#0078D7"/>
                             <SolidColorBrush x:Key="InactiveSelectionBrush" Color="#5A9BD5"/>
