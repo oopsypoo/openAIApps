@@ -336,10 +336,10 @@
                                 </Label>
 
                                 <Button Grid.Column="1"
-                    x:Name="btnResponsesAttachImage"
-                    Margin="4,0,0,0"
-                    Content="Attach image"
-                    Click="btnResponsesAttachImage_Click"/>
+                                        x:Name="btnResponsesAttachImage"
+                                        Margin="4,0,0,0"
+                                        Content="Attach image"
+                                        Click="btnResponsesAttachImage_Click"/>
                             </Grid>
 
                             <!-- 2) Prompt + image preview row -->

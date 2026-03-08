@@ -9,15 +9,39 @@
                 WindowStartupLocation="CenterOwner"
                 ResizeMode="NoResize"
                 WindowStyle="ThreeDBorderWindow"
-                Width="320"
-                Height="150"
+                Width="350"
+                Height="240"
                 Background="#1E1E1E"
                 Foreground="White"
                 AllowsTransparency="false"
                 ShowInTaskbar="False"
                 Topmost="True">
+    <Window.Resources>
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="WhiteSmoke"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Width" Value="75" />
+            <Setter Property="Height" Value="auto" />
+            <Setter Property="Margin" Value="5,0,5,0"/>
+        </Style>
+    </Window.Resources>
     <Border CornerRadius="12" Background="#2A2A2A" Padding="20">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock x:Name="txtRegularExpFilter"
+                   Text="Filter models by regExp"
+                   FontSize="14"
+                   Margin="0,0,0,3"
+                   ToolTip="Create a regular expression to filter models"
+                   TextAlignment="Center"/>
+            <TextBox x:Name="tbRegEx"
+                    Width="240"
+                    Height="25"
+                    FontSize="14"
+                    Margin="0,0,0,3"/>
             <TextBlock x:Name="txtTitle"
                    Text="Available models for current user"
                    FontSize="16"
@@ -29,11 +53,28 @@
                       Height="25"
                       FontSize="14"
                       Margin="0,0,0,3"/>
-            <Button Content="Close"
-                    Margin="0,0,0,3"
-                    Width="100"
-                    Height="25"
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition Width="auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button Content="Save" Style="{StaticResource ButtonStyle}"
+                    Grid.Column="0"
+                    Background="LightGreen"
+                    Click="Button_Save_model_list"/>
+                <Button Content="Close" Style="{StaticResource ButtonStyle}"
+                    Grid.Column="1"
                     Click="Button_Click"/>
+                <Button Content="Filter" Style="{StaticResource ButtonStyle}"
+                    Grid.Column="2"
+                    Click="Button_filter_list"/>
+            </Grid>
+            <Button Content="Use List" Style="{StaticResource ButtonStyle}"
+                    Background="BlueViolet"
+                    Width="100"
+                    Click="Button_UseNow_Click"/>
         </StackPanel>
     </Border>
 </Window>

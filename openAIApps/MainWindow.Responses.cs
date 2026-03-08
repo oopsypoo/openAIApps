@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -23,37 +24,174 @@ namespace openAIApps
 {
     public partial class MainWindow
     {
+        private List<string> _allModelsFromApi = new();
+        private List<string> _activeModelsForResponses = new();
+        private AvailableModels? _availableModelsWindow;
 
+        private const string AvailableModelsFileName = "available_models.txt";
+        private string AvailableModelsFilePath =>
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AvailableModelsFileName);
+        
+        private List<string> LoadSavedModelsFromFile()
+        {
+            if (!File.Exists(AvailableModelsFilePath))
+                return new List<string>();
+
+            return File.ReadAllLines(AvailableModelsFilePath)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+        private void ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
+        {
+            var list = models
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            _activeModelsForResponses = list;
+
+            cmbResponsesModel.Items.Clear();
+
+            foreach (string model in list)
+            {
+                cmbResponsesModel.Items.Add(new ComboBoxItem
+                {
+                    Content = model,
+                    Tag = model
+                });
+            }
+
+            if (list.Count == 0)
+            {
+                _responsesClient.CurrentModel = string.Empty;
+                return;
+            }
+
+            string? currentModel = _responsesClient?.CurrentModel;
+
+            string selectedModel =
+                list.FirstOrDefault(m => string.Equals(m, currentModel, StringComparison.OrdinalIgnoreCase))
+                ?? list.FirstOrDefault(m => string.Equals(m, preferredModel, StringComparison.OrdinalIgnoreCase))
+                ?? list[0];
+
+            int selectedIndex = list.FindIndex(m => string.Equals(m, selectedModel, StringComparison.OrdinalIgnoreCase));
+
+            cmbResponsesModel.SelectedIndex = selectedIndex;
+            _responsesClient.CurrentModel = selectedModel;
+        }
+        /// <summary>
+        /// Retrieves a predefined list of response model identifiers available for use within the application.
+        /// </summary>
+        /// <remarks>The returned model identifiers include both reasoning-enabled and non-reasoning
+        /// variants to support a range of use cases. This method is intended for scenarios where a fixed set of
+        /// supported models is required, such as populating selection controls or validating user input.</remarks>
+        /// <returns>A list of strings containing the identifiers of supported response models, including variants from the GPT-5
+        /// and GPT-4 families as well as dedicated reasoning models.</returns>
+        private List<string> GetHardcodedResponseModels()
+        {             return new List<string>
+            {
+                // Frontier GPT-5 family (reasoning-enabled)
+                "gpt-5.2",
+                "gpt-5.2-pro",
+                "gpt-5.1",
+                "gpt-5-pro",
+                "gpt-5-mini",
+                // GPT-4.1 family (non-reasoning)
+                "gpt-4.1",
+                "gpt-4.1-mini",
+                // GPT-4o series
+                "gpt-4o",
+                "gpt-4o-mini",
+                // Dedicated reasoning models (o-series)
+                "o3",
+                "o3-pro",
+                "o3-mini",
+                "o4-mini",
+                "computer-use-preview"
+            };
+        }
+        private async Task LoadApiModelsCacheAsync()
+        {
+            try
+            {
+                using HttpClient httpClient = new HttpClient();
+                string endpoint = "https://api.openai.com/v1/models";
+
+                _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(httpClient, OpenAPIKey, endpoint);
+            }
+            catch
+            {
+                // Ignore - fallback already exists
+            }
+        }
+        private async Task InitResponsesControlsAsync()
+        {
+            _responsesClient = new Responses(OpenAPIKey);
+
+            List<string> modelsToUse = LoadSavedModelsFromFile();
+
+            if (modelsToUse.Count == 0)
+            {
+                try
+                {
+                    using HttpClient httpClient = new HttpClient();
+                    string endpoint = "https://api.openai.com/v1/models";
+
+                    _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(httpClient, OpenAPIKey, endpoint);
+                    modelsToUse = _allModelsFromApi;
+                }
+                catch
+                {
+                    modelsToUse = GetHardcodedResponseModels();
+                }
+            }
+            else
+            {
+                // Optional: load API list in background so AvailableModels window can use full live list later
+                _ = LoadApiModelsCacheAsync();
+            }
+
+            if (modelsToUse.Count == 0)
+            {
+                modelsToUse = GetHardcodedResponseModels();
+            }
+
+            ApplyModelsToResponsesCombo(modelsToUse, "gpt-4o");
+
+            // Tools
+            _responsesClient.ActiveTools.Clear();
+            _responsesClient.ActiveTools.Add("text");
+            cbToolText.IsChecked = true;
+            cbToolWebSearch.IsChecked = false;
+            cbToolComputerUse.IsChecked = false;
+            _responsesClient.WebSearchContextSize = "medium";
+            cmbSearchContextSize.SelectedIndex = 1;
+            cmbSearchContextSize.IsEnabled = false;
+
+            // Reasoning
+            cmbReasoning.Items.Clear();
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "none", Tag = "none" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "minimal", Tag = "minimal" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "low", Tag = "low" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "medium", Tag = "medium" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "high", Tag = "high" });
+            cmbReasoning.Items.Add(new ComboBoxItem { Content = "xhigh", Tag = "xhigh" });
+            cmbReasoning.SelectedIndex = 0;
+            _responsesClient.CurrentReasoning = "none";
+        }
         private void InitResponsesControls()
         {
             _responsesClient = new Responses(OpenAPIKey);
 
             // Frontier GPT-5 family (reasoning-enabled)
             cmbResponsesModel.Items.Clear();
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5.2", Tag = "gpt-5.2" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5.2-pro", Tag = "gpt-5.2-pro" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5.1", Tag = "gpt-5.1" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5-pro", Tag = "gpt-5-pro" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-5-mini", Tag = "gpt-5-mini" });
-
-            // GPT-4.1 family (non-reasoning)
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4.1", Tag = "gpt-4.1" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4.1-mini", Tag = "gpt-4.1-mini" });
-
-            // GPT-4o series
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4o", Tag = "gpt-4o", IsSelected = true });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "gpt-4o-mini", Tag = "gpt-4o-mini" });
-
-            // Dedicated reasoning models (o-series)
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o3", Tag = "o3" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o3-pro", Tag = "o3-pro" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o3-mini", Tag = "o3-mini" });
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "o4-mini", Tag = "o4-mini" });
-
-            // Specialized / preview
-            cmbResponsesModel.Items.Add(new ComboBoxItem { Content = "computer-use-preview", Tag = "computer-use-preview" });
-
-            cmbResponsesModel.SelectedIndex = 6; // gpt-4o (safe default)
+            
+            cmbResponsesModel.SelectedIndex = 0; // gpt-4o (safe default)
             _responsesClient.CurrentModel = "gpt-4o";
 
             // Tools (unchanged)

@@ -49,7 +49,9 @@ namespace openAIApps
         private string savepath_snds;
         private string savepath_images;
         private string savepath_videos;
-        
+
+        public event Action<List<string>>? ModelsApplied;
+
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
         private VideoClient _videoClient;
         //private List<VideoListItem> _videoHistory = new();
@@ -139,7 +141,8 @@ namespace openAIApps
         }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            InitResponsesControls(); // Move ALL combo population here
+            //InitResponsesControls(); // Move ALL combo population here
+            await InitResponsesControlsAsync();
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             LoadInitialLogs(); // Load logs after everything is set up
         }
@@ -248,28 +251,56 @@ namespace openAIApps
 
         private async void menuAvailableModels_Click(object sender, RoutedEventArgs e)
         {
-            // pass what the dialog needs: HttpClient and API key
-            var availableModels = new AvailableModels(_httpClient, OpenAPIKey);
-
-            try
+            if (_availableModelsWindow != null && _availableModelsWindow.IsLoaded)
             {
-                // fetch models BEFORE showing dialog (or inside dialog, see below)
-                var models = await availableModels.GetAvailableModelsAsync(_httpClient, OpenAPIKey, url_openai_models);
-                availableModels.UpdateAvailableModels(models);
-
-                // now show the populated dialog
-                availableModels.ShowDialog();
+                _availableModelsWindow.Activate();
+                return;
             }
-            catch (HttpRequestException ex)
+
+            if (_allModelsFromApi.Count == 0)
             {
-                MessageBox.Show($"HTTP error: {ex.Message}");
+                try
+                {
+                    using HttpClient httpClient = new HttpClient();
+                    string endpoint = "https://api.openai.com/v1/models";
+
+                    _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(httpClient, OpenAPIKey, endpoint);
+                }
+                catch
+                {
+                    // If API fails, fall back to active list, then hardcoded
+                }
             }
-            catch (Exception ex)
+
+            List<string> sourceModels =
+                _allModelsFromApi.Count > 0 ? _allModelsFromApi :
+                _activeModelsForResponses.Count > 0 ? _activeModelsForResponses :
+                GetHardcodedResponseModels();
+
+            _availableModelsWindow = new AvailableModels(sourceModels);
+            _availableModelsWindow.Owner = this;
+
+            _availableModelsWindow.ModelsApplied += AvailableModelsWindow_ModelsApplied;
+            _availableModelsWindow.Closed += AvailableModelsWindow_Closed;
+
+            _availableModelsWindow.Show();
+        }
+        private void AvailableModelsWindow_ModelsApplied(List<string> models)
+        {
+            if (models == null || models.Count == 0)
+                return;
+
+            ApplyModelsToResponsesCombo(models, "gpt-4o");
+        }
+        private void AvailableModelsWindow_Closed(object? sender, EventArgs e)
+        {
+            if (_availableModelsWindow != null)
             {
-                MessageBox.Show($"Unexpected error: {ex.Message}");
+                _availableModelsWindow.ModelsApplied -= AvailableModelsWindow_ModelsApplied;
+                _availableModelsWindow.Closed -= AvailableModelsWindow_Closed;
+                _availableModelsWindow = null;
             }
         }
-
         private void menuSettings_Click(object sender, RoutedEventArgs e)
         {
             var window = new SettingsWindow(_settings);
