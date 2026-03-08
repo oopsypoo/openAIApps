@@ -1,14 +1,21 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NAudio.Utils;
 using openAIApps.Data;
 using openAIApps.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -47,7 +54,7 @@ namespace openAIApps
         private VideoClient _videoClient;
         //private List<VideoListItem> _videoHistory = new();
         private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
-        // Near other fields
+       // Near other fields
         private string _responsesImagePath = string.Empty;
 
         private string _videoReferencePath = string.Empty;
@@ -62,7 +69,9 @@ namespace openAIApps
 
         // This collection is for the "Logs" tab search
         public ObservableCollection<ChatSession> HistoricSessions { get; } = new();
-
+        public ICollectionView LogView { get; set; }
+        // This is the master list from the DB
+        private List<ChatSession> _allSessions { get; } = new();
         // Inside MainWindow class
         private int? _activeResponsesSessionId;
         private int? _activeVideoSessionId;
@@ -100,27 +109,56 @@ namespace openAIApps
             Directory.CreateDirectory(savepath_videos);
         }
 
+        private async void LoadInitialLogs()
+        {
+            var sessions = await _historyService.GetAllSessionsAsync();
 
+            _allSessions.Clear();
+            foreach (var s in sessions)
+                _allSessions.Add(s);
 
+            // Not strictly necessary since we're adding to ObservableCollection,
+            // but harmless if you want to re-evaluate filters after load:
+            LogView.Refresh();
+        }
+        private bool FilterPredicate(object obj)
+        {
+            if (obj is not ChatSession session) return false;
+
+            var typeFilter = (cbLogTypeFilter.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+            var query = txtLogSearch?.Text?.Trim() ?? string.Empty;
+
+            bool matchesType = typeFilter == "All" ||
+                               string.Equals(session.Endpoint.ToString(), typeFilter, StringComparison.OrdinalIgnoreCase);
+
+            var title = session.Title ?? string.Empty;
+            bool matchesText = string.IsNullOrEmpty(query) ||
+                               title.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+
+            return matchesType && matchesText;
+        }
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             InitResponsesControls(); // Move ALL combo population here
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+            LoadInitialLogs(); // Load logs after everything is set up
         }
         public MainWindow()
         {
+            // Set up the Logs tab with filtering
+            LogView = CollectionViewSource.GetDefaultView(_allSessions);
+            
             InitializeComponent();
             _context = new AppDbContext();
             _context.Database.EnsureCreated(); // Ensures SQLite file exists
             _historyService = new HistoryService(_context);
-
             // Pass history service to your existing logic classes if needed
             //_responsesClient.SetHistoryService(_historyService);
+            LogView.Filter = FilterPredicate;
             InitControls();
             Loaded += MainWindow_Loaded;
-
         }
-
+        
         public void InitControls()
         {
             EnsureSavePaths();
@@ -128,6 +166,7 @@ namespace openAIApps
             // Bind the UI controls to these collections
             lstResponsesTurns.ItemsSource = CurrentChatMessages;
             InitVideoList();
+            
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
@@ -240,32 +279,39 @@ namespace openAIApps
                 EnsureSavePaths();  // Refresh paths only on save
             }
         }
+        private void UpdateSessions(IEnumerable<ChatSession> sessions)
+        {
+            using (LogView.DeferRefresh())
+            {
+                _allSessions.Clear();
+                foreach (var s in sessions)
+                    _allSessions.Add(s);
+            }
+            // If your Filter predicate reads UI controls (search/type), this ensures it re-evaluates
+            LogView.Refresh();
+        }
         // Call this when clicking the "Logs" tab
         private async void RefreshLogsTab()
         {
             if(_historyService == null) return; // Safety check
             var sessions = await _historyService.GetRecentSessionsAsync();
-            //HistoricSessions.Clear();
-            //foreach (var s in sessions) HistoricSessions.Add(s);
-            dgUnifiedLogs.ItemsSource = sessions; // Directly bind to the new list
-        }
-        // \openAIApps\MainWindow.xaml.cs
-        // Helper to walk up the visual tree to find the DataGridRow
-        private static DataGridRow? FindParentDataGridRow(DependencyObject? source)
-        {
-            while (source != null)
-            {
-                if (source is DataGridRow row) return row;
-                source = VisualTreeHelper.GetParent(source);
-            }
-            return null;
-        }
 
+            // Update the collection that the view wraps
+            if (!Dispatcher.CheckAccess())
+            {
+                await Dispatcher.InvokeAsync(() => UpdateSessions(sessions));
+            }
+            else
+            {
+                UpdateSessions(sessions);
+            }
+        }
+        
         private async void OnLogEntryDoubleClick(object sender, MouseButtonEventArgs e)
         {
             // Now that IsSynchronizedWithCurrentItem="True" is set, 
             // SelectedItem is rock-solid.
-            var selectedSession = dgUnifiedLogs.SelectedItem as ChatSession;
+            var selectedSession = dgUnifiedLogs.CurrentItem as ChatSession;
             if (selectedSession == null)
                 return;
 
@@ -334,6 +380,7 @@ namespace openAIApps
         private void tabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             RefreshLogsTab();
+            
         }
         // 1. Delete Session
         private async void OnDeleteSessionClick(object sender, RoutedEventArgs e)
@@ -354,25 +401,32 @@ namespace openAIApps
             }
         }
 
+
+        
         private async void ApplyFilters()
         {
-            if(_historyService == null) return; // Safety check
-            string query = txtLogSearch.Text.Trim();
-            string typeFilter = (cbLogTypeFilter.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "All";
-
-            // Call the service with 'Deep Search' enabled
-            var results = await _historyService.GetFilteredSessionsAsync(query, typeFilter);
-            dgUnifiedLogs.ItemsSource = results;
+            // This "jolts" the UI to redraw based on the new filter rules
+            if(LogView != null)
+                LogView.Refresh();
         }
-
+        
         private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
         private void OnLogFilterChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
         private void dgUnifiedLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
 
         }
+
+        public void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Debug.WriteLine("Preview mouse hit button");
+        }
     }
 }
+
+
+
+
 
 
 

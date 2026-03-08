@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Windows.UI;
 
 namespace openAIApps.Services;
 // Services/HistoryService.cs
@@ -83,7 +84,12 @@ public class HistoryService(AppDbContext context)
             .AsNoTracking()
             .ToListAsync();
     }
-
+    public async Task<List<ChatSession>> GetAllSessionsAsync()
+    {
+        return await context.Sessions
+            .OrderByDescending(s => s.LastUsedAt)
+            .ToListAsync();
+    }
     // For the unified "Logs" tab search
     public async Task<List<ChatSession>> GetRecentSessionsAsync()
     {
@@ -153,24 +159,31 @@ public class HistoryService(AppDbContext context)
     }
     public async Task<List<ChatSession>> GetFilteredSessionsAsync(string searchTerm, string endpointFilter)
     {
+        // Ensure you are USING Microsoft.EntityFrameworkCore for .Include()
         var query = context.Sessions.Include(s => s.Messages).AsQueryable();
 
-        // 1. Filter by Type
-        if (endpointFilter != "All")
+        // 1. Filter by Type (Ensure this matches your Enum strings exactly!)
+        if (!string.IsNullOrWhiteSpace(endpointFilter) && endpointFilter != "All")
         {
             if (Enum.TryParse<EndpointType>(endpointFilter, out var type))
+            {
                 query = query.Where(s => s.Endpoint == type);
+            }
         }
 
-        // 2. Deep Search: Looks at Title AND every message content in that session
-        if (!string.IsNullOrEmpty(searchTerm))
+        // 2. Search Logic
+        if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             string lowerTerm = searchTerm.ToLower();
+            // The "Any" check is expensive. Ensure your DB has an index on Message.Content if it's slow.
             query = query.Where(s =>
                 s.Title.ToLower().Contains(lowerTerm) ||
-                s.Messages.Any(m => m.Content.ToLower().Contains(lowerTerm)));
+                s.Messages.Any(m => m.Content.ToLower().Contains(lowerTerm))
+            );
         }
 
-        return await query.OrderByDescending(s => s.LastUsedAt).ToListAsync();
+        return await query
+            .OrderByDescending(s => s.LastUsedAt)
+            .ToListAsync();
     }
 }
