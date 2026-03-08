@@ -556,12 +556,15 @@
                             <DataGridTemplateColumn Width="50" Header="Del" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Style="{StaticResource DeleteButtonStyle}"
+                                        <Button Content="🗑"
+                                                Width="28"
+                                                Height="28"
+                                                FontSize="15"
+                                                Style="{StaticResource DeleteButtonStyle}"
                                                 Click="OnDeleteSessionClick"
+                                                ClickMode="Press"
                                                 CommandParameter="{Binding}"
-                                                FontSize="14"
-                                                FontWeight="Bold"
-                                                Content="✖"/>        
+                                                ToolTip="{Binding Title, StringFormat=Delete {0}}"/>       
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
