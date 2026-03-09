@@ -78,8 +78,8 @@ namespace openAIApps
             return File.ReadAllLines(FilePath)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
-                .Distinct()
-                .OrderBy(x => x)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
@@ -88,8 +88,8 @@ namespace openAIApps
             var list = models
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
-                .Distinct()
-                .OrderBy(x => x)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             File.WriteAllLines(FilePath, list);

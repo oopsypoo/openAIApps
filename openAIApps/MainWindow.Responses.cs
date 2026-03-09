@@ -30,8 +30,8 @@ namespace openAIApps
             var list = models
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim())
-                .Distinct()
-                .OrderBy(x => x)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             _activeModelsForResponses = list;
@@ -53,16 +53,12 @@ namespace openAIApps
                 return;
             }
 
-            string? currentModel = list.FirstOrDefault(m => m.Equals(preferredModel, StringComparison.OrdinalIgnoreCase))
-                           ?? list[0];
-
             string selectedModel =
-                list.FirstOrDefault(m => string.Equals(m, currentModel, StringComparison.OrdinalIgnoreCase))
-                ?? list.FirstOrDefault(m => string.Equals(m, preferredModel, StringComparison.OrdinalIgnoreCase))
+                list.FirstOrDefault(m => m.Equals(_responsesClient.CurrentModel, StringComparison.OrdinalIgnoreCase))
+                ?? list.FirstOrDefault(m => m.Equals(preferredModel, StringComparison.OrdinalIgnoreCase))
                 ?? list[0];
 
-            int selectedIndex = list.FindIndex(m => string.Equals(m, selectedModel, StringComparison.OrdinalIgnoreCase));
-
+            int selectedIndex = list.FindIndex(m => m.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
             cmbResponsesModel.SelectedIndex = selectedIndex;
             _responsesClient.CurrentModel = selectedModel;
         }

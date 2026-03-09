@@ -58,7 +58,6 @@ namespace openAIApps
         // near other fields
         private Responses _responsesClient;
 
-        private readonly HttpClient _httpClient = new(); // Or inject as singleton
         private readonly AppDbContext _context;
         private readonly HistoryService _historyService;
         // This collection is the "Live" data for the current Responses tab
@@ -260,30 +259,22 @@ namespace openAIApps
                 }
                 catch
                 {
-                    // If API fails, fall back to active list, then hardcoded
+                    _allModelsFromApi = GetHardcodedResponseModels();
                 }
             }
 
-            List<string> sourceModels =
-                _allModelsFromApi.Count > 0 ? _allModelsFromApi :
-                _activeModelsForResponses.Count > 0 ? _activeModelsForResponses :
-                GetHardcodedResponseModels();
-
-            _availableModelsWindow = new AvailableModels(sourceModels);
+            _availableModelsWindow = new AvailableModels(_allModelsFromApi, _activeModelsForResponses);
             _availableModelsWindow.Owner = this;
-
             _availableModelsWindow.ModelsApplied += AvailableModelsWindow_ModelsApplied;
             _availableModelsWindow.Closed += AvailableModelsWindow_Closed;
-
             _availableModelsWindow.Show();
         }
         private void AvailableModelsWindow_ModelsApplied(List<string> models)
         {
-            if (models == null || models.Count == 0)
-                return;
-
-            ApplyModelsToResponsesCombo(models, "gpt-4o");
+            _activeModelsForResponses = models.ToList();
+            ApplyModelsToResponsesCombo(_activeModelsForResponses, "gpt-4o");
         }
+
         private void AvailableModelsWindow_Closed(object? sender, EventArgs e)
         {
             if (_availableModelsWindow != null)
