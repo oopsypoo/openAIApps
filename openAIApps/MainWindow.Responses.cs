@@ -119,10 +119,7 @@ namespace openAIApps
         {
             try
             {
-                using HttpClient httpClient = new HttpClient();
-                string endpoint = "https://api.openai.com/v1/models";
-
-                _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(httpClient, OpenAPIKey, endpoint);
+                _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(OpenAPIKey);
             }
             catch
             {
@@ -139,10 +136,7 @@ namespace openAIApps
             {
                 try
                 {
-                    using HttpClient httpClient = new HttpClient();
-                    string endpoint = "https://api.openai.com/v1/models";
-
-                    _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(httpClient, OpenAPIKey, endpoint);
+                    _allModelsFromApi = await ModelApiService.GetAvailableModelsAsync(OpenAPIKey);
                     modelsToUse = _allModelsFromApi;
                 }
                 catch
