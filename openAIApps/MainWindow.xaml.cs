@@ -1,6 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using NAudio.Utils;
-using openAIApps.Data;
+﻿using openAIApps.Data;
 using openAIApps.Services;
 using System;
 using System.Collections.Generic;
@@ -10,12 +8,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -32,7 +28,6 @@ namespace openAIApps
     /// </summary>
     public partial class MainWindow : Window
     {
-        const string url_openai_models = "https://api.openai.com/v1/models";
         /// <summary>
         /// Represents the OpenAI API key retrieved from the environment variable named "OPENAI_API_KEY".
         /// </summary>
@@ -43,7 +38,7 @@ namespace openAIApps
         /// <summary>
         /// make these paths more general-purpose in the future
         /// </summary>
-        
+
         private AppSettings _settings;
         private string savepath_logs;
         private string savepath_snds;
@@ -56,7 +51,7 @@ namespace openAIApps
         private VideoClient _videoClient;
         //private List<VideoListItem> _videoHistory = new();
         private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
-       // Near other fields
+        // Near other fields
         private string _responsesImagePath = string.Empty;
 
         private string _videoReferencePath = string.Empty;
@@ -104,7 +99,7 @@ namespace openAIApps
             savepath_snds = Path.Combine(_settings.AppRoot, _settings.SoundsFolder);
             savepath_images = Path.Combine(_settings.AppRoot, _settings.ImagesFolder);
             savepath_videos = Path.Combine(_settings.AppRoot, _settings.VideosFolder);
-            
+
             Directory.CreateDirectory(savepath_logs);
             Directory.CreateDirectory(savepath_snds);
             Directory.CreateDirectory(savepath_images);
@@ -150,7 +145,7 @@ namespace openAIApps
         {
             // Set up the Logs tab with filtering
             LogView = CollectionViewSource.GetDefaultView(_allSessions);
-            
+
             InitializeComponent();
             _context = new AppDbContext();
             _context.Database.EnsureCreated(); // Ensures SQLite file exists
@@ -161,7 +156,7 @@ namespace openAIApps
             InitControls();
             Loaded += MainWindow_Loaded;
         }
-        
+
         public void InitControls()
         {
             EnsureSavePaths();
@@ -169,7 +164,7 @@ namespace openAIApps
             // Bind the UI controls to these collections
             lstResponsesTurns.ItemsSource = CurrentChatMessages;
             InitVideoList();
-            
+
         }
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
@@ -321,7 +316,7 @@ namespace openAIApps
         // Call this when clicking the "Logs" tab
         private async void RefreshLogsTab()
         {
-            if(_historyService == null) return; // Safety check
+            if (_historyService == null) return; // Safety check
             var sessions = await _historyService.GetRecentSessionsAsync();
 
             // Update the collection that the view wraps
@@ -334,7 +329,7 @@ namespace openAIApps
                 UpdateSessions(sessions);
             }
         }
-        
+
         private async void OnLogEntryDoubleClick(object sender, MouseButtonEventArgs e)
         {
             // Now that IsSynchronizedWithCurrentItem="True" is set, 
@@ -381,7 +376,7 @@ namespace openAIApps
                 _activeResponsesSessionId = selectedSession.Id;
                 await RefreshChatUI(selectedSession.Id);
             }
-            
+
         }
         private async Task RefreshChatUI(int sessionId)
         {
@@ -408,7 +403,7 @@ namespace openAIApps
         private void tabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             RefreshLogsTab();
-            
+
         }
         // 1. Delete Session
         private async void OnDeleteSessionClick(object sender, RoutedEventArgs e)
@@ -430,14 +425,14 @@ namespace openAIApps
         }
 
 
-        
+
         private async void ApplyFilters()
         {
             // This "jolts" the UI to redraw based on the new filter rules
-            if(LogView != null)
+            if (LogView != null)
                 LogView.Refresh();
         }
-        
+
         private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
         private void OnLogFilterChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
         private void dgUnifiedLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)

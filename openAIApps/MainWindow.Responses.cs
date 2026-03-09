@@ -2,19 +2,15 @@
 using Microsoft.Win32;
 using openAIApps.Data;
 using openAIApps.Native;
-using openAIApps.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
-using static openAIApps.VideoClient;
 
 /*
  * Code for Responses-tab-controls
@@ -28,22 +24,7 @@ namespace openAIApps
         private List<string> _activeModelsForResponses = new();
         private AvailableModels? _availableModelsWindow;
 
-        private const string AvailableModelsFileName = "available_models.txt";
-        private string AvailableModelsFilePath =>
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AvailableModelsFileName);
-        
-        private List<string> LoadSavedModelsFromFile()
-        {
-            if (!File.Exists(AvailableModelsFilePath))
-                return new List<string>();
 
-            return File.ReadAllLines(AvailableModelsFilePath)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x.Trim())
-                .Distinct()
-                .OrderBy(x => x)
-                .ToList();
-        }
         private void ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
             var list = models
@@ -72,7 +53,8 @@ namespace openAIApps
                 return;
             }
 
-            string? currentModel = _responsesClient?.CurrentModel;
+            string? currentModel = list.FirstOrDefault(m => m.Equals(preferredModel, StringComparison.OrdinalIgnoreCase))
+                           ?? list[0];
 
             string selectedModel =
                 list.FirstOrDefault(m => string.Equals(m, currentModel, StringComparison.OrdinalIgnoreCase))
@@ -93,7 +75,8 @@ namespace openAIApps
         /// <returns>A list of strings containing the identifiers of supported response models, including variants from the GPT-5
         /// and GPT-4 families as well as dedicated reasoning models.</returns>
         private List<string> GetHardcodedResponseModels()
-        {             return new List<string>
+        {
+            return new List<string>
             {
                 // Frontier GPT-5 family (reasoning-enabled)
                 "gpt-5.2",
@@ -130,7 +113,7 @@ namespace openAIApps
         {
             _responsesClient = new Responses(OpenAPIKey);
 
-            List<string> modelsToUse = LoadSavedModelsFromFile();
+            List<string> modelsToUse = AvailableModelsStorage.Load();
 
             if (modelsToUse.Count == 0)
             {
@@ -184,7 +167,7 @@ namespace openAIApps
 
             // Frontier GPT-5 family (reasoning-enabled)
             cmbResponsesModel.Items.Clear();
-            
+
             cmbResponsesModel.SelectedIndex = 0; // gpt-4o (safe default)
             _responsesClient.CurrentModel = "gpt-4o";
 
@@ -288,7 +271,7 @@ namespace openAIApps
                     cbToolText.IsChecked = true;
                 }
             }
-            
+
             // Optionally enable/disable quality/size controls when checkbox changes:
             bool imageToolOn = cbToolImageGeneration.IsChecked == true;
             cmbImageGenQuality.IsEnabled = imageToolOn;
@@ -525,7 +508,7 @@ namespace openAIApps
             // 3. Remove session (Cascading delete handles the DB records)
             _context.Sessions.Remove(session);
             await _context.SaveChangesAsync();
-            
+
         }
         private void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -558,8 +541,8 @@ namespace openAIApps
                 _responsesClient.WebSearchContextSize = tag; // "low", "medium", or "high"
             }
         }
-        
-        
+
+
         private void btnResponsesAttachImage_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFileDialog

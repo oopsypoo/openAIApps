@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -31,6 +33,8 @@ namespace openAIApps
             string url = string.IsNullOrWhiteSpace(endpoint)
                 ? ModelsEndpoint
                 : endpoint;
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new ArgumentException("API key is missing.", nameof(apiKey));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization =
@@ -52,6 +56,54 @@ namespace openAIApps
                 .OrderBy(id => id)
                 .ToList()
                 ?? new List<string>();
+        }
+    }
+    public static class AvailableModelsStorage
+    {
+        private const string FileName = "available_models.txt";
+
+        public static string FilePath =>
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, FileName);
+
+        public static bool Exists()
+        {
+            return File.Exists(FilePath);
+        }
+
+        public static List<string> Load()
+        {
+            if (!File.Exists(FilePath))
+                return new List<string>();
+
+            return File.ReadAllLines(FilePath)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        public static void Save(IEnumerable<string> models)
+        {
+            var list = models
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            File.WriteAllLines(FilePath, list);
+        }
+
+        public static void Delete()
+        {
+            if (File.Exists(FilePath))
+                File.Delete(FilePath);
+        }
+
+        public static bool HasContent()
+        {
+            return Load().Count > 0;
         }
     }
 }

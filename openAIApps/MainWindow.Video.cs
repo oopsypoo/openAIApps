@@ -1,5 +1,4 @@
 ﻿using openAIApps.Data;
-using openAIApps.Services;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -69,7 +68,7 @@ namespace openAIApps
                 MessageBox.Show(errorDetail, "Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        
+
         private async void btnVideoGenerateClick(object sender, RoutedEventArgs e)
         {
             string prompt = txtVideoPrompt.Text;
@@ -145,7 +144,7 @@ namespace openAIApps
                 await HandleVideoJobAsync(videoResult, sessionId, assistantMsgId);
             }
         }
-        
+
         private void btnOpenVReference_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new Microsoft.Win32.OpenFileDialog

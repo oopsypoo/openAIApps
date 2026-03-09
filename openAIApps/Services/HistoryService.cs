@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Windows.UI;
 
 namespace openAIApps.Services;
 // Services/HistoryService.cs
@@ -112,7 +111,7 @@ public class HistoryService(AppDbContext context)
 
         return await query.OrderByDescending(s => s.LastUsedAt).ToListAsync();
     }
- 
+
     public async Task<List<object>> GetContextForApiAsync(int sessionId)
     {
         var messages = await context.Messages
@@ -121,7 +120,8 @@ public class HistoryService(AppDbContext context)
             .ToListAsync();
 
         // OpenAI expects exactly: { "role": "user/assistant", "content": "text" }
-        return messages.Select(m => new {
+        return messages.Select(m => new
+        {
             role = m.Role.ToLower(),
             content = m.Content
         }).Cast<object>().ToList();

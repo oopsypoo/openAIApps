@@ -73,11 +73,11 @@ namespace openAIApps
 
                 // Use the retrieved data as needed
             }
-            catch (HttpRequestException httpEx)
+            catch (HttpRequestException)
             {
                 // Handle any HTTP errors here
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Handle other potential errors (e.g., serialization issues)
             }

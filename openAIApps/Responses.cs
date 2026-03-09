@@ -1,10 +1,8 @@
 ﻿#pragma warning disable CS8632 // annotation for nullable ref types should only be used in code within a '#nullable' annotations context
-using openAIApps.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -476,7 +474,7 @@ namespace openAIApps
             if (string.IsNullOrEmpty(assistantText))
                 assistantText = "No response content";
 
-            
+
 
             return new ResponsesResult
             {

@@ -91,15 +91,12 @@ namespace openAIApps
         {
             try
             {
-                var modelsToSave = GetCurrentVisibleModels();
+                var modelsToSave = cbModels.Items.Cast<string>().ToList();
 
-                File.WriteAllLines(ModelsFilePath, modelsToSave);
-
-                // Also apply immediately to MainWindow
-                ModelsApplied?.Invoke(modelsToSave);
+                AvailableModelsStorage.Save(modelsToSave);
 
                 MessageBox.Show(
-                    $"Saved {modelsToSave.Count} model(s) to file.",
+                    $"Saved {modelsToSave.Count} model(s) to:\n{AvailableModelsStorage.FilePath}",
                     "Saved",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -117,6 +114,27 @@ namespace openAIApps
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+        private void Button_DeleteSavedList_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AvailableModelsStorage.Delete();
+
+                MessageBox.Show(
+                    "The saved model list was deleted.",
+                    "Deleted",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Could not delete saved model list:\n\n{ex.Message}",
+                    "Delete Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
     }
 }
