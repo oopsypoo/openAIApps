@@ -15,7 +15,8 @@
         Foreground="White"
         AllowsTransparency="False"
         ShowInTaskbar="False"
-        Topmost="True">
+        Topmost="True"
+        PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
         <Style x:Key="ButtonStyle" TargetType="Button">
@@ -84,6 +85,7 @@
                              FontSize="14"
                              VerticalContentAlignment="Center"
                              TextChanged="tbFilter_TextChanged"
+                             KeyDown="tbFilter_KeyDown"
                              ToolTip="Type text to filter available models"/>
 
                     <CheckBox x:Name="chkUseRegex"
@@ -135,7 +137,9 @@
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                  MinWidth="280"
-                                 MinHeight="260"/>
+                                 MinHeight="260"
+                                 MouseDoubleClick="lbAvailableModels_MouseDoubleClick"
+                                 KeyDown="lbAvailableModels_KeyDown"/>
 
                         <TextBlock x:Name="txtAvailableCount"
                                    Grid.Row="2"
@@ -199,7 +203,9 @@
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
                                  MinWidth="280"
-                                 MinHeight="260"/>
+                                 MinHeight="260"
+                                 MouseDoubleClick="lbSelectedModels_MouseDoubleClick"
+                                 KeyDown="lbSelectedModels_KeyDown"/>
 
                         <TextBlock x:Name="txtSelectedCount"
                                    Grid.Row="2"

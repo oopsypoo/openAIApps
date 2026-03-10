@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace openAIApps
@@ -39,7 +40,7 @@ namespace openAIApps
             _selectedModels = _selectedModels
                 .OrderBy(m => m, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            
+
             RefreshSelectedList();
             RefreshAvailableList();
         }
@@ -330,6 +331,162 @@ namespace openAIApps
         private void chkUseRegex_Unchecked(object sender, RoutedEventArgs e)
         {
             RefreshAvailableList();
+        }
+        private void lbAvailableModels_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (lbAvailableModels.SelectedItem is not string)
+                return;
+
+            MoveSelectedAvailableToRightAndKeepFocus();
+        }
+
+        private void lbSelectedModels_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (lbSelectedModels.SelectedItem is not string)
+                return;
+
+            MoveSelectedRightToLeftAndKeepFocus();
+        }
+        private void tbFilter_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (lbAvailableModels.SelectedItems.Count > 0)
+                {
+                    MoveSelectedAvailableToRightAndKeepFocus();
+                }
+                else if (lbAvailableModels.Items.Count > 0)
+                {
+                    lbAvailableModels.SelectedIndex = 0;
+                    lbAvailableModels.Focus();
+                }
+
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Down)
+            {
+                if (lbAvailableModels.Items.Count > 0)
+                {
+                    FocusFirstItem(lbAvailableModels);
+                }
+
+                e.Handled = true;
+            }
+        }
+        private void lbAvailableModels_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                MoveSelectedAvailableToRightAndKeepFocus();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Right)
+            {
+                if (lbSelectedModels.Items.Count > 0)
+                {
+                    if (lbSelectedModels.SelectedIndex < 0)
+                        FocusFirstItem(lbSelectedModels);
+                    else
+                        lbSelectedModels.Focus();
+                }
+
+                e.Handled = true;
+            }
+        }
+        private void lbSelectedModels_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                MoveSelectedRightToLeftAndKeepFocus();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Left)
+            {
+                if (lbAvailableModels.Items.Count > 0)
+                {
+                    if (lbAvailableModels.SelectedIndex < 0)
+                        FocusFirstItem(lbAvailableModels);
+                    else
+                        lbAvailableModels.Focus();
+                }
+
+                e.Handled = true;
+            }
+        }
+        private void FocusListBox(ListBox listBox, int preferredIndex = 0)
+        {
+            if (listBox.Items.Count == 0)
+                return;
+
+            int index = preferredIndex;
+
+            if (index < 0)
+                index = 0;
+
+            if (index >= listBox.Items.Count)
+                index = listBox.Items.Count - 1;
+
+            listBox.SelectedIndex = index;
+            listBox.ScrollIntoView(listBox.SelectedItem);
+            listBox.Focus();
+        }
+        private void MoveSelectedAvailableToRightAndKeepFocus()
+        {
+            if (lbAvailableModels.SelectedItems.Count == 0)
+                return;
+
+            int oldIndex = lbAvailableModels.SelectedIndex;
+            List<string> selected = lbAvailableModels.SelectedItems.Cast<string>().ToList();
+
+            AddModelsToSelected(selected);
+
+            if (lbAvailableModels.Items.Count > 0)
+            {
+                int newIndex = Math.Min(oldIndex, lbAvailableModels.Items.Count - 1);
+                FocusListBox(lbAvailableModels, newIndex);
+            }
+            else
+            {
+                lbAvailableModels.Focus();
+            }
+        }
+
+        private void FocusFirstItem(ListBox listBox)
+        {
+            if (listBox.Items.Count == 0)
+                return;
+
+            listBox.SelectedIndex = 0;
+            listBox.ScrollIntoView(listBox.SelectedItem);
+            listBox.Focus();
+        }
+        private void MoveSelectedRightToLeftAndKeepFocus()
+        {
+            if (lbSelectedModels.SelectedItems.Count == 0)
+                return;
+
+            int oldIndex = lbSelectedModels.SelectedIndex;
+            List<string> selected = lbSelectedModels.SelectedItems.Cast<string>().ToList();
+
+            RemoveModelsFromSelected(selected);
+
+            if (lbSelectedModels.Items.Count > 0)
+            {
+                int newIndex = Math.Min(oldIndex, lbSelectedModels.Items.Count - 1);
+                FocusListBox(lbSelectedModels, newIndex);
+            }
+            else
+            {
+                lbSelectedModels.Focus();
+            }
+        }
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                Close();
+                e.Handled = true;
+            }
         }
     }
 }
