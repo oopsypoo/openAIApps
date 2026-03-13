@@ -1,5 +1,4 @@
-﻿#pragma warning disable CS8632 // annotation for nullable ref types should only be used in code within a '#nullable' annotations context
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -7,7 +6,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using static openAIApps.MainWindow;
 
 namespace openAIApps
 {
@@ -66,14 +64,14 @@ namespace openAIApps
             // 3. Deserialize the raw response
             var apiResponse = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
 
-            // 4. Update the LastResponseId so the next turn links correctly
             if (!string.IsNullOrEmpty(apiResponse?.Id))
             {
                 LastResponseId = apiResponse.Id;
             }
 
-            // 5. IMPORTANT: Use the "Rich" parser to extract Text AND Images
-            return ParseResponseRich(apiResponse);
+            var parsed = ParseResponseRich(apiResponse);
+            parsed.RawJson = responseString;
+            return parsed;
         }
 
         public async Task<string> GetResponseAsync(string prompt)
@@ -105,25 +103,35 @@ namespace openAIApps
 
         private ResponsesRequest BuildRequest(string prompt)
         {
+            var tools = GetToolsForCurrentSelection();
+
             var request = new ResponsesRequest
             {
                 Model = CurrentModel,
                 Input = prompt,
                 Truncation = "auto",
-                Tools = GetToolsForCurrentSelection().Cast<object>().ToArray(),
-                Store = false,                             // do not keep responses on server
-                PreviousResponseId = LastResponseId       // link to last turn if any
+                Tools = tools.Cast<object>().ToArray(),
+                Store = false,
+                PreviousResponseId = LastResponseId
             };
 
             if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
             {
                 request.Reasoning = new ReasoningConfig { Effort = CurrentReasoning };
             }
-            // Enable tools when any tool other than "text" is active
-            if (!ActiveTools.Contains("text") && request.Tools?.Length > 0)
+
+            if (tools.Length > 0)
             {
-                request.ToolChoice = new { type = "image_generation" }; // or "required"
+                if (ActiveTools.Contains(ResponseToolKeys.ImageGeneration) && ActiveTools.Count == 1)
+                {
+                    request.ToolChoice = new { type = "image_generation" };
+                }
+                else
+                {
+                    request.ToolChoice = "auto";
+                }
             }
+
             return request;
         }
         // Responses.cs
@@ -133,24 +141,27 @@ namespace openAIApps
         /// </summary>
         private ResponsesRequest BuildRequest(List<object> context)
         {
+            var tools = GetToolsForCurrentSelection();
+
             var request = new ResponsesRequest
             {
                 Model = CurrentModel,
                 Input = context,
                 Store = false,
-                // REMOVE PreviousResponseId when sending full context list
-                PreviousResponseId = null
+                PreviousResponseId = null,
+                Tools = tools.Cast<object>().ToArray()
             };
 
-            var tools = GetToolsForCurrentSelection();
-            if (tools != null && tools.Length > 0)
+            if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
             {
-                request.Tools = tools.Cast<object>().ToArray();
+                request.Reasoning = new ReasoningConfig { Effort = CurrentReasoning };
+            }
 
-                // Force the tool if Image Gen is the only goal, otherwise use auto
-                if (ActiveTools.Contains("image-generation") && ActiveTools.Count == 1)
+            if (tools.Length > 0)
+            {
+                if (ActiveTools.Contains(ResponseToolKeys.ImageGeneration) && ActiveTools.Count == 1)
                 {
-                    request.ToolChoice = new { type = "function", function = new { name = "generate_image" } };
+                    request.ToolChoice = new { type = "image_generation" };
                 }
                 else
                 {
@@ -164,21 +175,25 @@ namespace openAIApps
         {
             var tools = new List<Tool>();
 
-            // "text" means: no tools at all → leave list empty
-            if (ActiveTools.Contains("web_search"))
+            if (ActiveTools.Contains(ResponseToolKeys.WebSearch))
+            {
                 tools.Add(new WebSearchTool
                 {
                     SearchContextSize = WebSearchContextSize
                 });
+            }
 
-            if (ActiveTools.Contains("computer_use_preview"))
+            if (ActiveTools.Contains(ResponseToolKeys.ComputerUsePreview))
+            {
                 tools.Add(new ComputerUseTool
                 {
                     DisplayWidth = 3440,
                     DisplayHeight = 1440,
                     Environment = "windows"
                 });
-            if (ActiveTools.Contains("image_generation"))
+            }
+
+            if (ActiveTools.Contains(ResponseToolKeys.ImageGeneration))
             {
                 tools.Add(new ImageGenerationTool(ImageGenQuality, ImageGenSize));
             }
@@ -394,31 +409,7 @@ namespace openAIApps
             [JsonPropertyName("effort")]
             public string Effort { get; set; }
         }
-        /// <summary>
-        /// Class for minimal log of turns (user + assistant text, plus response id)
-        /// </summary>
-        public class ResponsesTurn
-        {
-            public string ResponseId { get; set; }
-            public string UserText { get; set; }
-            public string AssistantText { get; set; }
-
-            // User-side image
-            public string ImagePath { get; set; }
-
-            // Assistant-side images for this turn
-            public List<string> AssistantImagePaths { get; set; } = new();
-
-            public override string ToString()
-            {
-                if (!string.IsNullOrWhiteSpace(UserText))
-                {
-                    var trimmed = UserText.Trim();
-                    return trimmed.Length > 40 ? trimmed[..40] + "..." : trimmed;
-                }
-                return ResponseId;
-            }
-        }
+        
 
         public class ResponsesResult
         {
@@ -516,19 +507,19 @@ namespace openAIApps
             if (!string.IsNullOrEmpty(result?.Id))
                 LastResponseId = result.Id;
 
-            return ParseResponseRich(result);
+            var parsed = ParseResponseRich(result);
+            parsed.RawJson = responseString;
+            return parsed;
         }
 
         private ResponsesRequest BuildRequestWithImage(string prompt, string imagePath)
         {
-            // Convert image to data URL (may be null)
             string dataUrl = ImageInputHelper.ToDataUrl(imagePath);
 
             object inputObject;
 
             if (!string.IsNullOrWhiteSpace(prompt) && !string.IsNullOrEmpty(dataUrl))
             {
-                // Mixed text + image
                 inputObject = new[]
                 {
             new
@@ -544,12 +535,10 @@ namespace openAIApps
             }
             else if (!string.IsNullOrWhiteSpace(prompt))
             {
-                // Text only (keep it compatible with your old style if you want)
                 inputObject = prompt;
             }
             else if (!string.IsNullOrEmpty(dataUrl))
             {
-                // Image only
                 inputObject = new[]
                 {
             new
@@ -564,16 +553,17 @@ namespace openAIApps
             }
             else
             {
-                // Fallback: empty text
                 inputObject = prompt ?? string.Empty;
             }
+
+            var tools = GetToolsForCurrentSelection();
 
             var request = new ResponsesRequest
             {
                 Model = CurrentModel,
                 Input = inputObject,
                 Truncation = "auto",
-                Tools = GetToolsForCurrentSelection().Cast<object>().ToArray(),
+                Tools = tools.Cast<object>().ToArray(),
                 Store = false,
                 PreviousResponseId = LastResponseId
             };
@@ -584,6 +574,18 @@ namespace openAIApps
                 {
                     Effort = CurrentReasoning
                 };
+            }
+
+            if (tools.Length > 0)
+            {
+                if (ActiveTools.Contains(ResponseToolKeys.ImageGeneration) && ActiveTools.Count == 1)
+                {
+                    request.ToolChoice = new { type = "image_generation" };
+                }
+                else
+                {
+                    request.ToolChoice = "auto";
+                }
             }
 
             return request;

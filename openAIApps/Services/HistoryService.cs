@@ -4,186 +4,251 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using openAIApps;
 
-namespace openAIApps.Services;
-// Services/HistoryService.cs
-
-public class HistoryService(AppDbContext context)
+namespace openAIApps.Services
 {
-    // Fix: We now provide all 3 required arguments to the constructor
-    public async Task<int> StartNewSessionAsync(string initialTitle, EndpointType endpoint)
+    public class HistoryService
     {
-        // 1. Map the Enum to a friendly string for the 'Type' column
-        string typeString = endpoint.ToString(); // e.g., "Responses" or "Video"
+        private AppDbContext CreateDbContext() => new AppDbContext();
 
-        // 2. Create the session matching the constructor: (endpoint, type, title)
-        var session = new ChatSession(endpoint, typeString, initialTitle);
-
-        context.Sessions.Add(session);
-        await context.SaveChangesAsync();
-
-        return session.Id;
-    }
-
-
-    // Add message and return the ID to link media immediately
-    public async Task<int> AddMessageAsync(
-    int sessionId,
-    string role,
-    string content,
-    string rawJson = null,
-    string model = null,
-    string reasoning = null,
-    string tools = null,
-    string imgSize = null,
-    string imgQual = null,
-    string searchSize = null,
-    string videoLength = null,   // New: Video Tab
-    string videoSize = null,     // New: Video Tab
-    bool isRemix = false,        // New: Video Tab
-    string remoteId = null)      // New: Video Tab (OpenAI video_id)
-    {
-        var msg = new ChatMessage
+        public async Task<int> StartNewSessionAsync(string initialTitle, EndpointType endpoint)
         {
-            ChatSessionId = sessionId,
-            Role = role,
-            Content = content,
-            RawJson = rawJson,
-            ModelUsed = model,
-            ReasoningLevel = reasoning,
-            ActiveTools = tools,
-            ImageSize = imgSize,
-            ImageQuality = imgQual,
-            SearchContextSize = searchSize,
-            VideoLength = videoLength,
-            VideoSize = videoSize,
-            IsRemix = isRemix,
-            RemoteId = remoteId,
-            Timestamp = DateTime.UtcNow
-        };
+            await using var context = CreateDbContext();
 
-        context.Messages.Add(msg);
-        await context.SaveChangesAsync();
+            string typeString = endpoint.ToString();
 
-        // Refresh the session timestamp
-        var session = await context.Sessions.FindAsync(sessionId);
-        if (session != null) session.LastUsedAt = DateTime.Now;
-        await context.SaveChangesAsync();
+            var session = new ChatSession(endpoint, typeString, initialTitle);
 
-        return msg.Id;
-    }
+            context.Sessions.Add(session);
+            await context.SaveChangesAsync();
 
-    // Load full history for a specific tab (Rehydration)
-    public async Task<List<ChatMessage>> GetFullSessionHistoryAsync(int sessionId)
-    {
-        return await context.Messages
-            .Include(m => m.MediaFiles)
-            .Where(m => m.ChatSessionId == sessionId)
-            .OrderBy(m => m.Timestamp)
-            .AsNoTracking()
-            .ToListAsync();
-    }
-    public async Task<List<ChatSession>> GetAllSessionsAsync()
-    {
-        return await context.Sessions
-            .OrderByDescending(s => s.LastUsedAt)
-            .ToListAsync();
-    }
-    // For the unified "Logs" tab search
-    public async Task<List<ChatSession>> GetRecentSessionsAsync()
-    {
-        return await context.Sessions
-            .OrderByDescending(s => s.LastUsedAt)
-            .Take(50)
-            .AsNoTracking()
-            .ToListAsync();
-    }
-    // Overload to support filtering by endpoint type(text or image/video)
-    // In HistoryService.cs
-    public async Task<List<ChatSession>> GetRecentSessionsAsync(string filter)
-    {
-        var query = context.Sessions.Include(s => s.Messages).AsQueryable();
+            return session.Id;
+        }
 
-        if (filter == "Images")
-            query = query.Where(s => s.Messages.Any(m => m.ActiveTools.Contains("image_generation")));
-        else if (filter == "Web")
-            query = query.Where(s => s.Messages.Any(m => m.ActiveTools.Contains("web_tool")));
-
-        return await query.OrderByDescending(s => s.LastUsedAt).ToListAsync();
-    }
-
-    public async Task<List<object>> GetContextForApiAsync(int sessionId)
-    {
-        var messages = await context.Messages
-            .Where(m => m.ChatSessionId == sessionId)
-            .OrderBy(m => m.Timestamp)
-            .ToListAsync();
-
-        // OpenAI expects exactly: { "role": "user/assistant", "content": "text" }
-        return messages.Select(m => new
+        public async Task<int> AddMessageAsync(
+            int sessionId,
+            string role,
+            string content,
+            string rawJson = null,
+            string model = null,
+            string reasoning = null,
+            string tools = null,
+            string imgSize = null,
+            string imgQual = null,
+            string searchSize = null,
+            string videoLength = null,
+            string videoSize = null,
+            bool isRemix = false,
+            string remoteId = null)
         {
-            role = m.Role.ToLower(),
-            content = m.Content
-        }).Cast<object>().ToList();
-    }
-    // Inside HistoryService.cs
-    public async Task DeleteSessionAsync(int sessionId)
-    {
-        var session = await context.Sessions
-            .Include(s => s.Messages)
-            .ThenInclude(m => m.MediaFiles)
-            .FirstOrDefaultAsync(s => s.Id == sessionId);
+            await using var context = CreateDbContext();
 
-        if (session != null)
+            var session = await context.Sessions.FirstOrDefaultAsync(s => s.Id == sessionId);
+            if (session == null)
+            {
+                throw new InvalidOperationException($"Session {sessionId} was not found.");
+            }
+
+            var msg = new ChatMessage
+            {
+                ChatSessionId = sessionId,
+                Role = role ?? string.Empty,
+                Content = content ?? string.Empty,
+                RawJson = rawJson ?? string.Empty,
+                ModelUsed = model ?? string.Empty,
+                ReasoningLevel = reasoning ?? string.Empty,
+                ActiveTools = tools ?? string.Empty,
+                ImageSize = imgSize ?? string.Empty,
+                ImageQuality = imgQual ?? string.Empty,
+                SearchContextSize = searchSize ?? string.Empty,
+                VideoLength = videoLength ?? string.Empty,
+                VideoSize = videoSize ?? string.Empty,
+                IsRemix = isRemix,
+                RemoteId = remoteId ?? string.Empty,
+                Timestamp = DateTime.UtcNow
+            };
+
+            context.Messages.Add(msg);
+
+            session.LastUsedAt = DateTime.UtcNow;
+
+            await context.SaveChangesAsync();
+
+            return msg.Id;
+        }
+
+        public async Task<List<ChatMessage>> GetFullSessionHistoryAsync(int sessionId)
         {
+            await using var context = CreateDbContext();
+
+            return await context.Messages
+                .Include(m => m.MediaFiles)
+                .Where(m => m.ChatSessionId == sessionId)
+                .OrderBy(m => m.Timestamp)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<ChatSession>> GetAllSessionsAsync()
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Sessions
+                .OrderByDescending(s => s.LastUsedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<string>> GetMediaPathsForSessionAsync(int sessionId)
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Media
+                .Join(context.Messages,
+                    media => media.ChatMessageId,
+                    msg => msg.Id,
+                    (media, msg) => new { media, msg })
+                .Where(x => x.msg.ChatSessionId == sessionId)
+                .Select(x => x.media.LocalPath)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<List<object>> GetContextForApiAsync(int sessionId)
+        {
+            await using var context = CreateDbContext();
+
+            var messages = await context.Messages
+                .Include(m => m.MediaFiles)
+                .Where(m => m.ChatSessionId == sessionId)
+                .OrderBy(m => m.Timestamp)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return messages
+                .Select(BuildApiMessage)
+                .ToList();
+        }
+
+        private static object BuildApiMessage(ChatMessage message)
+        {
+            string role = (message.Role ?? string.Empty).ToLowerInvariant();
+
+            if (role == "user" && message.MediaFiles != null && message.MediaFiles.Count > 0)
+            {
+                var contentParts = new List<object>();
+
+                if (!string.IsNullOrWhiteSpace(message.Content))
+                {
+                    contentParts.Add(new
+                    {
+                        type = "input_text",
+                        text = message.Content
+                    });
+                }
+
+                foreach (var media in message.MediaFiles.Where(m => !string.IsNullOrWhiteSpace(m.LocalPath)))
+                {
+                    string dataUrl = ImageInputHelper.ToDataUrl(media.LocalPath);
+
+                    if (!string.IsNullOrWhiteSpace(dataUrl))
+                    {
+                        contentParts.Add(new
+                        {
+                            type = "input_image",
+                            image_url = dataUrl
+                        });
+                    }
+                }
+
+                if (contentParts.Count > 0)
+                {
+                    return new
+                    {
+                        role,
+                        content = contentParts.ToArray()
+                    };
+                }
+            }
+
+            return new
+            {
+                role,
+                content = message.Content ?? string.Empty
+            };
+        }
+
+        public async Task DeleteSessionAsync(int sessionId)
+        {
+            await using var context = CreateDbContext();
+
+            var session = await context.Sessions
+                .Include(s => s.Messages)
+                .ThenInclude(m => m.MediaFiles)
+                .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+            if (session == null)
+                return;
+
             context.Sessions.Remove(session);
             await context.SaveChangesAsync();
         }
-    }
 
-
-    public async Task LinkMediaAsync(int chatMessageId, string localPath, string type)
-    {
-        // Use the constructor parameters defined in DataModels.cs 
-        var media = new MediaFile(chatMessageId, localPath, type);
-
-        // Use the correct DbSet name 'Media' from AppDbContext 
-        context.Media.Add(media);
-        await context.SaveChangesAsync();
-    }
-    public async Task<ChatMessage> GetMessageByRemoteVideoIdAsync(string videoId)
-    {
-        // Find the message that holds this specific OpenAI Video ID
-        return await context.Messages
-            .FirstOrDefaultAsync(m => m.RemoteId == videoId);
-    }
-    public async Task<List<ChatSession>> GetFilteredSessionsAsync(string searchTerm, string endpointFilter)
-    {
-        // Ensure you are USING Microsoft.EntityFrameworkCore for .Include()
-        var query = context.Sessions.Include(s => s.Messages).AsQueryable();
-
-        // 1. Filter by Type (Ensure this matches your Enum strings exactly!)
-        if (!string.IsNullOrWhiteSpace(endpointFilter) && endpointFilter != "All")
+        public async Task LinkMediaAsync(int chatMessageId, string localPath, string type)
         {
-            if (Enum.TryParse<EndpointType>(endpointFilter, out var type))
+            await using var context = CreateDbContext();
+
+            var media = new MediaFile
             {
-                query = query.Where(s => s.Endpoint == type);
-            }
+                ChatMessageId = chatMessageId,
+                LocalPath = localPath ?? string.Empty,
+                MediaType = type ?? string.Empty
+            };
+
+            context.Media.Add(media);
+            await context.SaveChangesAsync();
         }
 
-        // 2. Search Logic
-        if (!string.IsNullOrWhiteSpace(searchTerm))
+        public async Task<ChatMessage> GetMessageByRemoteVideoIdAsync(string videoId)
         {
-            string lowerTerm = searchTerm.ToLower();
-            // The "Any" check is expensive. Ensure your DB has an index on Message.Content if it's slow.
-            query = query.Where(s =>
-                s.Title.ToLower().Contains(lowerTerm) ||
-                s.Messages.Any(m => m.Content.ToLower().Contains(lowerTerm))
-            );
+            await using var context = CreateDbContext();
+
+            return await context.Messages
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.RemoteId == videoId);
         }
 
-        return await query
-            .OrderByDescending(s => s.LastUsedAt)
-            .ToListAsync();
+        public async Task<List<ChatSession>> GetFilteredSessionsAsync(string searchTerm, string endpointFilter)
+        {
+            await using var context = CreateDbContext();
+
+            var query = context.Sessions
+                .Include(s => s.Messages)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(endpointFilter) &&
+                !string.Equals(endpointFilter, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<EndpointType>(endpointFilter, out var endpointType))
+                {
+                    query = query.Where(s => s.Endpoint == endpointType);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                string term = searchTerm.Trim();
+
+                query = query.Where(s =>
+                    EF.Functions.Like(s.Title, $"%{term}%") ||
+                    s.Messages.Any(m => EF.Functions.Like(m.Content, $"%{term}%")));
+            }
+
+            return await query
+                .OrderByDescending(s => s.LastUsedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
     }
 }

@@ -1,73 +1,108 @@
-﻿#pragma warning disable CS8618 // Non-nullable field is uninitialized
-#pragma warning disable CS8603 // Possible null reference return
-#pragma warning disable CS8632 // annotation for nullable ref types should only be used in code within a '#nullable' annotations context
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace openAIApps.Data;
-
-public enum EndpointType { Responses, Video }
-
-// Primary Constructor: Compact and modern
-public class ChatSession(EndpointType endpoint, string type, string title)
+namespace openAIApps.Data
 {
-    [Key]
-    public int Id { get; set; }
-    public EndpointType Endpoint { get; set; } = endpoint;
-    public string Type { get; set; } = type; // e.g., "Responses" or "Video"
-    public string Title { get; set; } = title;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime LastUsedAt { get; set; } = DateTime.UtcNow;
+    public enum EndpointType
+    {
+        Responses,
+        Video
+    }
 
-    // Navigation: One session has many messages
-    public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
-}
+    public class ChatSession
+    {
+        public ChatSession()
+        {
+        }
 
-// Use 'chatSessionId' (camelCase) to match 'ChatSessionId' (PascalCase)
-public class ChatMessage
-{
-    public ChatMessage() { }
+        // Keep this constructor in Phase 1 so existing code still works.
+        public ChatSession(EndpointType endpoint, string type, string title)
+        {
+            Endpoint = endpoint;
+            Type = string.IsNullOrWhiteSpace(type) ? endpoint.ToString() : type;
+            Title = title ?? string.Empty;
+            CreatedAt = DateTime.UtcNow;
+            LastUsedAt = DateTime.UtcNow;
+        }
 
-    [Key]
-    public int Id { get; set; }
-    public int ChatSessionId { get; set; }
-    public string Role { get; set; }
-    public string Content { get; set; }
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        [Key]
+        public int Id { get; set; }
 
-    // --- Responses DNA ---
-    public string ModelUsed { get; set; }
-    public string ReasoningLevel { get; set; }
-    public string ActiveTools { get; set; }
-    public string SearchContextSize { get; set; }
+        public EndpointType Endpoint { get; set; }
 
-    // --- Image DNA ---
-    public string ImageSize { get; set; }
-    public string ImageQuality { get; set; }
+        // Keep for compatibility in Phase 1.
+        // Later we can remove this redundant property with a proper migration.
+        public string Type { get; set; } = string.Empty;
 
-    // --- Video DNA ---
-    public string VideoLength { get; set; }     // From cmbVideoLength
-    public string VideoSize { get; set; }       // From cmbVideoSize
-    public bool IsRemix { get; set; }           // From cbVideoRemix
-    public string RemoteId { get; set; }        // OpenAI's video_id for future remixes
+        public string Title { get; set; } = string.Empty;
 
-    public string RawJson { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation properties
-    public virtual ChatSession ChatSession { get; set; } = null!;
-    public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();
-}
+        public DateTime LastUsedAt { get; set; } = DateTime.UtcNow;
 
-public class MediaFile(int chatMessageId, string localPath, string mediaType)
-{
-    [Key]
-    public int Id { get; set; }
+        public virtual ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+    }
 
-    public int ChatMessageId { get; set; } = chatMessageId;
+    public class ChatMessage
+    {
+        [Key]
+        public int Id { get; set; }
 
-    public string LocalPath { get; set; } = localPath; // Path to the .mp4 or .png
-    public string MediaType { get; set; } = mediaType;
+        public int ChatSessionId { get; set; }
 
-    public ChatMessage ChatMessage { get; set; } = null!;
+        public string Role { get; set; } = string.Empty;
+
+        public string Content { get; set; } = string.Empty;
+
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+        // --- Responses DNA ---
+        public string ModelUsed { get; set; } = string.Empty;
+        public string ReasoningLevel { get; set; } = string.Empty;
+        public string ActiveTools { get; set; } = string.Empty;
+        public string SearchContextSize { get; set; } = string.Empty;
+
+        // --- Image DNA ---
+        public string ImageSize { get; set; } = string.Empty;
+        public string ImageQuality { get; set; } = string.Empty;
+
+        // --- Video DNA ---
+        public string VideoLength { get; set; } = string.Empty;
+        public string VideoSize { get; set; } = string.Empty;
+        public bool IsRemix { get; set; }
+        public string RemoteId { get; set; } = string.Empty;
+
+        public string RawJson { get; set; } = string.Empty;
+
+        public virtual ChatSession ChatSession { get; set; }
+
+        public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();
+    }
+
+    public class MediaFile
+    {
+        public MediaFile()
+        {
+        }
+
+        // Keep constructor for compatibility with existing code style.
+        public MediaFile(int chatMessageId, string localPath, string mediaType)
+        {
+            ChatMessageId = chatMessageId;
+            LocalPath = localPath ?? string.Empty;
+            MediaType = mediaType ?? string.Empty;
+        }
+
+        [Key]
+        public int Id { get; set; }
+
+        public int ChatMessageId { get; set; }
+
+        public string LocalPath { get; set; } = string.Empty;
+
+        public string MediaType { get; set; } = string.Empty;
+
+        public virtual ChatMessage ChatMessage { get; set; }
+    }
 }

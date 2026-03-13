@@ -16,7 +16,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-
 using static openAIApps.VideoClient;
 
 namespace openAIApps
@@ -28,16 +27,7 @@ namespace openAIApps
     /// </summary>
     public partial class MainWindow : Window
     {
-        /// <summary>
-        /// Represents the OpenAI API key retrieved from the environment variable named "OPENAI_API_KEY".
-        /// </summary>
-        /// <remarks>This value is typically used to authenticate requests to the OpenAI API. Ensure that
-        /// the environment variable is set before accessing this field to avoid authentication failures.</remarks>
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-
-        /// <summary>
-        /// make these paths more general-purpose in the future
-        /// </summary>
 
         private AppSettings _settings;
         private string savepath_logs;
@@ -48,31 +38,36 @@ namespace openAIApps
         public event Action<List<string>>? ModelsApplied;
 
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
-        private VideoClient _videoClient;
-        //private List<VideoListItem> _videoHistory = new();
-        private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
-        // Near other fields
-        private string _responsesImagePath = string.Empty;
 
+        private VideoClient _videoClient;
+        private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
+
+        private string _responsesImagePath = string.Empty;
         private string _videoReferencePath = string.Empty;
-        // near other fields
+
         private Responses _responsesClient;
 
-        private readonly AppDbContext _context;
         private readonly HistoryService _historyService;
-        // This collection is the "Live" data for the current Responses tab
+        private readonly MediaStorageService _mediaStorageService;
+        private readonly SessionCleanupService _sessionCleanupService;
+        // Responses tab source collection
         public ObservableCollection<ChatMessage> CurrentChatMessages { get; } = new();
 
-        // This collection is for the "Logs" tab search
-        public ObservableCollection<ChatSession> HistoricSessions { get; } = new();
+        // Logs tab source collection
+        public ObservableCollection<ChatSession> Sessions { get; } = new();
+
+        /// <summary>
+        /// Gets or sets the collection view that provides a filtered and sorted view of the log entries.
+        /// </summary>
         public ICollectionView LogView { get; set; }
-        // This is the master list from the DB
-        private List<ChatSession> _allSessions { get; } = new();
-        // Inside MainWindow class
+
         private int? _activeResponsesSessionId;
         private int? _activeVideoSessionId;
 
-        // A helper to ensure we always have a session before sending a request
+        // Filter state for Logs tab
+        private string _logSearchText = string.Empty;
+        private string _logTypeFilter = "All";
+
         private async Task<int> EnsureSessionActiveAsync(EndpointType type, string firstPrompt)
         {
             if (type == EndpointType.Responses && _activeResponsesSessionId == null)
@@ -81,18 +76,28 @@ namespace openAIApps
             }
             else if (type == EndpointType.Video && _activeVideoSessionId == null)
             {
-                // Use your existing tracking variable for videos
                 _activeVideoSessionId = await _historyService.StartNewSessionAsync(ExtractTitle(firstPrompt), type);
             }
 
-            // Return the appropriate ID based on the endpoint type
             return (type == EndpointType.Responses ? _activeResponsesSessionId : _activeVideoSessionId)!.Value;
         }
 
-        private string ExtractTitle(string prompt) => prompt.Length > 30 ? $"{prompt[..30]}..." : prompt;
+        private string ExtractTitle(string prompt)
+        {
+            prompt = prompt ?? string.Empty;
+            prompt = prompt.Trim();
+
+            if (string.IsNullOrWhiteSpace(prompt))
+                return "Image prompt";
+
+            return prompt.Length > 60
+                ? $"{prompt[..60]}..."
+                : prompt;
+        }
+
         private void EnsureSavePaths()
         {
-            _settings ??= AppSettings.LoadSettings();  // Load once
+            _settings ??= AppSettings.LoadSettings();
 
             savepath_logs = Path.Combine(_settings.AppRoot, _settings.LogsFolder);
             savepath_snds = Path.Combine(_settings.AppRoot, _settings.SoundsFolder);
@@ -103,55 +108,52 @@ namespace openAIApps
             Directory.CreateDirectory(savepath_snds);
             Directory.CreateDirectory(savepath_images);
             Directory.CreateDirectory(savepath_videos);
-        }
 
+            _mediaStorageService?.SetImagesFolder(savepath_images);
+        }
+        
         private async void LoadInitialLogs()
         {
             var sessions = await _historyService.GetAllSessionsAsync();
-
-            _allSessions.Clear();
-            foreach (var s in sessions)
-                _allSessions.Add(s);
-
-            // Not strictly necessary since we're adding to ObservableCollection,
-            // but harmless if you want to re-evaluate filters after load:
-            LogView.Refresh();
+            ReplaceSessions(sessions);
         }
+
         private bool FilterPredicate(object obj)
         {
-            if (obj is not ChatSession session) return false;
+            if (obj is not ChatSession session)
+                return false;
 
-            var typeFilter = (cbLogTypeFilter.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
-            var query = txtLogSearch?.Text?.Trim() ?? string.Empty;
+            bool matchesType =
+                _logTypeFilter == "All" ||
+                string.Equals(session.Endpoint.ToString(), _logTypeFilter, StringComparison.OrdinalIgnoreCase);
 
-            bool matchesType = typeFilter == "All" ||
-                               string.Equals(session.Endpoint.ToString(), typeFilter, StringComparison.OrdinalIgnoreCase);
-
-            var title = session.Title ?? string.Empty;
-            bool matchesText = string.IsNullOrEmpty(query) ||
-                               title.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+            string title = session.Title ?? string.Empty;
+            bool matchesText =
+                string.IsNullOrWhiteSpace(_logSearchText) ||
+                title.IndexOf(_logSearchText, StringComparison.OrdinalIgnoreCase) >= 0;
 
             return matchesType && matchesText;
         }
+
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            //InitResponsesControls(); // Move ALL combo population here
             await InitResponsesControlsAsync();
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
-            LoadInitialLogs(); // Load logs after everything is set up
+            LoadInitialLogs();
         }
+
         public MainWindow()
         {
-            // Set up the Logs tab with filtering
-            LogView = CollectionViewSource.GetDefaultView(_allSessions);
-
             InitializeComponent();
-            _context = new AppDbContext();
-            _context.Database.EnsureCreated(); // Ensures SQLite file exists
-            _historyService = new HistoryService(_context);
-            // Pass history service to your existing logic classes if needed
-            //_responsesClient.SetHistoryService(_historyService);
+
+            AppDbContext.InitializeDatabase();
+            _historyService = new HistoryService();
+            _mediaStorageService = new MediaStorageService();
+            _sessionCleanupService = new SessionCleanupService(_historyService, _mediaStorageService);
+
+            LogView = CollectionViewSource.GetDefaultView(Sessions);
             LogView.Filter = FilterPredicate;
+
             InitControls();
             Loaded += MainWindow_Loaded;
         }
@@ -160,14 +162,12 @@ namespace openAIApps
         {
             EnsureSavePaths();
             _videoClient = new VideoClient(apiKey: OpenAPIKey);
-            // Bind the UI controls to these collections
-            lstResponsesTurns.ItemsSource = CurrentChatMessages;
-            InitVideoList();
 
+            InitVideoList();
         }
+
         private void menuHelp_Click(object sender, RoutedEventArgs e)
         {
-
         }
 
         private void menuAbout_Click(object sender, RoutedEventArgs e)
@@ -175,21 +175,21 @@ namespace openAIApps
             About about = new About();
             about.ShowDialog();
         }
+
         private void menuThisAssistant_Click(object sender, RoutedEventArgs e)
         {
             rassistant ra = new rassistant();
             ra.ShowDialog();
         }
+
         private void menuFile_Click(object sender, RoutedEventArgs e)
         {
-
         }
 
         private void menuExit_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
         }
-
 
         public static string ExtractFileName(string path)
         {
@@ -204,6 +204,7 @@ namespace openAIApps
             }
             return null;
         }
+
         public static ImageSource GetImageSource(string filePath)
         {
             BitmapImage bitmap = new BitmapImage();
@@ -215,12 +216,10 @@ namespace openAIApps
             return bitmap;
         }
 
-
         private void menuRecord_Click(object sender, RoutedEventArgs e)
         {
             RecordingTool rt = new RecordingTool();
             rt.Show();
-            //rt.Owner = null;
         }
 
         private void menuConvert_Click(object sender, RoutedEventArgs e)
@@ -235,13 +234,11 @@ namespace openAIApps
             ap.Show();
         }
 
-
         private void menuSpeechSynthesisTool_Click(object sender, RoutedEventArgs e)
         {
             SpeechSynthesisTool speechSynthesisTool = new SpeechSynthesisTool();
             speechSynthesisTool.ShowDialog();
         }
-
 
         private async void menuAvailableModels_Click(object sender, RoutedEventArgs e)
         {
@@ -269,6 +266,7 @@ namespace openAIApps
             _availableModelsWindow.Closed += AvailableModelsWindow_Closed;
             _availableModelsWindow.Show();
         }
+
         private void AvailableModelsWindow_ModelsApplied(List<string> models)
         {
             _activeModelsForResponses = models.ToList();
@@ -284,63 +282,66 @@ namespace openAIApps
                 _availableModelsWindow = null;
             }
         }
+
         private void menuSettings_Click(object sender, RoutedEventArgs e)
         {
             var window = new SettingsWindow(_settings);
             bool? result = window.ShowDialog();
-            if (result == true)  // Or: if (result.HasValue && result.Value)
+            if (result == true)
             {
-                EnsureSavePaths();  // Refresh paths only on save
+                EnsureSavePaths();
             }
         }
-        private void UpdateSessions(IEnumerable<ChatSession> sessions)
+
+        private void ReplaceSessions(IEnumerable<ChatSession> sessions)
         {
-            using (LogView.DeferRefresh())
+            Sessions.Clear();
+
+            if (sessions != null)
             {
-                _allSessions.Clear();
-                foreach (var s in sessions)
-                    _allSessions.Add(s);
+                foreach (var session in sessions)
+                {
+                    Sessions.Add(session);
+                }
             }
-            // If your Filter predicate reads UI controls (search/type), this ensures it re-evaluates
-            LogView.Refresh();
+
+            LogView?.Refresh();
         }
-        // Call this when clicking the "Logs" tab
+
         private async void RefreshLogsTab()
         {
-            if (_historyService == null) return; // Safety check
-            var sessions = await _historyService.GetRecentSessionsAsync();
+            if (_historyService == null)
+                return;
 
-            // Update the collection that the view wraps
+            var sessions = await _historyService.GetAllSessionsAsync();
+
             if (!Dispatcher.CheckAccess())
             {
-                await Dispatcher.InvokeAsync(() => UpdateSessions(sessions));
+                await Dispatcher.InvokeAsync(() => ReplaceSessions(sessions));
             }
             else
             {
-                UpdateSessions(sessions);
+                ReplaceSessions(sessions);
             }
         }
 
         private async void OnLogEntryDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Now that IsSynchronizedWithCurrentItem="True" is set, 
-            // SelectedItem is rock-solid.
-            var selectedSession = dgUnifiedLogs.CurrentItem as ChatSession;
+            var selectedSession = dgUnifiedLogs.SelectedItem as ChatSession;
             if (selectedSession == null)
                 return;
 
-            // Isolate context to prevent "cross-tab logging"
             _activeResponsesSessionId = null;
             _activeVideoSessionId = null;
 
             if (selectedSession.Endpoint == EndpointType.Video)
             {
-                tabMain.SelectedIndex = 1; // Switch to Video Tab
+                tabMain.SelectedIndex = 1;
                 _activeVideoSessionId = selectedSession.Id;
 
                 var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
 
-                var userMsg = history.FirstOrDefault(m => m.Role.ToLower() == "user");
+                var userMsg = history.FirstOrDefault(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase));
                 if (userMsg != null)
                 {
                     txtVideoPrompt.Text = userMsg.Content;
@@ -350,7 +351,7 @@ namespace openAIApps
                     cbVideoRemix.IsChecked = userMsg.IsRemix;
                 }
 
-                var assistantMsg = history.LastOrDefault(m => m.Role.ToLower() == "assistant");
+                var assistantMsg = history.LastOrDefault(m => string.Equals(m.Role, "assistant", StringComparison.OrdinalIgnoreCase));
                 if (assistantMsg != null && !string.IsNullOrEmpty(assistantMsg.RemoteId))
                 {
                     var itemToSelect = _videoHistory.FirstOrDefault(v => v.Id == assistantMsg.RemoteId);
@@ -363,72 +364,89 @@ namespace openAIApps
             }
             else if (selectedSession.Endpoint == EndpointType.Responses)
             {
-                tabMain.SelectedIndex = 2; // Switch to Responses Tab
+                tabMain.SelectedIndex = 2;
                 _activeResponsesSessionId = selectedSession.Id;
                 await RefreshChatUI(selectedSession.Id);
             }
-
         }
+
         private async Task RefreshChatUI(int sessionId)
         {
-            // 1. Fetch the full message history for this session from the DB
-            var history = await _historyService.GetFullSessionHistoryAsync(sessionId);
-
-            // 2. Bind the history to your ListBox
-            lstResponsesTurns.ItemsSource = history;
-
-            // 3. Auto-scroll to the bottom so the user sees the latest exchange
-            if (lstResponsesTurns.Items.Count > 0)
-            {
-                var lastMsg = history.Last();
-                lstResponsesTurns.ScrollIntoView(lastMsg);
-            }
-
-            // 4. Update the prompt textbox with the last user message to allow easy editing/resending
-            var lastUserMsg = history.LastOrDefault(m => m.Role.ToLower() == "user");
-            if (lastUserMsg != null)
-            {
-                txtResponsesPrompt.Text = lastUserMsg.Content;
-            }
+            await LoadResponsesSessionAsync(sessionId);
         }
+
         private void tabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            RefreshLogsTab();
+            if (!ReferenceEquals(e.OriginalSource, tabMain))
+                return;
 
+            if (tabMain.SelectedItem == tabLogs)
+            {
+                RefreshLogsTab();
+            }
         }
-        // 1. Delete Session
+        private void ClearDeletedSessionFromUi(ChatSession session)
+        {
+            if (session == null)
+                return;
+
+            if (session.Endpoint == EndpointType.Responses &&
+                _activeResponsesSessionId == session.Id)
+            {
+                _activeResponsesSessionId = null;
+                ResetResponsesUi(clearPrompt: true);
+            }
+
+            if (session.Endpoint == EndpointType.Video &&
+                _activeVideoSessionId == session.Id)
+            {
+                _activeVideoSessionId = null;
+                // Optional: reset video UI here too
+            }
+        }
         private async void OnDeleteSessionClick(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
-            // Prefer CommandParameter if set, otherwise fall back to DataContext
             var session = (button?.CommandParameter ?? button?.DataContext) as ChatSession;
 
-            if (session == null) return;
+            if (session == null)
+                return;
 
-            var confirm = MessageBox.Show($"Permanently delete '{session.Title}'?",
-                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var confirm = MessageBox.Show(
+                $"Permanently delete '{session.Title}'?",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
 
             if (confirm == MessageBoxResult.Yes)
             {
-                await _historyService.DeleteSessionAsync(session.Id);
-                ApplyFilters(); // Refresh the grid
+                await _sessionCleanupService.DeleteSessionAsync(_activeResponsesSessionId.Value);
+                ClearDeletedSessionFromUi(session);
+                RefreshLogsTab();
             }
         }
 
-
-
-        private async void ApplyFilters()
+        private void ApplyFilters()
         {
-            // This "jolts" the UI to redraw based on the new filter rules
-            if (LogView != null)
-                LogView.Refresh();
+            LogView?.Refresh();
         }
 
-        private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
-        private void OnLogFilterChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
+        private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _logSearchText = txtLogSearch.Text?.Trim() ?? string.Empty;
+            ApplyFilters();
+        }
+
+        private void OnLogFilterChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _logTypeFilter =
+                (cbLogTypeFilter.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
+
+            ApplyFilters();
+        }
+
         private void dgUnifiedLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-
         }
 
         public void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -437,12 +455,3 @@ namespace openAIApps
         }
     }
 }
-
-
-
-
-
-
-
-
-

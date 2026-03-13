@@ -224,7 +224,7 @@
                         <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtVideoResponse" />
                         <MediaElement x:Name="mediaVideo" Margin="0,5,0,0" Height="200" LoadedBehavior="Manual" UnloadedBehavior="Stop"/>
                     </StackPanel>
-                    <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
+                    <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
                                 <Label Content="Model" />
@@ -364,7 +364,7 @@
                                     Background="#FFF8F8F8"
                                     Visibility="Collapsed">
                                     <StackPanel Orientation="Vertical" Margin="4">
-                                        <Label Content="Image Preview" FontStyle="Italic" />
+                                        <Label Content="Attached image" FontStyle="Italic" />
                                         <Image x:Name="imgResponsesPreview"
                                            Stretch="Uniform"
                                            MaxHeight="200"
@@ -405,7 +405,7 @@
                     </GroupBox>
 
 
-                    <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
+                    <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spResponses" Orientation="Vertical" Margin="5">
                             <Label Content="Model" />
                             <ComboBox x:Name="cmbResponsesModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbResponsesModel_SelectionChanged" />
@@ -517,6 +517,7 @@
                             <ComboBoxItem Content="All"/>
                             <ComboBoxItem Content="Responses"/>
                             <ComboBoxItem Content="Video"/>
+                            <ComboBoxItem Content="Images"/>
                         </ComboBox>
 
                         <Label Content="Search Logs:" VerticalAlignment="Center" Margin="10,0,0,0"/>
