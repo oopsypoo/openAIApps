@@ -138,11 +138,6 @@ namespace openAIApps
                 StatusText.Text = $"Failed: {errorMsg}";
                 MessageBox.Show(errorMsg, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
-            // 4. HAND OFF TO THE ENGINE
-            if (videoResult != null)
-            {
-                await HandleVideoJobAsync(videoResult, sessionId, assistantMsgId);
-            }
         }
 
         private void btnOpenVReference_Click(object sender, RoutedEventArgs e)

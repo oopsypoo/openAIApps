@@ -23,8 +23,9 @@ namespace openAIApps
         private List<string> _allModelsFromApi = new();
         private List<string> _activeModelsForResponses = new();
         private AvailableModels? _availableModelsWindow;
+        private bool _isApplyingResponsesSettings;
 
-
+        
         private void ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
             var list = models
@@ -136,30 +137,22 @@ namespace openAIApps
 
             ApplyModelsToResponsesCombo(modelsToUse, "gpt-4o");
 
-            // Tools
-            _responsesClient.ActiveTools.Clear();
-            _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
-            cbToolText.IsChecked = true;
-            cbToolWebSearch.IsChecked = false;
-            cbToolComputerUse.IsChecked = false;
-            _responsesClient.WebSearchContextSize = "medium";
-            cmbSearchContextSize.SelectedIndex = 1;
-            cmbSearchContextSize.IsEnabled = false;
+            ResponsesState.SelectedModel = "gpt-4o";
+            ResponsesState.SelectedReasoning = "none";
+            ResponsesState.UseTextTool = true;
+            ResponsesState.UseWebSearch = false;
+            ResponsesState.UseComputerUse = false;
+            ResponsesState.UseImageGeneration = false;
+            ResponsesState.SearchContextSize = "medium";
+            ResponsesState.ImageGenQuality = "auto";
+            ResponsesState.ImageGenSize = "auto";
 
-            // Reasoning
-            cmbReasoning.Items.Clear();
-            cmbReasoning.Items.Add(new ComboBoxItem { Content = "none", Tag = "none" });
-            cmbReasoning.Items.Add(new ComboBoxItem { Content = "minimal", Tag = "minimal" });
-            cmbReasoning.Items.Add(new ComboBoxItem { Content = "low", Tag = "low" });
-            cmbReasoning.Items.Add(new ComboBoxItem { Content = "medium", Tag = "medium" });
-            cmbReasoning.Items.Add(new ComboBoxItem { Content = "high", Tag = "high" });
-            cmbReasoning.Items.Add(new ComboBoxItem { Content = "xhigh", Tag = "xhigh" });
-            cmbReasoning.SelectedIndex = 0;
-            _responsesClient.CurrentReasoning = "none";
+            ApplyResponsesStateToClient();
+            UpdateResponsesOptionsUi();
         }
         private ChatMessage GetSelectedResponseMessage()
         {
-            return lstResponsesTurns.SelectedItem as ChatMessage;
+            return ResponsesState.SelectedTurn;
         }
 
         private string GetPrimaryMediaPath(ChatMessage message)
@@ -209,12 +202,17 @@ namespace openAIApps
             var history = await _historyService.GetFullSessionHistoryAsync(sessionId);
 
             ReplaceCurrentChatMessages(history);
+            ApplyResponsesSettingsFromHistory(history);
 
             if (CurrentChatMessages.Count > 0)
             {
                 var lastMessage = CurrentChatMessages.Last();
-                lstResponsesTurns.SelectedItem = lastMessage;
+                ResponsesState.SelectedTurn = lastMessage;
                 lstResponsesTurns.ScrollIntoView(lastMessage);
+            }
+            else
+            {
+                ResponsesState.SelectedTurn = null;
             }
 
             if (restoreLastUserPrompt)
@@ -224,18 +222,19 @@ namespace openAIApps
 
                 if (lastUserMessage != null)
                 {
-                    txtResponsesPrompt.Text = lastUserMessage.Content;
+                    ResponsesState.PromptText = lastUserMessage.Content;
                 }
             }
 
-            if (lstResponsesTurns.SelectedItem is ChatMessage selected &&
+            if (ResponsesState.SelectedTurn is ChatMessage selected &&
                 string.Equals(selected.Role, "assistant", StringComparison.OrdinalIgnoreCase))
             {
-                txtResponsesResponse.Text = selected.Content;
+                ResponsesState.ResponseText = selected.Content;
                 ShowFirstAssistantImageOfSelectedTurn();
             }
             else
             {
+                ResponsesState.ResponseText = string.Empty;
                 HideResponsesImagePreview();
             }
         }
@@ -243,10 +242,11 @@ namespace openAIApps
         private void ResetResponsesUi(bool clearPrompt = true)
         {
             CurrentChatMessages.Clear();
-            txtResponsesResponse.Clear();
+            ResponsesState.SelectedTurn = null;
+            ResponsesState.ResponseText = string.Empty;
 
             if (clearPrompt)
-                txtResponsesPrompt.Clear();
+                ResponsesState.PromptText = string.Empty;
 
             _responsesImagePath = string.Empty;
             HideResponsesImagePreview();
@@ -265,66 +265,6 @@ namespace openAIApps
                 return null;
 
             return path;
-        }
-
-        private void cbTool_Checked(object sender, RoutedEventArgs e)
-        {
-            if (_responsesClient == null || sender is not CheckBox cb)
-                return;
-
-            if (sender == cbToolComputerUse && cbToolComputerUse.IsChecked == true)
-            {
-                cbToolImageGeneration.IsChecked = false;
-                cbToolWebSearch.IsChecked = false;
-            }
-
-            string key = cb.Name switch
-            {
-                "cbToolText" => ResponseToolKeys.Text,
-                "cbToolWebSearch" => ResponseToolKeys.WebSearch,
-                "cbToolComputerUse" => ResponseToolKeys.ComputerUsePreview,
-                "cbToolImageGeneration" => ResponseToolKeys.ImageGeneration,
-                _ => null
-            };
-
-            if (key == null)
-                return;
-
-            if (cb.IsChecked == true)
-            {
-                if (key == ResponseToolKeys.Text)
-                {
-                    _responsesClient.ActiveTools.Clear();
-                    _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
-
-                    cbToolWebSearch.IsChecked = false;
-                    cbToolComputerUse.IsChecked = false;
-                    cbToolImageGeneration.IsChecked = false;
-                }
-                else
-                {
-                    _responsesClient.ActiveTools.Remove(ResponseToolKeys.Text);
-                    cbToolText.IsChecked = false;
-                    _responsesClient.ActiveTools.Add(key);
-                }
-            }
-            else
-            {
-                _responsesClient.ActiveTools.Remove(key);
-
-                if (_responsesClient.ActiveTools.Count == 0)
-                {
-                    _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
-                    cbToolText.IsChecked = true;
-                }
-            }
-
-            bool imageToolOn = cbToolImageGeneration.IsChecked == true;
-            cmbImageGenQuality.IsEnabled = imageToolOn;
-            cmbImageGenSize.IsEnabled = imageToolOn;
-
-            bool webSearchOn = cbToolWebSearch.IsChecked == true;
-            cmbSearchContextSize.IsEnabled = webSearchOn;
         }
 
         private void ShowFirstAssistantImageOfSelectedTurn()
@@ -350,7 +290,7 @@ namespace openAIApps
         }
         private async void btnResponsesSendRequestClick(object sender, RoutedEventArgs e)
         {
-            string userPrompt = txtResponsesPrompt.Text ?? string.Empty;
+            string userPrompt = ResponsesState.PromptText ?? string.Empty;
             bool hasAttachedImage =
                 !string.IsNullOrWhiteSpace(_responsesImagePath) &&
                 File.Exists(_responsesImagePath);
@@ -362,11 +302,11 @@ namespace openAIApps
 
             try
             {
-                string model = cmbResponsesModel.Text;
-                string reasoning = cmbReasoning.Text;
-                string imgSize = cmbImageGenSize.Text;
-                string imgQual = cmbImageGenQuality.Text;
-                string searchSize = cmbSearchContextSize.Text;
+                string model = ResponsesState.SelectedModel;
+                string reasoning = ResponsesState.SelectedReasoning;
+                string imgSize = ResponsesState.ImageGenSize;
+                string imgQual = ResponsesState.ImageGenQuality;
+                string searchSize = ResponsesState.SearchContextSize;
 
                 string toolsCsv = string.Join(",",
                     _responsesClient.ActiveTools
@@ -433,7 +373,6 @@ namespace openAIApps
                     _responsesImagePath = string.Empty;
 
                     await RefreshCurrentChatUI(sid);
-                    txtResponsesResponse.Text = result.AssistantText;
                 }
             }
             catch (Exception ex)
@@ -452,58 +391,6 @@ namespace openAIApps
         {
             await LoadResponsesSessionAsync(sessionId);
         }
-
-
-        private void cmbResponsesModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (cmbResponsesModel.SelectedItem is ComboBoxItem selected)
-            {
-                string model = selected.Tag.ToString();
-                _responsesClient.CurrentModel = model;
-
-                // Model-specific reasoning warnings
-                string reasoning = _responsesClient.CurrentReasoning;
-                bool supportsReasoning = model.StartsWith("gpt-5") ||
-                                        model.StartsWith("o") ||
-                                        model == "gpt-5-pro";
-
-                if (!supportsReasoning && reasoning != "none")
-                {
-                    MessageBox.Show(
-                        $"⚠️ '{model}' may ignore reasoning.effort='{reasoning}'. " +
-                        "Use GPT-5/o-series models for reasoning controls.",
-                        "Model Compatibility",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-
-                    // Auto-reset to safe default
-                    cmbReasoning.SelectedIndex = 0;
-                    _responsesClient.CurrentReasoning = "none";
-                }
-                else if (model == "gpt-5-pro" && reasoning != "high")
-                {
-                    MessageBox.Show(
-                        "gpt-5-pro only supports 'high' reasoning. Auto-setting.",
-                        "Model Note",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                    cmbReasoning.SelectedIndex = 4; // high
-                    _responsesClient.CurrentReasoning = "high";
-                }
-            }
-        }
-        private void cmbReasoning_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_responsesClient == null)
-                return;
-
-            if (sender is ComboBox cmb && cmb.SelectedItem is ComboBoxItem selectedReasoning && selectedReasoning.Tag != null)
-            {
-                _responsesClient.CurrentReasoning = selectedReasoning.Tag.ToString();
-            }
-            // If nothing selected (during init), just keep current value
-        }
-
 
         private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
         {
@@ -537,15 +424,19 @@ namespace openAIApps
 
         private void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_responsesClient == null || _isApplyingResponsesSettings)
+                return;
             if (lstResponsesTurns.SelectedItem is not ChatMessage selectedMsg)
                 return;
+
+            ResponsesState.SelectedTurn = selectedMsg;
 
             string path = GetPrimaryMediaPath(selectedMsg);
 
             if (string.Equals(selectedMsg.Role, "user", StringComparison.OrdinalIgnoreCase))
             {
-                txtResponsesPrompt.Text = selectedMsg.Content;
-                txtResponsesResponse.Text = string.Empty;
+                ResponsesState.PromptText = selectedMsg.Content;
+                ResponsesState.ResponseText = string.Empty;
 
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                     ShowResponsesImagePreview(path);
@@ -554,7 +445,7 @@ namespace openAIApps
             }
             else if (string.Equals(selectedMsg.Role, "assistant", StringComparison.OrdinalIgnoreCase))
             {
-                txtResponsesResponse.Text = selectedMsg.Content;
+                ResponsesState.ResponseText = selectedMsg.Content;
 
                 if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
                     ShowResponsesImagePreview(path);
@@ -562,19 +453,6 @@ namespace openAIApps
                     HideResponsesImagePreview();
             }
         }
-
-        private void cmbSearchContextSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_responsesClient == null)
-                return;
-
-            if (cmbSearchContextSize.SelectedItem is ComboBoxItem selected &&
-                selected.Tag is string tag)
-            {
-                _responsesClient.WebSearchContextSize = tag; // "low", "medium", or "high"
-            }
-        }
-
 
         private void btnResponsesAttachImage_Click(object sender, RoutedEventArgs e)
         {
@@ -596,32 +474,6 @@ namespace openAIApps
         {
             _responsesImagePath = string.Empty;
             HideResponsesImagePreview();
-        }
-
-        private void cmbImageGenQuality_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_responsesClient == null)
-                return;
-
-            if (cmbImageGenQuality.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag)
-            {
-                // Tag contains "auto", "low", "medium", "high"
-                _responsesClient.ImageGenQuality = tag.ToLowerInvariant();
-            }
-        }
-
-        private void cmbImageGenSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_responsesClient == null)
-                return;
-
-            if (cmbImageGenSize.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag)
-            {
-                // Tag contains "auto" or "WxH"
-                _responsesClient.ImageGenSize = tag;
-            }
         }
 
         private void lstResponsesTurns_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -723,6 +575,265 @@ namespace openAIApps
                 MessageBox.Show($"Could not show Open with dialog:\n{ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+        private static bool HasResponsesSettings(ChatMessage message)
+        {
+            if (message == null)
+                return false;
+
+            return
+                !string.IsNullOrWhiteSpace(message.ModelUsed) ||
+                !string.IsNullOrWhiteSpace(message.ReasoningLevel) ||
+                !string.IsNullOrWhiteSpace(message.ActiveTools) ||
+                !string.IsNullOrWhiteSpace(message.SearchContextSize) ||
+                !string.IsNullOrWhiteSpace(message.ImageSize) ||
+                !string.IsNullOrWhiteSpace(message.ImageQuality);
+        }
+        private void SelectComboBoxValue(ComboBox comboBox, string value)
+        {
+            if (comboBox == null || string.IsNullOrWhiteSpace(value))
+                return;
+
+            foreach (var item in comboBox.Items.OfType<ComboBoxItem>())
+            {
+                string tag = item.Tag?.ToString();
+                string content = item.Content?.ToString();
+
+                if (string.Equals(tag, value, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(content, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    comboBox.SelectedItem = item;
+                    return;
+                }
+            }
+        }
+        private void ApplyResponsesToolsFromCsv(string toolsCsv)
+        {
+            var tools = (toolsCsv ?? string.Empty)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (tools.Count == 0)
+            {
+                tools.Add(ResponseToolKeys.Text);
+            }
+
+            if (tools.Count > 1 && tools.Contains(ResponseToolKeys.Text))
+            {
+                tools.Remove(ResponseToolKeys.Text);
+            }
+
+            _responsesClient.ActiveTools.Clear();
+            foreach (var tool in tools)
+            {
+                _responsesClient.ActiveTools.Add(tool);
+            }
+
+            cbToolText.IsChecked = tools.Contains(ResponseToolKeys.Text);
+            cbToolWebSearch.IsChecked = tools.Contains(ResponseToolKeys.WebSearch);
+            cbToolComputerUse.IsChecked = tools.Contains(ResponseToolKeys.ComputerUsePreview);
+            cbToolImageGeneration.IsChecked = tools.Contains(ResponseToolKeys.ImageGeneration);
+
+            bool imageToolOn = tools.Contains(ResponseToolKeys.ImageGeneration);
+            cmbImageGenQuality.IsEnabled = imageToolOn;
+            cmbImageGenSize.IsEnabled = imageToolOn;
+
+            bool webSearchOn = tools.Contains(ResponseToolKeys.WebSearch);
+            cmbSearchContextSize.IsEnabled = webSearchOn;
+        }
+        //se use-case in ApplyResponsesSettingsFromHistory. It explains why it still is not used
+        /// <summary>
+        /// Ensures that the specified model is present in the responses model selection list. If the model does not
+        /// already exist, it is added to the list.
+        /// </summary>
+        /// <remarks>This method does not add duplicate entries. The check is case-insensitive and
+        /// considers both the content and tag of each item. If the model is not already tracked, it is also added to
+        /// the active models collection.</remarks>
+        /// <param name="model">The name of the model to ensure exists in the responses model selection list. Cannot be null, empty, or
+        /// whitespace.</param>
+        private void EnsureResponsesModelExists(string model)
+        {
+            if (string.IsNullOrWhiteSpace(model))
+                return;
+
+            bool exists = cmbResponsesModel.Items
+                .OfType<ComboBoxItem>()
+                .Any(i =>
+                    string.Equals(i.Tag?.ToString(), model, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(i.Content?.ToString(), model, StringComparison.OrdinalIgnoreCase));
+
+            if (exists)
+                return;
+
+            cmbResponsesModel.Items.Insert(0, new ComboBoxItem
+            {
+                Content = model,
+                Tag = model
+            });
+
+            if (!_activeModelsForResponses.Contains(model, StringComparer.OrdinalIgnoreCase))
+                _activeModelsForResponses.Insert(0, model);
+        }
+        //This is a point: If the setting(ModelUsed) does not exist we can add it.
+        //But this will be a 'problem' when reading from the model-list that is
+        //created. This value will then be removed again. Maybe it should be saved by using
+        //AvailableModelsStorage (new_list). Think about it before doing any changes.
+        //EnsureResponsesModelExists(settingsMessage.ModelUsed);
+        private void ApplyResponsesSettingsFromHistory(IReadOnlyList<ChatMessage> history)
+        {
+            if (history == null || history.Count == 0)
+                return;
+
+            var settingsMessage = history.LastOrDefault(HasResponsesSettings);
+            if (settingsMessage == null)
+                return;
+
+            _isApplyingResponsesSettings = true;
+            try
+            {
+                ResponsesState.SelectedModel = settingsMessage.ModelUsed;
+                ResponsesState.SelectedReasoning = string.IsNullOrWhiteSpace(settingsMessage.ReasoningLevel)
+                    ? "none"
+                    : settingsMessage.ReasoningLevel;
+
+                ResponsesState.SearchContextSize = string.IsNullOrWhiteSpace(settingsMessage.SearchContextSize)
+                    ? "medium"
+                    : settingsMessage.SearchContextSize;
+
+                ResponsesState.ImageGenQuality = string.IsNullOrWhiteSpace(settingsMessage.ImageQuality)
+                    ? "auto"
+                    : settingsMessage.ImageQuality;
+
+                ResponsesState.ImageGenSize = string.IsNullOrWhiteSpace(settingsMessage.ImageSize)
+                    ? "auto"
+                    : settingsMessage.ImageSize;
+
+                ApplyResponsesToolsToState(settingsMessage.ActiveTools);
+            }
+            finally
+            {
+                _isApplyingResponsesSettings = false;
+            }
+
+            NormalizeResponsesToolsState();
+            ApplyResponsesStateToClient();
+            UpdateResponsesOptionsUi();
+        }
+        private void NormalizeResponsesToolsState()
+        {
+            if (_isApplyingResponsesSettings)
+                return;
+
+            _isApplyingResponsesSettings = true;
+            try
+            {
+                if (ResponsesState.UseComputerUse)
+                {
+                    ResponsesState.UseWebSearch = false;
+                    ResponsesState.UseImageGeneration = false;
+                }
+
+                bool anyNonText =
+                    ResponsesState.UseWebSearch ||
+                    ResponsesState.UseComputerUse ||
+                    ResponsesState.UseImageGeneration;
+
+                if (ResponsesState.UseTextTool && anyNonText)
+                {
+                    ResponsesState.UseTextTool = false;
+                }
+
+                if (!ResponsesState.UseTextTool && !anyNonText)
+                {
+                    ResponsesState.UseTextTool = true;
+                }
+
+                if (ResponsesState.UseTextTool)
+                {
+                    ResponsesState.UseWebSearch = false;
+                    ResponsesState.UseComputerUse = false;
+                    ResponsesState.UseImageGeneration = false;
+                }
+            }
+            finally
+            {
+                _isApplyingResponsesSettings = false;
+            }
+        }
+        private void ApplyResponsesStateToClient()
+        {
+            if (_responsesClient == null)
+                return;
+
+            _responsesClient.CurrentModel = ResponsesState.SelectedModel;
+            _responsesClient.CurrentReasoning = ResponsesState.SelectedReasoning;
+            _responsesClient.WebSearchContextSize = ResponsesState.SearchContextSize;
+            _responsesClient.ImageGenQuality = ResponsesState.ImageGenQuality;
+            _responsesClient.ImageGenSize = ResponsesState.ImageGenSize;
+
+            _responsesClient.ActiveTools.Clear();
+
+            if (ResponsesState.UseTextTool)
+                _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
+
+            if (ResponsesState.UseWebSearch)
+                _responsesClient.ActiveTools.Add(ResponseToolKeys.WebSearch);
+
+            if (ResponsesState.UseComputerUse)
+                _responsesClient.ActiveTools.Add(ResponseToolKeys.ComputerUsePreview);
+
+            if (ResponsesState.UseImageGeneration)
+                _responsesClient.ActiveTools.Add(ResponseToolKeys.ImageGeneration);
+
+            if (_responsesClient.ActiveTools.Count == 0)
+                _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
+        }
+        private void UpdateResponsesOptionsUi()
+        {
+            cmbSearchContextSize.IsEnabled = ResponsesState.UseWebSearch;
+            cmbImageGenQuality.IsEnabled = ResponsesState.UseImageGeneration;
+            cmbImageGenSize.IsEnabled = ResponsesState.UseImageGeneration;
+        }
+        private void ValidateResponsesState()
+        {
+            string model = ResponsesState.SelectedModel;
+            string reasoning = ResponsesState.SelectedReasoning;
+
+            bool supportsReasoning = model.StartsWith("gpt-5") ||
+                                     model.StartsWith("o") ||
+                                     model == "gpt-5-pro";
+
+            if (!supportsReasoning && reasoning != "none")
+            {
+                ResponsesState.SelectedReasoning = "none";
+                StatusText.Text = $"Model '{model}' does not support reasoning settings.";
+            }
+            else if (model == "gpt-5-pro" && reasoning != "high")
+            {
+                ResponsesState.SelectedReasoning = "high";
+                StatusText.Text = "gpt-5-pro requires high reasoning.";
+            }
+        }
+        private void ApplyResponsesToolsToState(string toolsCsv)
+        {
+            var tools = (toolsCsv ?? string.Empty)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (tools.Count == 0)
+                tools.Add(ResponseToolKeys.Text);
+
+            if (tools.Count > 1 && tools.Contains(ResponseToolKeys.Text))
+                tools.Remove(ResponseToolKeys.Text);
+
+            ResponsesState.UseTextTool = tools.Contains(ResponseToolKeys.Text);
+            ResponsesState.UseWebSearch = tools.Contains(ResponseToolKeys.WebSearch);
+            ResponsesState.UseComputerUse = tools.Contains(ResponseToolKeys.ComputerUsePreview);
+            ResponsesState.UseImageGeneration = tools.Contains(ResponseToolKeys.ImageGeneration);
         }
     }
 }

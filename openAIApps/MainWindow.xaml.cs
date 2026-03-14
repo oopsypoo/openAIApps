@@ -60,13 +60,13 @@ namespace openAIApps
         /// Gets or sets the collection view that provides a filtered and sorted view of the log entries.
         /// </summary>
         public ICollectionView LogView { get; set; }
+        public LogsPanelState LogsState { get; } = new();
+        public ResponsesPanelState ResponsesState { get; } = new();
 
         private int? _activeResponsesSessionId;
         private int? _activeVideoSessionId;
 
-        // Filter state for Logs tab
-        private string _logSearchText = string.Empty;
-        private string _logTypeFilter = "All";
+        
 
         private async Task<int> EnsureSessionActiveAsync(EndpointType type, string firstPrompt)
         {
@@ -124,13 +124,13 @@ namespace openAIApps
                 return false;
 
             bool matchesType =
-                _logTypeFilter == "All" ||
-                string.Equals(session.Endpoint.ToString(), _logTypeFilter, StringComparison.OrdinalIgnoreCase);
+                LogsState.TypeFilter == "All" ||
+                string.Equals(session.Endpoint.ToString(), LogsState.TypeFilter, StringComparison.OrdinalIgnoreCase);
 
             string title = session.Title ?? string.Empty;
             bool matchesText =
-                string.IsNullOrWhiteSpace(_logSearchText) ||
-                title.IndexOf(_logSearchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                string.IsNullOrWhiteSpace(LogsState.SearchText) ||
+                title.IndexOf(LogsState.SearchText, StringComparison.OrdinalIgnoreCase) >= 0;
 
             return matchesType && matchesText;
         }
@@ -141,7 +141,37 @@ namespace openAIApps
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             LoadInitialLogs();
         }
+        private void LogsState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(LogsPanelState.SearchText) ||
+                e.PropertyName == nameof(LogsPanelState.TypeFilter))
+            {
+                ApplyFilters();
+            }
+        }
 
+        private void ResponsesState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_responsesClient == null || _isApplyingResponsesSettings)
+                return;
+
+            switch (e.PropertyName)
+            {
+                case nameof(ResponsesPanelState.SelectedModel):
+                case nameof(ResponsesPanelState.SelectedReasoning):
+                case nameof(ResponsesPanelState.SearchContextSize):
+                case nameof(ResponsesPanelState.ImageGenQuality):
+                case nameof(ResponsesPanelState.ImageGenSize):
+                case nameof(ResponsesPanelState.UseTextTool):
+                case nameof(ResponsesPanelState.UseWebSearch):
+                case nameof(ResponsesPanelState.UseComputerUse):
+                case nameof(ResponsesPanelState.UseImageGeneration):
+                    NormalizeResponsesToolsState();
+                    ApplyResponsesStateToClient();
+                    UpdateResponsesOptionsUi();
+                    break;
+            }
+        }
         public MainWindow()
         {
             InitializeComponent();
@@ -153,6 +183,9 @@ namespace openAIApps
 
             LogView = CollectionViewSource.GetDefaultView(Sessions);
             LogView.Filter = FilterPredicate;
+
+            LogsState.PropertyChanged += LogsState_PropertyChanged;
+            ResponsesState.PropertyChanged += ResponsesState_PropertyChanged;
 
             InitControls();
             Loaded += MainWindow_Loaded;
@@ -327,47 +360,19 @@ namespace openAIApps
 
         private async void OnLogEntryDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            var selectedSession = dgUnifiedLogs.SelectedItem as ChatSession;
-            if (selectedSession == null)
+            if (e.OriginalSource is not DependencyObject source)
                 return;
 
-            _activeResponsesSessionId = null;
-            _activeVideoSessionId = null;
+            // Ignore double-clicks on the delete button
+            if (FindVisualParent<Button>(source) != null)
+                return;
 
-            if (selectedSession.Endpoint == EndpointType.Video)
-            {
-                tabMain.SelectedIndex = 1;
-                _activeVideoSessionId = selectedSession.Id;
+            var row = FindVisualParent<DataGridRow>(source);
+            if (row?.Item is not ChatSession selectedSession)
+                return;
 
-                var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
-
-                var userMsg = history.FirstOrDefault(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase));
-                if (userMsg != null)
-                {
-                    txtVideoPrompt.Text = userMsg.Content;
-                    cmbVideoModel.Text = userMsg.ModelUsed;
-                    cmbVideoLength.Text = userMsg.VideoLength;
-                    cmbVideoSize.Text = userMsg.VideoSize;
-                    cbVideoRemix.IsChecked = userMsg.IsRemix;
-                }
-
-                var assistantMsg = history.LastOrDefault(m => string.Equals(m.Role, "assistant", StringComparison.OrdinalIgnoreCase));
-                if (assistantMsg != null && !string.IsNullOrEmpty(assistantMsg.RemoteId))
-                {
-                    var itemToSelect = _videoHistory.FirstOrDefault(v => v.Id == assistantMsg.RemoteId);
-                    if (itemToSelect != null)
-                    {
-                        lstVideoFiles.SelectedItem = itemToSelect;
-                        lstVideoFiles.ScrollIntoView(itemToSelect);
-                    }
-                }
-            }
-            else if (selectedSession.Endpoint == EndpointType.Responses)
-            {
-                tabMain.SelectedIndex = 2;
-                _activeResponsesSessionId = selectedSession.Id;
-                await RefreshChatUI(selectedSession.Id);
-            }
+            e.Handled = true;
+            await OpenSessionFromLogsAsync(selectedSession);
         }
 
         private async Task RefreshChatUI(int sessionId)
@@ -400,8 +405,7 @@ namespace openAIApps
             if (session.Endpoint == EndpointType.Video &&
                 _activeVideoSessionId == session.Id)
             {
-                _activeVideoSessionId = null;
-                // Optional: reset video UI here too
+                ResetVideoUI();
             }
         }
         private async void OnDeleteSessionClick(object sender, RoutedEventArgs e)
@@ -418,31 +422,17 @@ namespace openAIApps
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
 
-            if (confirm == MessageBoxResult.Yes)
-            {
-                await _sessionCleanupService.DeleteSessionAsync(_activeResponsesSessionId.Value);
-                ClearDeletedSessionFromUi(session);
-                RefreshLogsTab();
-            }
+            if (confirm != MessageBoxResult.Yes)
+                return;
+
+            await _sessionCleanupService.DeleteSessionAsync(session.Id);
+            ClearDeletedSessionFromUi(session);
+            RefreshLogsTab();
         }
 
         private void ApplyFilters()
         {
             LogView?.Refresh();
-        }
-
-        private void TxtLogSearch_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            _logSearchText = txtLogSearch.Text?.Trim() ?? string.Empty;
-            ApplyFilters();
-        }
-
-        private void OnLogFilterChanged(object sender, SelectionChangedEventArgs e)
-        {
-            _logTypeFilter =
-                (cbLogTypeFilter.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "All";
-
-            ApplyFilters();
         }
 
         private void dgUnifiedLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -452,6 +442,75 @@ namespace openAIApps
         public void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             Debug.WriteLine("Preview mouse hit button");
+        }
+        private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            while (child != null)
+            {
+                if (child is T parent)
+                    return parent;
+
+                child = VisualTreeHelper.GetParent(child);
+            }
+
+            return null;
+        }
+        private async Task OpenSessionFromLogsAsync(ChatSession selectedSession)
+        {
+            if (selectedSession == null)
+                return;
+
+            _activeResponsesSessionId = null;
+            _activeVideoSessionId = null;
+
+            if (selectedSession.Endpoint == EndpointType.Video)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    tabMain.SelectedItem = tpVideo;
+                    tabMain.UpdateLayout();
+                }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
+                _activeVideoSessionId = selectedSession.Id;
+
+                var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
+
+                var userMsg = history.FirstOrDefault(m =>
+                    string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase));
+
+                if (userMsg != null)
+                {
+                    txtVideoPrompt.Text = userMsg.Content;
+                    cmbVideoModel.Text = userMsg.ModelUsed;
+                    cmbVideoLength.Text = userMsg.VideoLength;
+                    cmbVideoSize.Text = userMsg.VideoSize;
+                    cbVideoRemix.IsChecked = userMsg.IsRemix;
+                }
+
+                var assistantMsg = history.LastOrDefault(m =>
+                    string.Equals(m.Role, "assistant", StringComparison.OrdinalIgnoreCase));
+
+                if (assistantMsg != null && !string.IsNullOrEmpty(assistantMsg.RemoteId))
+                {
+                    var itemToSelect = _videoHistory.FirstOrDefault(v => v.Id == assistantMsg.RemoteId);
+                    if (itemToSelect != null)
+                    {
+                        lstVideoFiles.SelectedItem = itemToSelect;
+                        lstVideoFiles.ScrollIntoView(itemToSelect);
+                    }
+                }
+            }
+            else if (selectedSession.Endpoint == EndpointType.Responses)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    tabMain.SelectedItem = tpResponses;
+                    tabMain.UpdateLayout();
+                }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
+                _activeResponsesSessionId = selectedSession.Id;
+                await LoadResponsesSessionAsync(selectedSession.Id);
+            }
         }
     }
 }
