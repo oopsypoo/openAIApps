@@ -52,7 +52,22 @@ namespace openAIApps
         public bool UseWebSearch
         {
             get => _useWebSearch;
-            set => SetProperty(ref _useWebSearch, value);
+            set
+            {
+                if (SetProperty(ref _useWebSearch, value))
+                    OnPropertyChanged(nameof(IsWebSearchOptionsEnabled));
+            }
+        }
+
+        private bool _useImageGeneration;
+        public bool UseImageGeneration
+        {
+            get => _useImageGeneration;
+            set
+            {
+                if (SetProperty(ref _useImageGeneration, value))
+                    OnPropertyChanged(nameof(IsImageGenerationOptionsEnabled));
+            }
         }
 
         private bool _useComputerUse;
@@ -60,13 +75,6 @@ namespace openAIApps
         {
             get => _useComputerUse;
             set => SetProperty(ref _useComputerUse, value);
-        }
-
-        private bool _useImageGeneration;
-        public bool UseImageGeneration
-        {
-            get => _useImageGeneration;
-            set => SetProperty(ref _useImageGeneration, value);
         }
 
         private string _searchContextSize = "medium";

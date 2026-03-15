@@ -9,29 +9,6 @@
         Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
 
     <Window.Resources>
-        <!-- For the status bar. See almost last line. This is noisy and bad. Make it better -->
-        <Style x:Key="StatusBar" TargetType="StatusBar">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Margin" Value="0,2,2,0" />
-            <Setter Property="IsEnabled" Value="True" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="Background" Value="OrangeRed" />
-            <Setter Property="BorderBrush" Value="DarkRed" />
-            <Setter Property="Grid.Row" Value="5" />
-            <Setter Property="Grid.Column" Value="0" />
-            <Setter Property="Height" Value="25" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type StatusBar}" >
-                        <Border x:Name="bg" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}">
-                            <Grid>
-                                <ContentPresenter x:Name="PART_ContentHost" Focusable="True" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
         <!-- All text-boxes taking requests have this style -->
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
@@ -241,72 +218,28 @@
                     </Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spVideoInput" Orientation="Vertical" Grid.ColumnSpan="1">
                         <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}"
-                                 x:Name="txtVideoPrompt"
-                                 Text="{Binding VideoState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 TextChanged="txtVideoPrompt_TextChanged"/>
+                        <TextBox Style="{StaticResource TextBoxRequest}"  x:Name="txtVideoPrompt" TextChanged="txtVideoPrompt_TextChanged"/>
                         <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoGenerateClick"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"
-                                 x:Name="txtVideoResponse"
-                                 Text="{Binding VideoState.ResponseText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                        <Label Grid.Row="4" Grid.Column="0" Margin="2,10,2,2">Session history</Label>
-
-                        <ListBox x:Name="lstVideoSessionTurns"
-                                 Height="140"
-                                 ItemsSource="{Binding CurrentVideoMessages, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 SelectedItem="{Binding VideoState.SelectedSessionTurn, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                 SelectionChanged="lstVideoSessionTurns_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="{Binding Role}" FontWeight="Bold" Foreground="Gray" FontSize="10"/>
-                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap"/>
-                                        <TextBlock FontSize="10" Foreground="DimGray" TextWrapping="Wrap">
-                                            <Run Text="Model: "/>
-                                            <Run Text="{Binding ModelUsed}"/>
-                                            <Run Text=" | Length: "/>
-                                            <Run Text="{Binding VideoLength}"/>
-                                            <Run Text=" | Size: "/>
-                                            <Run Text="{Binding VideoSize}"/>
-                                            <Run Text=" | RemoteId: "/>
-                                            <Run Text="{Binding RemoteId}"/>
-                                            <Run Text=" | Source: "/>
-                                            <Run Text="{Binding SourceRemoteId}"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <TextBox Style="{StaticResource TextBoxResponse}"  x:Name="txtVideoResponse" />
                         <MediaElement x:Name="mediaVideo" Margin="0,5,0,0" Height="200" LoadedBehavior="Manual" UnloadedBehavior="Stop"/>
                     </StackPanel>
                     <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
                                 <Label Content="Model" />
-                                <ComboBox x:Name="cmbVideoModel"
-                                          IsEditable="False"
-                                          IsReadOnly="True"
-                                          SelectedValuePath="Content"
-                                          SelectedValue="{Binding VideoState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                          SelectionChanged="cmbModelChanged">
+                                <ComboBox x:Name="cmbVideoModel" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbModelChanged">
                                     <ComboBoxItem IsSelected="True" Content="sora-2" />
                                     <ComboBoxItem Content="sora-2-pro" />
                                 </ComboBox>
                                 <Label Content="Video Length" />
-                                <ComboBox x:Name="cmbVideoLength"
-                                          SelectedValuePath="Content"
-                                          SelectedValue="{Binding VideoState.SelectedLength, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                          SelectionChanged="cmbVideoLengthChanged">
+                                <ComboBox x:Name="cmbVideoLength" SelectionChanged="cmbVideoLengthChanged">
                                     <ComboBoxItem IsSelected="True" Content="4" />
                                     <ComboBoxItem Content="8" />
                                     <ComboBoxItem Content="12" />
                                 </ComboBox>
                                 <Label Content="Video Size" />
-                                <ComboBox x:Name="cmbVideoSize"
-                                          SelectedValuePath="Content"
-                                          SelectedValue="{Binding VideoState.SelectedSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                          SelectionChanged="cmbVideoSizeChanged">
+                                <ComboBox x:Name="cmbVideoSize" SelectionChanged="cmbVideoSizeChanged">
                                     <ComboBoxItem IsSelected="True" Content="720x1280" />
                                     <ComboBoxItem Content="1280x720" />
                                     <ComboBoxItem Content="1024x1792" />
@@ -320,9 +253,8 @@
                                 <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
                                 <!-- Video history listbox with color-coded items -->
                                 <ListBox x:Name="lstVideoFiles"
-                                         ItemsSource="{Binding VideoHistory, RelativeSource={RelativeSource AncestorType=Window}}"
-                                         SelectedItem="{Binding VideoState.SelectedLibraryVideo, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                         SelectionChanged="lstVideoFiles_SelectionChanged">
+                                 ItemsSource="{Binding videoHistory}"
+                                 SelectedItem="{Binding SelectedVideo}" SelectionChanged="lstVideoFiles_SelectionChanged">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Id}" />
@@ -351,10 +283,7 @@
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                 </ListBox>
-                                <CheckBox x:Name="cbVideoRemix"
-                                          Content="Remix selected video"
-                                          Margin="0,0,0,4"
-                                          IsChecked="{Binding VideoState.IsRemix, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                <CheckBox x:Name="cbVideoRemix" Content="Remix selected video" Margin="0,0,0,4"/>
                                 <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
                                 
                                 <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
@@ -514,9 +443,8 @@
                                 <StackPanel Grid.Column="1"  Orientation="Vertical">
                                     <Label Content="Search Context Size" />
                                     <ComboBox x:Name="cmbSearchContextSize"
-                                              SelectedValuePath="Tag"
-                                              IsEnabled="{Binding ResponsesState.IsWebSearchOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              SelectedValue="{Binding ResponsesState.SearchContextSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                                                SelectedValuePath="Tag"
+                                                SelectedValue="{Binding ResponsesState.SearchContextSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
                                         <ComboBoxItem Content="low" Tag="low"/>
                                         <ComboBoxItem Content="medium" Tag="medium"/>
                                         <ComboBoxItem Content="high" Tag="high"/>
@@ -539,7 +467,6 @@
                                     <Label Content="Image Quality" />
                                     <ComboBox x:Name="cmbImageGenQuality"
                                               SelectedValuePath="Tag"
-                                              IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                               SelectedValue="{Binding ResponsesState.ImageGenQuality, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
                                         <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
                                         <ComboBoxItem Content="low" Tag="low"/>
@@ -550,7 +477,6 @@
                                     <ComboBox x:Name="cmbImageGenSize"  
                                               Margin="0,0,0,5"
                                               SelectedValuePath="Tag"
-                                              IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                               SelectedValue="{Binding ResponsesState.ImageGenSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
                                         <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
                                         <ComboBoxItem Content="1024x1024" Tag="1024x1024"/>
@@ -681,10 +607,9 @@
                 </Grid>
             </TabItem>
         </TabControl>
-        <StatusBar DockPanel.Dock="Bottom" Style="{StaticResource StatusBar}">
+        <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
-                <TextBlock x:Name="StatusText" 
-                           Text="Ready" />
+                <TextBlock x:Name="StatusText" Text="Ready" />
             </StatusBarItem>
         </StatusBar>
     </DockPanel>

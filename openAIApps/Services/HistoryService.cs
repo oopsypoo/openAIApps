@@ -27,20 +27,21 @@ namespace openAIApps.Services
         }
 
         public async Task<int> AddMessageAsync(
-            int sessionId,
-            string role,
-            string content,
-            string rawJson = null,
-            string model = null,
-            string reasoning = null,
-            string tools = null,
-            string imgSize = null,
-            string imgQual = null,
-            string searchSize = null,
-            string videoLength = null,
-            string videoSize = null,
-            bool isRemix = false,
-            string remoteId = null)
+                    int sessionId,
+                    string role,
+                    string content,
+                    string rawJson = null,
+                    string model = null,
+                    string reasoning = null,
+                    string tools = null,
+                    string imgSize = null,
+                    string imgQual = null,
+                    string searchSize = null,
+                    string videoLength = null,
+                    string videoSize = null,
+                    bool isRemix = false,
+                    string remoteId = null,
+                    string sourceRemoteId = null)
         {
             await using var context = CreateDbContext();
 
@@ -66,6 +67,7 @@ namespace openAIApps.Services
                 VideoSize = videoSize ?? string.Empty,
                 IsRemix = isRemix,
                 RemoteId = remoteId ?? string.Empty,
+                SourceRemoteId = sourceRemoteId ?? string.Empty,
                 Timestamp = DateTime.UtcNow
             };
 

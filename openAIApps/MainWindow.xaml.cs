@@ -36,12 +36,10 @@ namespace openAIApps
         private string savepath_videos;
 
         public event Action<List<string>>? ModelsApplied;
-
+        
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
 
-        private VideoClient _videoClient;
-        private ObservableCollection<VideoListItem> _videoHistory = new ObservableCollection<VideoListItem>();
-
+        
         private string _responsesImagePath = string.Empty;
         private string _videoReferencePath = string.Empty;
 
@@ -55,6 +53,12 @@ namespace openAIApps
 
         // Logs tab source collection
         public ObservableCollection<ChatSession> Sessions { get; } = new();
+        // Video tab source collection
+        private VideoClient _videoClient;
+        public ObservableCollection<VideoListItem> _videoHistory = new();
+        public ObservableCollection<VideoListItem> VideoHistory => _videoHistory;
+        public ObservableCollection<ChatMessage> CurrentVideoMessages { get; } = new();
+        public VideoPanelState VideoState { get; } = new();
 
         /// <summary>
         /// Gets or sets the collection view that provides a filtered and sorted view of the log entries.
@@ -166,9 +170,9 @@ namespace openAIApps
                 case nameof(ResponsesPanelState.UseWebSearch):
                 case nameof(ResponsesPanelState.UseComputerUse):
                 case nameof(ResponsesPanelState.UseImageGeneration):
+                    ValidateResponsesState();
                     NormalizeResponsesToolsState();
                     ApplyResponsesStateToClient();
-                    UpdateResponsesOptionsUi();
                     break;
             }
         }
@@ -195,7 +199,7 @@ namespace openAIApps
         {
             EnsureSavePaths();
             _videoClient = new VideoClient(apiKey: OpenAPIKey);
-
+            InitVideoState();
             InitVideoList();
         }
 
@@ -375,11 +379,6 @@ namespace openAIApps
             await OpenSessionFromLogsAsync(selectedSession);
         }
 
-        private async Task RefreshChatUI(int sessionId)
-        {
-            await LoadResponsesSessionAsync(sessionId);
-        }
-
         private void tabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!ReferenceEquals(e.OriginalSource, tabMain))
@@ -435,14 +434,6 @@ namespace openAIApps
             LogView?.Refresh();
         }
 
-        private void dgUnifiedLogs_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-        }
-
-        public void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            Debug.WriteLine("Preview mouse hit button");
-        }
         private static T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
         {
             while (child != null)
@@ -464,42 +455,15 @@ namespace openAIApps
             _activeVideoSessionId = null;
 
             if (selectedSession.Endpoint == EndpointType.Video)
-            {
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    tabMain.SelectedItem = tpVideo;
-                    tabMain.UpdateLayout();
-                }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+{
+    await Dispatcher.InvokeAsync(() =>
+    {
+        tabMain.SelectedItem = tpVideo;
+        tabMain.UpdateLayout();
+    }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
-                _activeVideoSessionId = selectedSession.Id;
-
-                var history = await _historyService.GetFullSessionHistoryAsync(selectedSession.Id);
-
-                var userMsg = history.FirstOrDefault(m =>
-                    string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase));
-
-                if (userMsg != null)
-                {
-                    txtVideoPrompt.Text = userMsg.Content;
-                    cmbVideoModel.Text = userMsg.ModelUsed;
-                    cmbVideoLength.Text = userMsg.VideoLength;
-                    cmbVideoSize.Text = userMsg.VideoSize;
-                    cbVideoRemix.IsChecked = userMsg.IsRemix;
-                }
-
-                var assistantMsg = history.LastOrDefault(m =>
-                    string.Equals(m.Role, "assistant", StringComparison.OrdinalIgnoreCase));
-
-                if (assistantMsg != null && !string.IsNullOrEmpty(assistantMsg.RemoteId))
-                {
-                    var itemToSelect = _videoHistory.FirstOrDefault(v => v.Id == assistantMsg.RemoteId);
-                    if (itemToSelect != null)
-                    {
-                        lstVideoFiles.SelectedItem = itemToSelect;
-                        lstVideoFiles.ScrollIntoView(itemToSelect);
-                    }
-                }
-            }
+    await LoadVideoSessionAsync(selectedSession.Id);
+}
             else if (selectedSession.Endpoint == EndpointType.Responses)
             {
                 await Dispatcher.InvokeAsync(() =>

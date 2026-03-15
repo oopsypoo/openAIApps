@@ -25,8 +25,8 @@ namespace openAIApps
         private AvailableModels? _availableModelsWindow;
         private bool _isApplyingResponsesSettings;
 
-        
-        private void ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
+
+        private string ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
             var list = models
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -50,8 +50,7 @@ namespace openAIApps
 
             if (list.Count == 0)
             {
-                _responsesClient.CurrentModel = string.Empty;
-                return;
+                return string.Empty;
             }
 
             string selectedModel =
@@ -61,7 +60,8 @@ namespace openAIApps
 
             int selectedIndex = list.FindIndex(m => m.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
             cmbResponsesModel.SelectedIndex = selectedIndex;
-            _responsesClient.CurrentModel = selectedModel;
+
+            return selectedModel;
         }
         /// <summary>
         /// Retrieves a predefined list of response model identifiers available for use within the application.
@@ -137,7 +137,7 @@ namespace openAIApps
 
             ApplyModelsToResponsesCombo(modelsToUse, "gpt-4o");
 
-            ResponsesState.SelectedModel = "gpt-4o";
+            ResponsesState.SelectedModel = ApplyModelsToResponsesCombo(modelsToUse, "gpt-4o");
             ResponsesState.SelectedReasoning = "none";
             ResponsesState.UseTextTool = true;
             ResponsesState.UseWebSearch = false;
@@ -148,7 +148,6 @@ namespace openAIApps
             ResponsesState.ImageGenSize = "auto";
 
             ApplyResponsesStateToClient();
-            UpdateResponsesOptionsUi();
         }
         private ChatMessage GetSelectedResponseMessage()
         {
@@ -475,7 +474,10 @@ namespace openAIApps
             _responsesImagePath = string.Empty;
             HideResponsesImagePreview();
         }
-
+        //This is probably unneccessary. Check it out first. Is it really functional?
+        //Does it make sense do double-click inside the chat-history.
+        //Double-clicking on the preview-image is logical...here maybe not so.
+        //REMOVE or NOT? test first
         private void lstResponsesTurns_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (lstResponsesTurns.SelectedItem is not ChatMessage message)
@@ -589,61 +591,9 @@ namespace openAIApps
                 !string.IsNullOrWhiteSpace(message.ImageSize) ||
                 !string.IsNullOrWhiteSpace(message.ImageQuality);
         }
-        private void SelectComboBoxValue(ComboBox comboBox, string value)
-        {
-            if (comboBox == null || string.IsNullOrWhiteSpace(value))
-                return;
-
-            foreach (var item in comboBox.Items.OfType<ComboBoxItem>())
-            {
-                string tag = item.Tag?.ToString();
-                string content = item.Content?.ToString();
-
-                if (string.Equals(tag, value, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(content, value, StringComparison.OrdinalIgnoreCase))
-                {
-                    comboBox.SelectedItem = item;
-                    return;
-                }
-            }
-        }
-        private void ApplyResponsesToolsFromCsv(string toolsCsv)
-        {
-            var tools = (toolsCsv ?? string.Empty)
-                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(t => t.Trim())
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            if (tools.Count == 0)
-            {
-                tools.Add(ResponseToolKeys.Text);
-            }
-
-            if (tools.Count > 1 && tools.Contains(ResponseToolKeys.Text))
-            {
-                tools.Remove(ResponseToolKeys.Text);
-            }
-
-            _responsesClient.ActiveTools.Clear();
-            foreach (var tool in tools)
-            {
-                _responsesClient.ActiveTools.Add(tool);
-            }
-
-            cbToolText.IsChecked = tools.Contains(ResponseToolKeys.Text);
-            cbToolWebSearch.IsChecked = tools.Contains(ResponseToolKeys.WebSearch);
-            cbToolComputerUse.IsChecked = tools.Contains(ResponseToolKeys.ComputerUsePreview);
-            cbToolImageGeneration.IsChecked = tools.Contains(ResponseToolKeys.ImageGeneration);
-
-            bool imageToolOn = tools.Contains(ResponseToolKeys.ImageGeneration);
-            cmbImageGenQuality.IsEnabled = imageToolOn;
-            cmbImageGenSize.IsEnabled = imageToolOn;
-
-            bool webSearchOn = tools.Contains(ResponseToolKeys.WebSearch);
-            cmbSearchContextSize.IsEnabled = webSearchOn;
-        }
-        //se use-case in ApplyResponsesSettingsFromHistory. It explains why it still is not used
+        
+        
+        //see use-case in ApplyResponsesSettingsFromHistory. It explains why it still is not used
         /// <summary>
         /// Ensures that the specified model is present in the responses model selection list. If the model does not
         /// already exist, it is added to the list.
@@ -719,7 +669,6 @@ namespace openAIApps
 
             NormalizeResponsesToolsState();
             ApplyResponsesStateToClient();
-            UpdateResponsesOptionsUi();
         }
         private void NormalizeResponsesToolsState()
         {
@@ -790,12 +739,7 @@ namespace openAIApps
             if (_responsesClient.ActiveTools.Count == 0)
                 _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
         }
-        private void UpdateResponsesOptionsUi()
-        {
-            cmbSearchContextSize.IsEnabled = ResponsesState.UseWebSearch;
-            cmbImageGenQuality.IsEnabled = ResponsesState.UseImageGeneration;
-            cmbImageGenSize.IsEnabled = ResponsesState.UseImageGeneration;
-        }
+        
         private void ValidateResponsesState()
         {
             string model = ResponsesState.SelectedModel;

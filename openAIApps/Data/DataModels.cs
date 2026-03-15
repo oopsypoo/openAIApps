@@ -72,8 +72,9 @@ namespace openAIApps.Data
         public string VideoSize { get; set; } = string.Empty;
         public bool IsRemix { get; set; }
         public string RemoteId { get; set; } = string.Empty;
-
+        public string SourceRemoteId { get; set; } = string.Empty;
         public string RawJson { get; set; } = string.Empty;
+        
 
         public virtual ChatSession ChatSession { get; set; }
 

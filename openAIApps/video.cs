@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace openAIApps
 {
-    internal class VideoClient : IDisposable
+    public class VideoClient : IDisposable
     {
         private const string VideoEndpoint = "https://api.openai.com/v1/videos";
         private readonly System.Net.Http.HttpClient _httpClient;

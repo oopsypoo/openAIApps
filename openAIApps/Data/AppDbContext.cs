@@ -74,6 +74,11 @@ namespace openAIApps.Data
 
             // Keep this for now. Later we can move to Migrations.
             db.Database.EnsureCreated();
+            if (!ColumnExists(db, "Messages", "SourceRemoteId"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN SourceRemoteId TEXT NOT NULL DEFAULT '';");
+            }
 
             // Ensure indexes exist even if DB was created before the model had them
             db.Database.ExecuteSqlRaw(
@@ -93,6 +98,29 @@ namespace openAIApps.Data
 
             db.Database.ExecuteSqlRaw(
                 "CREATE INDEX IF NOT EXISTS IX_Media_ChatMessageId ON Media (ChatMessageId);");
+        }
+        private static bool ColumnExists(AppDbContext db, string tableName, string columnName)
+        {
+            using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = $"PRAGMA table_info({tableName});";
+
+            db.Database.OpenConnection();
+            try
+            {
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    string existingName = reader["name"]?.ToString() ?? string.Empty;
+                    if (string.Equals(existingName, columnName, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            finally
+            {
+                db.Database.CloseConnection();
+            }
+
+            return false;
         }
     }
 }
