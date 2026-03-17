@@ -419,9 +419,11 @@
 
                                 <!-- Prompt textbox -->
                                 <TextBox Grid.Column="0"
-                                     Style="{StaticResource TextBoxRequest}"
-                                     x:Name="txtResponsesPrompt"
-                                     Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                         Style="{StaticResource TextBoxRequest}"
+                                         x:Name="txtResponsesPrompt"
+                                         GotKeyboardFocus="txtResponsesPrompt_GotKeyboardFocus"
+                                         PreviewMouseLeftButtonDown="txtResponsesPrompt_PreviewMouseLeftButtonDown"
+                                         Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                                 <!-- Image preview area -->
                                 <Border Grid.Column="1"
