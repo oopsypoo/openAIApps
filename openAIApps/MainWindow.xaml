@@ -46,6 +46,8 @@
             <Setter Property="TabIndex" Value="1" />
             <Setter Property="MaxHeight" Value="500" />
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <EventSetter Event="GotKeyboardFocus" Handler="SelectAllTextBox_GotKeyboardFocus"/>
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="SelectAllTextBox_PreviewMouseLeftButtonDown"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TextBox}" >
@@ -246,15 +248,11 @@
                         <TextBox Style="{StaticResource TextBoxRequest}"
                                  x:Name="txtVideoPrompt"
                                  Text="{Binding VideoState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
-                                 PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
                                  TextChanged="txtVideoPrompt_TextChanged"/>
                         <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoGenerateClick"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
                         <TextBox Style="{StaticResource TextBoxResponse}"
                                  x:Name="txtVideoResponse"
-                                 GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
-                                 PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
                                  Text="{Binding VideoState.ResponseText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                         <Label Grid.Row="4" Grid.Column="0" Margin="2,10,2,2">Session history</Label>
 
@@ -427,8 +425,6 @@
                                 <TextBox Grid.Column="0"
                                          Style="{StaticResource TextBoxRequest}"
                                          x:Name="txtResponsesPrompt"
-                                         GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
-                                         PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
                                          Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                                 <!-- Image preview area -->
