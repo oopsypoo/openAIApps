@@ -201,7 +201,9 @@
                         <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPrompt" />
                         <Button  Grid.Column="0" Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
                         <Label Grid.Row="3" Grid.Column="0">OpenAi response</Label>
-                        <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperResponse" />
+                        <TextBox  Grid.Column="0" 
+                                  Style="{StaticResource TextBoxResponse}"  
+                                  x:Name="txtWhisperResponse" />
                     </StackPanel>
                     <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spWhisper" Orientation="Vertical" Margin="5">
@@ -244,11 +246,15 @@
                         <TextBox Style="{StaticResource TextBoxRequest}"
                                  x:Name="txtVideoPrompt"
                                  Text="{Binding VideoState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
+                                 PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
                                  TextChanged="txtVideoPrompt_TextChanged"/>
                         <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoGenerateClick"/>
                         <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
                         <TextBox Style="{StaticResource TextBoxResponse}"
                                  x:Name="txtVideoResponse"
+                                 GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
+                                 PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
                                  Text="{Binding VideoState.ResponseText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                         <Label Grid.Row="4" Grid.Column="0" Margin="2,10,2,2">Session history</Label>
 
@@ -421,8 +427,8 @@
                                 <TextBox Grid.Column="0"
                                          Style="{StaticResource TextBoxRequest}"
                                          x:Name="txtResponsesPrompt"
-                                         GotKeyboardFocus="txtResponsesPrompt_GotKeyboardFocus"
-                                         PreviewMouseLeftButtonDown="txtResponsesPrompt_PreviewMouseLeftButtonDown"
+                                         GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
+                                         PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
                                          Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                                 <!-- Image preview area -->

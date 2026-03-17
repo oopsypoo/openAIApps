@@ -462,15 +462,15 @@ namespace openAIApps
             _activeVideoSessionId = null;
 
             if (selectedSession.Endpoint == EndpointType.Video)
-{
-    await Dispatcher.InvokeAsync(() =>
-    {
-        tabMain.SelectedItem = tpVideo;
-        tabMain.UpdateLayout();
-    }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    tabMain.SelectedItem = tpVideo;
+                    tabMain.UpdateLayout();
+                }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
-    await LoadVideoSessionAsync(selectedSession.Id);
-}
+                await LoadVideoSessionAsync(selectedSession.Id);
+            }
             else if (selectedSession.Endpoint == EndpointType.Responses)
             {
                 await Dispatcher.InvokeAsync(() =>
@@ -481,6 +481,25 @@ namespace openAIApps
 
                 _activeResponsesSessionId = selectedSession.Id;
                 await LoadResponsesSessionAsync(selectedSession.Id);
+            }
+        }
+        private void SelectAllTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !string.IsNullOrEmpty(tb.Text))
+            {
+                tb.SelectAll();
+            }
+        }
+
+        private void SelectAllTextBox_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not TextBox tb)
+                return;
+
+            if (!tb.IsKeyboardFocusWithin)
+            {
+                e.Handled = true;
+                tb.Focus();
             }
         }
     }

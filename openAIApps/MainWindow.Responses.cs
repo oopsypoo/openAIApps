@@ -1296,24 +1296,5 @@ namespace openAIApps
                 e.Handled = true;
             }
         }
-        private void txtResponsesPrompt_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
-        {
-            if (sender is TextBox tb)
-            {
-                tb.SelectAll();
-            }
-        }
-
-        private void txtResponsesPrompt_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is not TextBox tb)
-                return;
-
-            if (!tb.IsKeyboardFocusWithin)
-            {
-                e.Handled = true;
-                tb.Focus();
-            }
-        }
     }
 }
