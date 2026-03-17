@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
+
 namespace openAIApps
 {
     public class Responses : IDisposable
@@ -361,6 +362,8 @@ namespace openAIApps
             public ReasoningConfig Reasoning { get; set; }
             [JsonPropertyName("store")]
             public bool Store { get; set; } = false;
+            [JsonPropertyName("instructions")]
+            public string Instructions { get; set; } = "You are a helpful assistant. Return all answers as GitHub-style Markdown. Use headings, bullet lists, and fenced code blocks ";
 
             [JsonPropertyName("previous_response_id")]
             public string PreviousResponseId { get; set; }
@@ -447,11 +450,11 @@ namespace openAIApps
                         {
                             case "output_text":
                                 if (!string.IsNullOrEmpty(contentItem.Text))
-                                    sb.AppendLine($"🧠 {contentItem.Text}");
+                                    sb.AppendLine($"{contentItem.Text}");
                                 break;
 
                             case "tool_use":
-                                sb.AppendLine($"🛠️ Tool: {contentItem.ToolName ?? "unknown"}");
+                                sb.AppendLine($"Tool: {contentItem.ToolName ?? "unknown"}");
                                 if (contentItem.ToolInput != null)
                                     sb.AppendLine($" Input: {contentItem.ToolInput}");
                                 sb.AppendLine($" [Simulated: {SimulateTool(contentItem.ToolName, contentItem.ToolInput ?? default)}]");
@@ -590,8 +593,5 @@ namespace openAIApps
 
             return request;
         }
-
-
-
     }
 }

@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using openAIApps.Data;
 using openAIApps.Native;
 using System;
@@ -10,7 +9,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Text.RegularExpressions;
 
 /*
  * Code for Responses-tab-controls
@@ -778,6 +780,521 @@ namespace openAIApps
             ResponsesState.UseWebSearch = tools.Contains(ResponseToolKeys.WebSearch);
             ResponsesState.UseComputerUse = tools.Contains(ResponseToolKeys.ComputerUsePreview);
             ResponsesState.UseImageGeneration = tools.Contains(ResponseToolKeys.ImageGeneration);
+        }
+        private void UpdateResponsesResponseDocument(string text)
+        {
+            if (rtbResponsesResponse == null)
+                return;
+
+            rtbResponsesResponse.Document = BuildResponseDocument(text ?? string.Empty);
+        }
+
+        private FlowDocument BuildResponseDocument(string text)
+        {
+            var doc = new FlowDocument
+            {
+                PagePadding = new Thickness(10),
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 13,
+                TextAlignment = TextAlignment.Left
+            };
+
+            if (string.IsNullOrWhiteSpace(text))
+                return doc;
+
+            var parts = SplitIntoCodeAndTextBlocks(text);
+
+            foreach (var part in parts)
+            {
+                if (part.IsCode)
+                {
+                    if (!string.IsNullOrWhiteSpace(part.Language))
+                    {
+                        doc.Blocks.Add(new Paragraph(new Run(part.Language))
+                        {
+                            Margin = new Thickness(0, 8, 0, 2),
+                            FontSize = 11,
+                            Foreground = Brushes.DimGray,
+                            FontStyle = FontStyles.Italic
+                        });
+                    }
+
+                    var para = new Paragraph
+                    {
+                        Margin = new Thickness(0, 2, 0, 10),
+                        Padding = new Thickness(10),
+                        Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(210, 210, 210)),
+                        BorderThickness = new Thickness(1),
+                        FontFamily = new FontFamily("Consolas")
+                    };
+
+                    para.Inlines.Add(new Run(part.Content));
+                    doc.Blocks.Add(para);
+                }
+                else
+                {
+                    AddMarkdownBlocks(doc, part.Content);
+                }
+            }
+
+            return doc;
+        }
+        private sealed class ResponseDocumentPart
+        {
+            public bool IsCode { get; set; }
+            public string Content { get; set; } = string.Empty;
+            public string Language { get; set; } = string.Empty;
+        }
+
+        private List<ResponseDocumentPart> SplitIntoCodeAndTextBlocks(string text)
+        {
+            var result = new List<ResponseDocumentPart>();
+
+            if (string.IsNullOrEmpty(text))
+                return result;
+
+            string pattern = @"```(?<lang>[\w#+-]*)\s*\r?\n(?<code>[\s\S]*?)```";
+            var matches = Regex.Matches(text, pattern);
+
+            int currentIndex = 0;
+
+            foreach (Match match in matches)
+            {
+                if (match.Index > currentIndex)
+                {
+                    string plain = text.Substring(currentIndex, match.Index - currentIndex);
+                    if (!string.IsNullOrWhiteSpace(plain))
+                    {
+                        result.Add(new ResponseDocumentPart
+                        {
+                            IsCode = false,
+                            Content = plain.Trim()
+                        });
+                    }
+                }
+
+                result.Add(new ResponseDocumentPart
+                {
+                    IsCode = true,
+                    Language = match.Groups["lang"].Value?.Trim() ?? string.Empty,
+                    Content = match.Groups["code"].Value.TrimEnd()
+                });
+
+                currentIndex = match.Index + match.Length;
+            }
+
+            if (currentIndex < text.Length)
+            {
+                string tail = text.Substring(currentIndex);
+                if (!string.IsNullOrWhiteSpace(tail))
+                {
+                    result.Add(new ResponseDocumentPart
+                    {
+                        IsCode = false,
+                        Content = tail.Trim()
+                    });
+                }
+            }
+
+            if (result.Count == 0)
+            {
+                result.Add(new ResponseDocumentPart
+                {
+                    IsCode = false,
+                    Content = text
+                });
+            }
+
+            return result;
+        }
+        private void AddMarkdownBlocks(FlowDocument doc, string text)
+        {
+            string[] lines = (text ?? string.Empty)
+                .Replace("\r\n", "\n")
+                .Split('\n');
+
+            int i = 0;
+
+            while (i < lines.Length)
+            {
+                string line = lines[i];
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    i++;
+                    continue;
+                }
+
+                Match headingMatch = Regex.Match(line, @"^(#{1,6})\s+(.*)$");
+                if (headingMatch.Success)
+                {
+                    int level = headingMatch.Groups[1].Value.Length;
+                    string headingText = headingMatch.Groups[2].Value.Trim();
+                    doc.Blocks.Add(CreateHeadingParagraph(headingText, level));
+                    i++;
+                    continue;
+                }
+
+                if (Regex.IsMatch(line, @"^\s*>\s+"))
+                {
+                    var quoteLines = new List<string>();
+
+                    while (i < lines.Length && Regex.IsMatch(lines[i], @"^\s*>\s+"))
+                    {
+                        quoteLines.Add(Regex.Replace(lines[i], @"^\s*>\s+", "").Trim());
+                        i++;
+                    }
+
+                    doc.Blocks.Add(CreateBlockQuoteParagraph(string.Join(" ", quoteLines)));
+                    continue;
+                }
+
+                if (Regex.IsMatch(line, @"^\s*[-*]\s+"))
+                {
+                    var items = new List<string>();
+
+                    while (i < lines.Length && Regex.IsMatch(lines[i], @"^\s*[-*]\s+"))
+                    {
+                        items.Add(Regex.Replace(lines[i], @"^\s*[-*]\s+", "").Trim());
+                        i++;
+                    }
+
+                    doc.Blocks.Add(CreateMarkdownList(items, ordered: false));
+                    continue;
+                }
+
+                if (Regex.IsMatch(line, @"^\s*\d+\.\s+"))
+                {
+                    var items = new List<string>();
+
+                    while (i < lines.Length && Regex.IsMatch(lines[i], @"^\s*\d+\.\s+"))
+                    {
+                        items.Add(Regex.Replace(lines[i], @"^\s*\d+\.\s+", "").Trim());
+                        i++;
+                    }
+
+                    doc.Blocks.Add(CreateMarkdownList(items, ordered: true));
+                    continue;
+                }
+
+                var paragraphLines = new List<string>();
+
+                while (i < lines.Length &&
+                       !string.IsNullOrWhiteSpace(lines[i]) &&
+                       !Regex.IsMatch(lines[i], @"^(#{1,6})\s+") &&
+                       !Regex.IsMatch(lines[i], @"^\s*>\s+") &&
+                       !Regex.IsMatch(lines[i], @"^\s*[-*]\s+") &&
+                       !Regex.IsMatch(lines[i], @"^\s*\d+\.\s+"))
+                {
+                    paragraphLines.Add(lines[i].Trim());
+                    i++;
+                }
+
+                string paragraphText = string.Join(" ", paragraphLines).Trim();
+                if (!string.IsNullOrWhiteSpace(paragraphText))
+                {
+                    doc.Blocks.Add(CreateNormalParagraph(paragraphText));
+                }
+            }
+        }
+
+        private Paragraph CreateHeadingParagraph(string text, int level)
+        {
+            double size = level switch
+            {
+                1 => 24,
+                2 => 20,
+                3 => 17,
+                4 => 15,
+                _ => 14
+            };
+
+            var para = new Paragraph
+            {
+                Margin = new Thickness(0, 10, 0, 6),
+                FontSize = size,
+                FontWeight = FontWeights.Bold
+            };
+
+            AddInlineMarkdown(para, text);
+            return para;
+        }
+
+        private Paragraph CreateNormalParagraph(string text)
+        {
+            var para = new Paragraph
+            {
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            AddInlineMarkdown(para, text);
+            return para;
+        }
+
+        private Paragraph CreateBlockQuoteParagraph(string text)
+        {
+            var para = new Paragraph
+            {
+                Margin = new Thickness(8, 4, 0, 8),
+                Padding = new Thickness(8, 4, 4, 4),
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(3, 0, 0, 0),
+                Foreground = Brushes.DimGray,
+                FontStyle = FontStyles.Italic
+            };
+
+            AddInlineMarkdown(para, text);
+            return para;
+        }
+
+        private System.Windows.Documents.List CreateMarkdownList(IEnumerable<string> items, bool ordered)
+        {
+            var list = new System.Windows.Documents.List
+            {
+                Margin = new Thickness(20, 0, 0, 8),
+                MarkerStyle = ordered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc
+            };
+
+            foreach (string item in items)
+            {
+                var para = new Paragraph
+                {
+                    Margin = new Thickness(0)
+                };
+
+                AddInlineMarkdown(para, item);
+
+                list.ListItems.Add(new ListItem(para));
+            }
+
+            return list;
+        }
+
+        private void AddInlineMarkdown(Paragraph paragraph, string text)
+        {
+            if (paragraph == null)
+                return;
+
+            text ??= string.Empty;
+
+            string pattern = @"(\*\*[^*]+\*\*|`[^`]+`|\[(?<label>[^\]]+)\]\((?<url>https?://[^)]+)\))";
+            var matches = Regex.Matches(text, pattern);
+
+            int currentIndex = 0;
+
+            foreach (Match match in matches)
+            {
+                if (match.Index > currentIndex)
+                {
+                    string plain = text.Substring(currentIndex, match.Index - currentIndex);
+                    paragraph.Inlines.Add(new Run(plain));
+                }
+
+                string token = match.Value;
+
+                if (token.StartsWith("**") && token.EndsWith("**"))
+                {
+                    string boldText = token.Substring(2, token.Length - 4);
+                    paragraph.Inlines.Add(new Bold(new Run(boldText)));
+                }
+                else if (token.StartsWith("`") && token.EndsWith("`"))
+                {
+                    string codeText = token.Substring(1, token.Length - 2);
+                    var run = new Run(codeText)
+                    {
+                        FontFamily = new FontFamily("Consolas"),
+                        Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                        Foreground = Brushes.DarkSlateBlue
+                    };
+                    paragraph.Inlines.Add(run);
+                }
+                else if (match.Groups["label"].Success && match.Groups["url"].Success)
+                {
+                    string label = match.Groups["label"].Value;
+                    string url = match.Groups["url"].Value;
+
+                    var link = new Hyperlink(new Run(label))
+                    {
+                        NavigateUri = new Uri(url),
+                        ToolTip = "Ctrl+Click to open link"
+                    };
+
+                    link.Click += (_, __) =>
+                    {
+                        if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+                        {
+                            StatusText.Text = "Hold Ctrl while clicking to open links.";
+                            return;
+                        }
+
+                        try
+                        {
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = url,
+                                UseShellExecute = true
+                            });
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    };
+
+                    paragraph.Inlines.Add(link);
+                }
+                else
+                {
+                    paragraph.Inlines.Add(new Run(token));
+                }
+
+                currentIndex = match.Index + match.Length;
+            }
+
+            if (currentIndex < text.Length)
+            {
+                string tail = text.Substring(currentIndex);
+                paragraph.Inlines.Add(new Run(tail));
+            }
+        }
+        private IEnumerable<string> SplitPlainTextIntoParagraphs(string text)
+        {
+            return (text ?? string.Empty)
+                .Replace("\r\n", "\n")
+                .Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrWhiteSpace(p));
+        }
+        private void ResponsesRichTextContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            string selectedText = new TextRange(
+                rtbResponsesResponse.Selection.Start,
+                rtbResponsesResponse.Selection.End).Text;
+
+            miResponsesCopySelection.IsEnabled = !string.IsNullOrWhiteSpace(selectedText);
+            miResponsesCopyAll.IsEnabled = rtbResponsesResponse.Document != null;
+            miResponsesCopyMarkdown.IsEnabled = !string.IsNullOrWhiteSpace(ResponsesState.ResponseText);
+
+            Paragraph currentParagraph = GetCurrentParagraphFromRichTextBox(rtbResponsesResponse);
+            bool hasCurrentBlock = currentParagraph != null;
+            bool isCodeBlock = hasCurrentBlock && IsCodeParagraph(currentParagraph);
+
+            miResponsesCopyCurrentBlock.IsEnabled = hasCurrentBlock;
+            miResponsesCopyCurrentCodeBlock.IsEnabled = isCodeBlock;
+        }
+
+        private void miResponsesCopySelection_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedText = new TextRange(
+                rtbResponsesResponse.Selection.Start,
+                rtbResponsesResponse.Selection.End).Text?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(selectedText))
+                Clipboard.SetText(selectedText);
+        }
+
+        private void miResponsesCopyAll_Click(object sender, RoutedEventArgs e)
+        {
+            string allText = new TextRange(
+                rtbResponsesResponse.Document.ContentStart,
+                rtbResponsesResponse.Document.ContentEnd).Text?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(allText))
+                Clipboard.SetText(allText);
+        }
+
+        private void miResponsesCopyCurrentBlock_Click(object sender, RoutedEventArgs e)
+        {
+            Paragraph paragraph = GetCurrentParagraphFromRichTextBox(rtbResponsesResponse);
+            if (paragraph == null)
+                return;
+
+            string text = new TextRange(paragraph.ContentStart, paragraph.ContentEnd).Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(text))
+                Clipboard.SetText(text);
+        }
+
+        private void miResponsesCopyCurrentCodeBlock_Click(object sender, RoutedEventArgs e)
+        {
+            Paragraph paragraph = GetCurrentParagraphFromRichTextBox(rtbResponsesResponse);
+            if (paragraph == null || !IsCodeParagraph(paragraph))
+                return;
+
+            string text = new TextRange(paragraph.ContentStart, paragraph.ContentEnd).Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(text))
+                Clipboard.SetText(text);
+        }
+        private Paragraph GetCurrentParagraphFromRichTextBox(RichTextBox richTextBox)
+        {
+            if (richTextBox?.CaretPosition == null)
+                return null;
+
+            DependencyObject current = richTextBox.CaretPosition.Parent;
+
+            while (current != null)
+            {
+                if (current is Paragraph paragraph)
+                    return paragraph;
+
+                current = LogicalTreeHelper.GetParent(current);
+            }
+
+            return null;
+        }
+
+        private bool IsCodeParagraph(Paragraph paragraph)
+        {
+            if (paragraph == null)
+                return false;
+
+            string fontFamily = paragraph.FontFamily?.Source ?? string.Empty;
+
+            bool looksLikeCodeFont =
+                fontFamily.IndexOf("Consolas", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                fontFamily.IndexOf("Courier", StringComparison.OrdinalIgnoreCase) >= 0;
+
+            bool hasCodeBackground = paragraph.Background != null;
+
+            return looksLikeCodeFont || hasCodeBackground;
+        }
+        private void miResponsesCopyMarkdown_Click(object sender, RoutedEventArgs e)
+        {
+            string markdown = ResponsesState.ResponseText?.Trim();
+            if (!string.IsNullOrWhiteSpace(markdown))
+                Clipboard.SetText(markdown);
+        }
+        private void rtbResponsesResponse_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.A)
+            {
+                rtbResponsesResponse.SelectAll();
+                e.Handled = true;
+                return;
+            }
+
+            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.C)
+            {
+                string selectedText = new TextRange(
+                    rtbResponsesResponse.Selection.Start,
+                    rtbResponsesResponse.Selection.End).Text?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(selectedText))
+                {
+                    Clipboard.SetText(selectedText);
+                }
+                else
+                {
+                    string allText = new TextRange(
+                        rtbResponsesResponse.Document.ContentStart,
+                        rtbResponsesResponse.Document.ContentEnd).Text?.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(allText))
+                        Clipboard.SetText(allText);
+                }
+
+                e.Handled = true;
+            }
         }
     }
 }

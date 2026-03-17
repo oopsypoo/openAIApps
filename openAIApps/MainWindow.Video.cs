@@ -144,13 +144,19 @@ namespace openAIApps
         private void ShowVideoPreviewForLibraryItem(VideoListItem selectedVideo)
         {
             if (selectedVideo == null)
+            {
+                imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
                 return;
+            }
 
             string videosDir = _settings.VideosFolder;
             string localFilePath = Path.Combine(videosDir, selectedVideo.Id + ".mp4");
 
             if (!File.Exists(localFilePath))
+            {
+                imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
                 return;
+            }
 
             try
             {
@@ -160,20 +166,10 @@ namespace openAIApps
             catch (Exception ex)
             {
                 Debug.WriteLine($"Preview failed: {ex.Message}");
+                imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
             }
         }
-        private void cmbModelChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
-        private void cmbVideoLengthChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
-        private void cmbVideoSizeChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
+        
         private async Task HandleVideoJobAsync(VideoClient.ResponseVideo jobResponse, int sessionId, int assistantMsgId)
         {
             // Update the UI listbox
@@ -204,7 +200,7 @@ namespace openAIApps
             if (finalStatus != null && finalStatus.Status == "completed")
             {
                 string localFilePath = Path.Combine(_settings.VideosFolder, jobResponse.Id + ".mp4");
-                await _historyService.LinkMediaAsync(assistantMsgId, localFilePath, "video/mp4");
+                //await _historyService.LinkMediaAsync(assistantMsgId, localFilePath, "video/mp4");
                 StatusText.Text = "Video Ready.";
             }
             else if (finalStatus?.Error != null)
@@ -397,8 +393,6 @@ namespace openAIApps
                         item.HasError = string.Equals(item.Status, "failed", StringComparison.OrdinalIgnoreCase);
                         _videoHistory.Add(item);
                     }
-
-                    lstVideoFiles.ItemsSource = _videoHistory;
                 }
             }
             catch (Exception ex)
@@ -410,7 +404,7 @@ namespace openAIApps
 
         private async void btnDownloadVideo_Click(object sender, RoutedEventArgs e)
         {
-            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            if (VideoState.SelectedLibraryVideo is not VideoListItem selectedVideo)
             {
                 MessageBox.Show("Please select a video to download.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
@@ -438,6 +432,12 @@ namespace openAIApps
                 MessageBox.Show($"Video {videoId} downloaded successfully.", "Download Complete", MessageBoxButton.OK, MessageBoxImage.Information);
                 //update list(item color) to green
                 selectedVideo.IsDownloaded = true;
+                var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
+                if (message != null)
+                {
+                    string localFilePath = Path.Combine(_settings.VideosFolder, $"{selectedVideo.Id}.mp4");
+                    await _historyService.LinkMediaAsync(message.Id, localFilePath, "video/mp4");
+                }
             }
             else
             {
@@ -449,7 +449,7 @@ namespace openAIApps
 
         private async void btnDeleteVideo_Click(object sender, RoutedEventArgs e)
         {
-            if (lstVideoFiles.SelectedItem is not VideoClient.VideoListItem selectedVideo) return;
+            if (VideoState.SelectedLibraryVideo is not VideoClient.VideoListItem selectedVideo) return;
 
             // Ask once, and be specific
             var confirm = MessageBox.Show(
@@ -484,7 +484,7 @@ namespace openAIApps
 
         private async void btnGetStatus_Click(object sender, RoutedEventArgs e)
         {
-            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            if (VideoState.SelectedLibraryVideo is not VideoListItem selectedVideo)
             {
                 MessageBox.Show("Please select a video first.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -522,7 +522,7 @@ namespace openAIApps
         }
         private void btnPlayVideo_Click(object sender, RoutedEventArgs e)
         {
-            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            if (VideoState.SelectedLibraryVideo is not VideoListItem selectedVideo)
             {
                 MessageBox.Show("Please select a video first.", "No Selection",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -576,7 +576,7 @@ namespace openAIApps
 
         private async void lstVideoFiles_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (lstVideoFiles.SelectedItem is not VideoListItem selectedVideo)
+            if (VideoState.SelectedLibraryVideo is not VideoListItem selectedVideo)
                 return;
 
             ShowVideoPreviewForLibraryItem(selectedVideo);

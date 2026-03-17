@@ -234,10 +234,18 @@ namespace openAIApps
 
             if (!response.IsSuccessStatusCode)
             {
-                // Instead of throwing, return the response so you can show in UI
-                return new ResponseVideo
+                var errorResult = JsonSerializer.Deserialize<ResponseVideo>(
+                    responseJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                return errorResult ?? new ResponseVideo
                 {
-                    Status = $"Error {response.StatusCode}: {responseJson}"
+                    Error = new VideoError
+                    {
+                        Code = ((int)response.StatusCode).ToString(),
+                        Message = responseJson
+                    },
+                    Status = "failed"
                 };
             }
 

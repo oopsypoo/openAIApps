@@ -57,6 +57,8 @@ namespace openAIApps.Data
 
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => m.RemoteId);
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => m.SourceRemoteId);
 
             modelBuilder.Entity<MediaFile>()
                 .HasIndex(mf => mf.ChatMessageId);
@@ -95,6 +97,8 @@ namespace openAIApps.Data
 
             db.Database.ExecuteSqlRaw(
                 "CREATE INDEX IF NOT EXISTS IX_Messages_RemoteId ON Messages (RemoteId);");
+            db.Database.ExecuteSqlRaw(
+                "CREATE INDEX IF NOT EXISTS IX_Messages_SourceRemoteId ON Messages (SourceRemoteId);");
 
             db.Database.ExecuteSqlRaw(
                 "CREATE INDEX IF NOT EXISTS IX_Media_ChatMessageId ON Media (ChatMessageId);");

@@ -1,4 +1,16 @@
 # openAIApps
+**2026-03-15** Refactored WPF UI and session state management
+ - Continued the WPF refactor using an MVVM-lite approach: introduced bindable panel-state objects instead of doing a full MVVM rewrite.
+ - Logs tab now uses `LogsPanelState` for filter/search state, with XAML bindings and centralized filtering.
+ - Responses tab now uses `ResponsesPanelState` for prompt/response/selected turn plus options state (model, reasoning, tools, search/image settings).
+ - Responses session restore was improved so logs reload conversation content and latest saved settings consistently.
+ - Responses history list now shows per-turn metadata (model/reasoning/tools) for better traceability.
+ - Video tab was reworked toward job-based sessions instead of pseudo-conversation sessions.
+ - Added `VideoPanelState` and `CurrentVideoMessages` to separate job/session state from the global video library list.
+ - Video generation/remix now always creates a new session; remix lineage is stored via `SourceRemoteId`.
+ - Database/history layer was updated to support `SourceRemoteId`, including SQLite schema patching for existing databases.
+ - General cleanup: reduced direct control manipulation, improved tab/session restore behavior, and kept code-behind focused on orchestration rather than raw UI state.
+ - 
 **2025-11-12 1745** Added Video
  - Haven't worked on this project for a while so I made use of OpenAi. Very efficient...
  - Videocreation tool by OpenAI. Using the basic calls, ++ reference image. I does the job

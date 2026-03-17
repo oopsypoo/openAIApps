@@ -142,6 +142,7 @@ namespace openAIApps
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             await InitResponsesControlsAsync();
+            UpdateResponsesResponseDocument(ResponsesState.ResponseText);
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             LoadInitialLogs();
         }
@@ -156,6 +157,12 @@ namespace openAIApps
 
         private void ResponsesState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(ResponsesPanelState.ResponseText))
+            {
+                UpdateResponsesResponseDocument(ResponsesState.ResponseText);
+                return;
+            }
+
             if (_responsesClient == null || _isApplyingResponsesSettings)
                 return;
 
