@@ -52,6 +52,10 @@ namespace openAIApps
 
             // 2. Serialize and Send
             var json = JsonSerializer.Serialize(request, options);
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine("Responses request JSON:");
+            System.Diagnostics.Debug.WriteLine(json);
+#endif
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             //using var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
             var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
@@ -479,7 +483,7 @@ namespace openAIApps
 
 
         // In Responses.cs
-
+        /*
         public async Task<ResponsesResult> GetResponseAsync(string prompt, string imagePath)
         {
             var request = BuildRequestWithImage(prompt, imagePath);
@@ -592,6 +596,6 @@ namespace openAIApps
             }
 
             return request;
-        }
+        }*/
     }
 }

@@ -400,6 +400,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <Label Grid.Column="0" Margin="2,0,2,2">
@@ -407,40 +408,98 @@
                                 </Label>
 
                                 <Button Grid.Column="1"
-                                        x:Name="btnResponsesAttachImage"
+                                        x:Name="btnResponsesAttachFiles"
                                         Margin="4,0,0,0"
-                                        Content="Attach image"
-                                        Click="btnResponsesAttachImage_Click"/>
+                                        Content="Attach files"
+                                        Click="btnResponsesAttachFiles_Click"/>
+
+                                <Button Grid.Column="2"
+                                        x:Name="btnResponsesClearAttachments"
+                                        Margin="4,0,0,0"
+                                        Content="Clear all"
+                                        Click="btnResponsesClearAttachments_Click"/>
                             </Grid>
 
                             <!-- 2) Prompt + image preview row -->
                             <Grid Grid.Row="1">
                                 <Grid.ColumnDefinitions>
-                                    <!-- Start at full width; will be changed in code -->
                                     <ColumnDefinition x:Name="colResponsesPrompt" Width="*" />
                                     <ColumnDefinition x:Name="colResponsesImage" Width="0" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Prompt textbox -->
-                                <TextBox Grid.Column="0"
-                                         Style="{StaticResource TextBoxRequest}"
-                                         x:Name="txtResponsesPrompt"
-                                         Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <!-- Left side: prompt + pending attachments -->
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-                                <!-- Image preview area -->
+                                    <TextBox Grid.Row="0"
+                                             Style="{StaticResource TextBoxRequest}"
+                                             x:Name="txtResponsesPrompt"
+                                             Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                    <Border Grid.Row="1"
+                                            x:Name="borderResponsesAttachments"
+                                            Margin="0,4,0,0"
+                                            Padding="4"
+                                            BorderBrush="DarkGray"
+                                            BorderThickness="1"
+                                            Background="#FFF8F8F8"
+                                            Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock Text="Attached files"
+                                                       FontStyle="Italic"
+                                                       Margin="0,0,0,4"/>
+
+                                            <ListBox x:Name="lstResponsesPendingAttachments"
+                                                     MaxHeight="120"
+                                                     ItemsSource="{Binding PendingResponseAttachments, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                     SelectionChanged="lstResponsesPendingAttachments_SelectionChanged">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <DockPanel Margin="0,2">
+                                                            <StackPanel DockPanel.Dock="Right"
+                                                                        Orientation="Horizontal">
+                                                            <Button Content="Open"
+                                                                    Margin="4,0,0,0"
+                                                                    Padding="8,2"
+                                                                    Click="btnResponsesOpenPendingAttachment_Click"/>
+                                                                <Button Content="Remove"
+                                                                        Margin="4,0,0,0"
+                                                                        Padding="8,2"
+                                                                        Click="btnResponsesRemovePendingAttachment_Click"/>
+                                                            </StackPanel>
+
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding FileName, Mode=OneWay}"
+                                                                           FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding MediaType}"
+                                                                           FontSize="10"
+                                                                           Foreground="DimGray"/>
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Right side: image preview only -->
                                 <Border Grid.Column="1"
-                                    x:Name="borderResponsesImage"
-                                    Margin="4,0,0,0"
-                                    BorderBrush="DarkGray"
-                                    BorderThickness="1"
-                                    Background="#FFF8F8F8"
-                                    Visibility="Collapsed">
+                                        x:Name="borderResponsesImage"
+                                        Margin="4,0,0,0"
+                                        BorderBrush="DarkGray"
+                                        BorderThickness="1"
+                                        Background="#FFF8F8F8"
+                                        Visibility="Collapsed">
                                     <StackPanel Orientation="Vertical" Margin="4">
                                         <Label Content="Image Preview" FontStyle="Italic" />
                                         <Image x:Name="imgResponsesPreview"
-                                           Stretch="Uniform"
-                                           MaxHeight="200"
-                                           MouseLeftButtonDown="imgResponsesPreview_MouseLeftButtonDown">
+                                               Stretch="Uniform"
+                                               MaxHeight="220"
+                                               MouseLeftButtonDown="imgResponsesPreview_MouseLeftButtonDown">
                                             <Image.ContextMenu>
                                                 <ContextMenu x:Name="ctxImagePreview">
                                                     <MenuItem Header="Open" Click="MenuItemImageOpen_Click"/>
@@ -449,11 +508,6 @@
                                                 </ContextMenu>
                                             </Image.ContextMenu>
                                         </Image>
-
-                                        <Button x:Name="btnResponsesRemoveImage"
-                                                Content="Remove image"
-                                                Margin="0,4,0,0"
-                                                Click="btnResponsesRemoveImage_Click"/>
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -604,7 +658,20 @@
 
                                             <TextBlock Text="{Binding Content}"
                                                        TextWrapping="Wrap"/>
-
+                                            <ItemsControl ItemsSource="{Binding MediaFiles}" Margin="0,4,0,0">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock FontSize="10"
+                                                                Foreground="SlateGray"
+                                                                TextWrapping="Wrap">
+                                                                <Run Text="📎 "/>
+                                                                <Run Text="{Binding FileName, Mode=OneWay}"/>
+                                                                <Run Text="  "/>
+                                                                <Run Text="{Binding MediaType}"/>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                             <TextBlock FontSize="10"
                                                        Foreground="DimGray"
                                                        TextWrapping="Wrap">
@@ -614,6 +681,7 @@
                                                         <Run Text="{Binding ReasoningLevel}"/>
                                                         <Run Text=" | Tools: "/>
                                                         <Run Text="{Binding ActiveTools}"/>
+                                                         
                                             </TextBlock>
                                         </StackPanel>
                                     </DataTemplate>

@@ -126,19 +126,33 @@ namespace openAIApps.Services
         }
         public string ImportUserImage(string sourceFilePath)
         {
+            return ImportUserFile(sourceFilePath);
+        }
+        private static string MakeSafeFileName(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                return "attachment.bin";
+
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(c, '_');
+            }
+
+            return fileName;
+        }
+
+        public string ImportUserFile(string sourceFilePath)
+        {
             if (string.IsNullOrWhiteSpace(sourceFilePath) || !File.Exists(sourceFilePath))
                 return null;
 
             try
             {
                 string folder = EnsureImagesFolder();
-                string extension = Path.GetExtension(sourceFilePath);
-
-                if (string.IsNullOrWhiteSpace(extension))
-                    extension = ".png";
-
-                string fileName = $"user_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}_{Guid.NewGuid():N}{extension}";
-                string destinationPath = Path.Combine(folder, fileName);
+                string originalName = MakeSafeFileName(Path.GetFileName(sourceFilePath));
+                string destinationPath = Path.Combine(
+                    folder,
+                    $"user_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}_{originalName}");
 
                 File.Copy(sourceFilePath, destinationPath, overwrite: false);
                 return destinationPath;

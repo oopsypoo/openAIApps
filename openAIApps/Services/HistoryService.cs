@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using openAIApps;
+using System.IO;
 
 namespace openAIApps.Services
 {
@@ -150,17 +151,40 @@ namespace openAIApps.Services
                     });
                 }
 
-                foreach (var media in message.MediaFiles.Where(m => !string.IsNullOrWhiteSpace(m.LocalPath)))
+                foreach (var media in message.MediaFiles.Where(m =>
+                             !string.IsNullOrWhiteSpace(m.LocalPath) &&
+                             File.Exists(m.LocalPath)))
                 {
-                    string dataUrl = ImageInputHelper.ToDataUrl(media.LocalPath);
-
-                    if (!string.IsNullOrWhiteSpace(dataUrl))
+                    if (FileInputHelper.IsImageMimeType(media.MediaType))
                     {
-                        contentParts.Add(new
+                        string dataUrl = ImageInputHelper.ToDataUrl(media.LocalPath);
+
+                        if (!string.IsNullOrWhiteSpace(dataUrl))
                         {
-                            type = "input_image",
-                            image_url = dataUrl
-                        });
+                            contentParts.Add(new
+                            {
+                                type = "input_image",
+                                image_url = dataUrl
+                            });
+                        }
+                    }
+                    else
+                    {
+                        string mimeType = !string.IsNullOrWhiteSpace(media.MediaType)
+                            ? media.MediaType
+                            : FileInputHelper.GetMimeType(media.LocalPath);
+
+                        string fileData = FileInputHelper.ToDataUrl(media.LocalPath, mimeType);
+
+                        if (!string.IsNullOrWhiteSpace(fileData))
+                        {
+                            contentParts.Add(new
+                            {
+                                type = "input_file",
+                                filename = Path.GetFileName(media.LocalPath),
+                                file_data = fileData
+                            });
+                        }
                     }
                 }
 

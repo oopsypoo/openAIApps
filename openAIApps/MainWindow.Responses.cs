@@ -156,9 +156,21 @@ namespace openAIApps
             return ResponsesState.SelectedTurn;
         }
 
-        private string GetPrimaryMediaPath(ChatMessage message)
+        private string GetPrimaryAttachmentPath(ChatMessage message)
         {
-            return message?.MediaFiles?.FirstOrDefault()?.LocalPath;
+            return message?.MediaFiles?
+                .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m.LocalPath))
+                ?.LocalPath;
+        }
+
+        private string GetPrimaryImagePath(ChatMessage message)
+        {
+            return message?.MediaFiles?
+                .FirstOrDefault(m =>
+                    !string.IsNullOrWhiteSpace(m.LocalPath) &&
+                    !string.IsNullOrWhiteSpace(m.MediaType) &&
+                    m.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                ?.LocalPath;
         }
 
         private void ShowResponsesImagePreview(string path)
@@ -199,7 +211,9 @@ namespace openAIApps
         {
             if (sessionId <= 0)
                 return;
-
+            
+            PendingResponseAttachments.Clear();
+            UpdatePendingAttachmentsPanel();
             var history = await _historyService.GetFullSessionHistoryAsync(sessionId);
 
             ReplaceCurrentChatMessages(history);
@@ -255,9 +269,103 @@ namespace openAIApps
             if (_responsesClient != null)
                 _responsesClient.ClearConversation();
         }
+        private void UpdatePendingAttachmentsPanel()
+        {
+            if (borderResponsesAttachments != null)
+            {
+                borderResponsesAttachments.Visibility =
+                    PendingResponseAttachments.Count > 0
+                        ? Visibility.Visible
+                        : Visibility.Collapsed;
+            }
+        }
+
+        private void AddPendingResponseAttachments(IEnumerable<string> filePaths)
+        {
+            if (filePaths == null)
+                return;
+
+            ResponseAttachmentItem lastAddedImage = null;
+
+            foreach (string filePath in filePaths)
+            {
+                if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+                    continue;
+
+                bool alreadyExists = PendingResponseAttachments.Any(a =>
+                    string.Equals(a.LocalPath, filePath, StringComparison.OrdinalIgnoreCase));
+
+                if (alreadyExists)
+                    continue;
+
+                var item = new ResponseAttachmentItem
+                {
+                    LocalPath = filePath,
+                    MediaType = FileInputHelper.GetMimeType(filePath)
+                };
+
+                PendingResponseAttachments.Add(item);
+
+                if (item.IsImage)
+                    lastAddedImage = item;
+            }
+
+            UpdatePendingAttachmentsPanel();
+
+            if (lastAddedImage != null)
+            {
+                ShowResponsesImagePreview(lastAddedImage.LocalPath);
+            }
+            else if (PendingResponseAttachments.Count == 0)
+            {
+                HideResponsesImagePreview();
+            }
+        }
+        private void ClearPendingResponseAttachments()
+        {
+            PendingResponseAttachments.Clear();
+            UpdatePendingAttachmentsPanel();
+
+            _responsesImagePath = string.Empty;
+
+            if (ResponsesState.SelectedTurn != null)
+            {
+                string selectedTurnImage = GetPrimaryImagePath(ResponsesState.SelectedTurn);
+                if (!string.IsNullOrWhiteSpace(selectedTurnImage) && File.Exists(selectedTurnImage))
+                    ShowResponsesImagePreview(selectedTurnImage);
+                else
+                    HideResponsesImagePreview();
+            }
+            else
+            {
+                HideResponsesImagePreview();
+            }
+        }
+
+        private void OpenLocalFile(string path, string caption)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return;
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Could not open {caption}:\n{ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
         private string GetCurrentPreviewImagePath()
         {
-            string path = GetPrimaryMediaPath(GetSelectedResponseMessage());
+            string path = GetPrimaryImagePath(GetSelectedResponseMessage());
 
             if (string.IsNullOrWhiteSpace(path))
                 path = _responsesImagePath;
@@ -279,7 +387,7 @@ namespace openAIApps
                 return;
             }
 
-            string path = GetPrimaryMediaPath(message);
+            string path = GetPrimaryImagePath(message);
 
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
@@ -292,11 +400,9 @@ namespace openAIApps
         private async void btnResponsesSendRequestClick(object sender, RoutedEventArgs e)
         {
             string userPrompt = ResponsesState.PromptText ?? string.Empty;
-            bool hasAttachedImage =
-                !string.IsNullOrWhiteSpace(_responsesImagePath) &&
-                File.Exists(_responsesImagePath);
+            bool hasAttachedFiles = PendingResponseAttachments.Count > 0;
 
-            if (string.IsNullOrWhiteSpace(userPrompt) && !hasAttachedImage)
+            if (string.IsNullOrWhiteSpace(userPrompt) && !hasAttachedFiles)
                 return;
 
             this.IsEnabled = false;
@@ -314,7 +420,9 @@ namespace openAIApps
                         .Where(t => !string.IsNullOrWhiteSpace(t))
                         .OrderBy(t => t, StringComparer.OrdinalIgnoreCase));
 
-                string titleSeed = !string.IsNullOrWhiteSpace(userPrompt) ? userPrompt : "[image prompt]";
+                string titleSeed = !string.IsNullOrWhiteSpace(userPrompt)
+                                ? userPrompt
+                                : (PendingResponseAttachments.FirstOrDefault()?.FileName ?? "[attachment prompt]");
                 int sid = await EnsureSessionActiveAsync(EndpointType.Responses, titleSeed);
 
                 int userMsgId = await _historyService.AddMessageAsync(
@@ -328,16 +436,19 @@ namespace openAIApps
                     imgQual: imgQual,
                     searchSize: searchSize);
 
-                if (hasAttachedImage)
+                if (hasAttachedFiles)
                 {
-                    string storedImagePath = _mediaStorageService.ImportUserImage(_responsesImagePath);
-
-                    if (!string.IsNullOrWhiteSpace(storedImagePath))
+                    foreach (var attachment in PendingResponseAttachments.ToList())
                     {
-                        await _historyService.LinkMediaAsync(
-                            userMsgId,
-                            storedImagePath,
-                            ImageInputHelper.GetMimeType(storedImagePath));
+                        string storedPath = _mediaStorageService.ImportUserFile(attachment.LocalPath);
+
+                        if (!string.IsNullOrWhiteSpace(storedPath))
+                        {
+                            await _historyService.LinkMediaAsync(
+                                userMsgId,
+                                storedPath,
+                                attachment.MediaType);
+                        }
                     }
                 }
 
@@ -371,7 +482,7 @@ namespace openAIApps
                         }
                     }
 
-                    _responsesImagePath = string.Empty;
+                    ClearPendingResponseAttachments();
 
                     await RefreshCurrentChatUI(sid);
                 }
@@ -432,7 +543,7 @@ namespace openAIApps
 
             ResponsesState.SelectedTurn = selectedMsg;
 
-            string path = GetPrimaryMediaPath(selectedMsg);
+            string path = GetPrimaryImagePath(selectedMsg);
 
             if (string.Equals(selectedMsg.Role, "user", StringComparison.OrdinalIgnoreCase))
             {
@@ -485,7 +596,7 @@ namespace openAIApps
             if (lstResponsesTurns.SelectedItem is not ChatMessage message)
                 return;
 
-            string path = GetPrimaryMediaPath(message);
+            string path = GetPrimaryAttachmentPath(message);
 
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return;
@@ -1295,6 +1406,70 @@ namespace openAIApps
 
                 e.Handled = true;
             }
+        }
+        private void btnResponsesAttachFiles_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Select files for this message",
+                Multiselect = true,
+                CheckFileExists = true,
+                InitialDirectory = savepath_images,
+                Filter =
+                    "Common Files|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp;*.pdf;*.txt;*.md;*.csv;*.json;*.xml;*.cs;*.docx;*.xlsx|" +
+                    "Image Files|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|" +
+                    "Document Files|*.pdf;*.txt;*.md;*.csv;*.json;*.xml;*.docx;*.xlsx;*.cs|" +
+                    "All Files|*.*"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                AddPendingResponseAttachments(dlg.FileNames);
+            }
+        }
+
+        private void btnResponsesClearAttachments_Click(object sender, RoutedEventArgs e)
+        {
+            ClearPendingResponseAttachments();
+        }
+
+        private void btnResponsesRemovePendingAttachment_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is not ResponseAttachmentItem item)
+                return;
+
+            PendingResponseAttachments.Remove(item);
+            UpdatePendingAttachmentsPanel();
+
+            if (string.Equals(_responsesImagePath, item.LocalPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var nextImage = PendingResponseAttachments.FirstOrDefault(a => a.IsImage && File.Exists(a.LocalPath));
+                if (nextImage != null)
+                    ShowResponsesImagePreview(nextImage.LocalPath);
+                else
+                    HideResponsesImagePreview();
+            }
+            else if (PendingResponseAttachments.Count == 0)
+            {
+                HideResponsesImagePreview();
+            }
+        }
+
+        private void btnResponsesOpenPendingAttachment_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is not ResponseAttachmentItem item)
+                return;
+
+            OpenLocalFile(item.LocalPath, "attachment");
+        }
+
+        private void lstResponsesPendingAttachments_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstResponsesPendingAttachments.SelectedItem is not ResponseAttachmentItem item)
+                return;
+
+            if (item.IsImage && File.Exists(item.LocalPath))
+                ShowResponsesImagePreview(item.LocalPath);
         }
     }
 }

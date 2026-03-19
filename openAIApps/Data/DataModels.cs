@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.IO;
 
 namespace openAIApps.Data
 {
@@ -87,7 +89,6 @@ namespace openAIApps.Data
         {
         }
 
-        // Keep constructor for compatibility with existing code style.
         public MediaFile(int chatMessageId, string localPath, string mediaType)
         {
             ChatMessageId = chatMessageId;
@@ -105,5 +106,13 @@ namespace openAIApps.Data
         public string MediaType { get; set; } = string.Empty;
 
         public virtual ChatMessage ChatMessage { get; set; }
+
+        [NotMapped]
+        public string FileName => Path.GetFileName(LocalPath ?? string.Empty);
+
+        [NotMapped]
+        public bool IsImage =>
+            !string.IsNullOrWhiteSpace(MediaType) &&
+            MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
     }
 }
