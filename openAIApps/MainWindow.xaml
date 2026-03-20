@@ -494,11 +494,31 @@
                                         BorderThickness="1"
                                         Background="#FFF8F8F8"
                                         Visibility="Collapsed">
-                                    <StackPanel Orientation="Vertical" Margin="4">
-                                        <Label Content="Image Preview" FontStyle="Italic" />
-                                        <Image x:Name="imgResponsesPreview"
+                                    <Grid Margin="4">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="120"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Label Grid.Row="0"
+                                               Content="Image Preview"
+                                               FontStyle="Italic" />
+
+                                        <TextBlock Grid.Row="1"
+                                                   x:Name="txtResponsesPreviewInfo"
+                                                   Margin="0,0,0,4"
+                                                   FontSize="10"
+                                                   Foreground="DimGray"
+                                                   HorizontalAlignment="Right"
+                                                   TextWrapping="NoWrap" />
+
+                                        <Image Grid.Row="2"
+                                               x:Name="imgResponsesPreview"
                                                Stretch="Uniform"
-                                               MaxHeight="220"
+                                               MaxHeight="250"
                                                MouseLeftButtonDown="imgResponsesPreview_MouseLeftButtonDown">
                                             <Image.ContextMenu>
                                                 <ContextMenu x:Name="ctxImagePreview">
@@ -508,7 +528,32 @@
                                                 </ContextMenu>
                                             </Image.ContextMenu>
                                         </Image>
-                                    </StackPanel>
+
+                                        <TextBlock Grid.Row="3"
+                                                   Margin="0,8,0,4"
+                                                   Text="Images in selected turn"
+                                                   FontStyle="Italic"
+                                                   Foreground="DimGray" />
+
+                                        <ListBox Grid.Row="4"
+                                                 x:Name="lstResponsesImages"
+                                                 ItemsSource="{Binding ResponsePreviewImages, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                 SelectionChanged="lstResponsesImages_SelectionChanged">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="4,2">
+                                                        <TextBlock Text="{Binding FileName, Mode=OneWay}"
+                                                                   FontWeight="SemiBold"
+                                                                   TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding MediaType, Mode=OneWay}"
+                                                                   FontSize="10"
+                                                                   Foreground="DimGray"
+                                                                   TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
                                 </Border>
                             </Grid>
 

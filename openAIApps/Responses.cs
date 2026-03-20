@@ -362,8 +362,12 @@ namespace openAIApps
             [JsonPropertyName("tool_choice")]
             public object ToolChoice { get; set; }
 
+            [JsonPropertyName("parallel_tool_calls")]
+            public bool ParallelToolCalls { get; set; } = true;
+
             [JsonPropertyName("reasoning")]
             public ReasoningConfig Reasoning { get; set; }
+
             [JsonPropertyName("store")]
             public bool Store { get; set; } = false;
             [JsonPropertyName("instructions")]

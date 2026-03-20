@@ -163,14 +163,28 @@ namespace openAIApps
                 ?.LocalPath;
         }
 
+        private static bool IsImageMediaFile(MediaFile media)
+        {
+            return media != null &&
+                   !string.IsNullOrWhiteSpace(media.LocalPath) &&
+                   File.Exists(media.LocalPath) &&
+                   !string.IsNullOrWhiteSpace(media.MediaType) &&
+                   media.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        }
+
         private string GetPrimaryImagePath(ChatMessage message)
         {
             return message?.MediaFiles?
-                .FirstOrDefault(m =>
-                    !string.IsNullOrWhiteSpace(m.LocalPath) &&
-                    !string.IsNullOrWhiteSpace(m.MediaType) &&
-                    m.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                ?.LocalPath;
+                .FirstOrDefault(IsImageMediaFile)?
+                .LocalPath;
+        }
+
+        private List<MediaFile> GetImageMediaFiles(ChatMessage message)
+        {
+            return message?.MediaFiles?
+                .Where(IsImageMediaFile)
+                .ToList()
+                ?? new List<MediaFile>();
         }
 
         private void ShowResponsesImagePreview(string path)
@@ -182,7 +196,7 @@ namespace openAIApps
             }
 
             imgResponsesPreview.Source = GetImageSource(path);
-            _responsesImagePath = path;
+            _responsesPreviewImagePath = path;
 
             borderResponsesImage.Visibility = Visibility.Visible;
             colResponsesPrompt.Width = new GridLength(2, GridUnitType.Star);
@@ -192,9 +206,84 @@ namespace openAIApps
         private void HideResponsesImagePreview()
         {
             imgResponsesPreview.Source = null;
+            _responsesPreviewImagePath = string.Empty;
+
             borderResponsesImage.Visibility = Visibility.Collapsed;
             colResponsesPrompt.Width = new GridLength(1, GridUnitType.Star);
             colResponsesImage.Width = new GridLength(0);
+        }
+        private void ReplaceResponsePreviewImages(IEnumerable<MediaFile> images)
+        {
+            ResponsePreviewImages.Clear();
+
+            if (images == null)
+                return;
+
+            foreach (var image in images)
+            {
+                ResponsePreviewImages.Add(image);
+            }
+        }
+
+        private void ClearResponsePreviewImages()
+        {
+            ResponsePreviewImages.Clear();
+
+            if (lstResponsesImages != null)
+                lstResponsesImages.SelectedItem = null;
+
+            if (txtResponsesPreviewInfo != null)
+                txtResponsesPreviewInfo.Text = string.Empty;
+        }
+
+        private void UpdateResponsesPreviewInfo()
+        {
+            if (txtResponsesPreviewInfo == null)
+                return;
+
+            if (ResponsePreviewImages.Count == 0)
+            {
+                txtResponsesPreviewInfo.Text = string.Empty;
+                return;
+            }
+
+            if (lstResponsesImages?.SelectedItem is MediaFile selected)
+            {
+                int index = ResponsePreviewImages.IndexOf(selected);
+                txtResponsesPreviewInfo.Text = index >= 0
+                    ? $"{index + 1} / {ResponsePreviewImages.Count}"
+                    : string.Empty;
+                return;
+            }
+
+            txtResponsesPreviewInfo.Text = $"1 / {ResponsePreviewImages.Count}";
+        }
+
+        private void ShowResponsesImageGallery(ChatMessage message, string preferredPath = null)
+        {
+            var images = GetImageMediaFiles(message);
+            ReplaceResponsePreviewImages(images);
+
+            if (images.Count == 0)
+            {
+                ClearResponsePreviewImages();
+                HideResponsesImagePreview();
+                return;
+            }
+
+            MediaFile selected =
+                !string.IsNullOrWhiteSpace(preferredPath)
+                    ? images.FirstOrDefault(m =>
+                        string.Equals(m.LocalPath, preferredPath, StringComparison.OrdinalIgnoreCase))
+                    : null;
+
+            selected ??= images[0];
+
+            if (lstResponsesImages != null)
+                lstResponsesImages.SelectedItem = selected;
+
+            ShowResponsesImagePreview(selected.LocalPath);
+            UpdateResponsesPreviewInfo();
         }
 
         private void ReplaceCurrentChatMessages(IEnumerable<ChatMessage> history)
@@ -218,7 +307,7 @@ namespace openAIApps
 
             ReplaceCurrentChatMessages(history);
             ApplyResponsesSettingsFromHistory(history);
-
+            ClearResponsePreviewImages();
             if (CurrentChatMessages.Count > 0)
             {
                 var lastMessage = CurrentChatMessages.Last();
@@ -241,15 +330,23 @@ namespace openAIApps
                 }
             }
 
-            if (ResponsesState.SelectedTurn is ChatMessage selected &&
-                string.Equals(selected.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+            if (ResponsesState.SelectedTurn is ChatMessage selected)
             {
-                ResponsesState.ResponseText = selected.Content;
-                ShowFirstAssistantImageOfSelectedTurn();
+                if (string.Equals(selected.Role, "assistant", StringComparison.OrdinalIgnoreCase))
+                {
+                    ResponsesState.ResponseText = selected.Content;
+                }
+                else
+                {
+                    ResponsesState.ResponseText = string.Empty;
+                }
+
+                ShowResponsesImageGallery(selected);
             }
             else
             {
                 ResponsesState.ResponseText = string.Empty;
+                ClearResponsePreviewImages();
                 HideResponsesImagePreview();
             }
         }
@@ -264,6 +361,8 @@ namespace openAIApps
                 ResponsesState.PromptText = string.Empty;
 
             _responsesImagePath = string.Empty;
+            _responsesPreviewImagePath = string.Empty;
+            ClearResponsePreviewImages();
             HideResponsesImagePreview();
 
             if (_responsesClient != null)
@@ -365,15 +464,26 @@ namespace openAIApps
         }
         private string GetCurrentPreviewImagePath()
         {
-            string path = GetPrimaryImagePath(GetSelectedResponseMessage());
+            if (lstResponsesImages?.SelectedItem is MediaFile selected &&
+                !string.IsNullOrWhiteSpace(selected.LocalPath) &&
+                File.Exists(selected.LocalPath))
+            {
+                return selected.LocalPath;
+            }
 
-            if (string.IsNullOrWhiteSpace(path))
-                path = _responsesImagePath;
+            if (!string.IsNullOrWhiteSpace(_responsesPreviewImagePath) &&
+                File.Exists(_responsesPreviewImagePath))
+            {
+                return _responsesPreviewImagePath;
+            }
 
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                return null;
+            if (!string.IsNullOrWhiteSpace(_responsesImagePath) &&
+                File.Exists(_responsesImagePath))
+            {
+                return _responsesImagePath;
+            }
 
-            return path;
+            return null;
         }
 
         private void ShowFirstAssistantImageOfSelectedTurn()
@@ -383,20 +493,14 @@ namespace openAIApps
             if (message == null ||
                 !string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase))
             {
+                ClearResponsePreviewImages();
                 HideResponsesImagePreview();
                 return;
             }
 
-            string path = GetPrimaryImagePath(message);
-
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            {
-                HideResponsesImagePreview();
-                return;
-            }
-
-            ShowResponsesImagePreview(path);
+            ShowResponsesImageGallery(message);
         }
+
         private async void btnResponsesSendRequestClick(object sender, RoutedEventArgs e)
         {
             string userPrompt = ResponsesState.PromptText ?? string.Empty;
@@ -538,32 +642,40 @@ namespace openAIApps
         {
             if (_responsesClient == null || _isApplyingResponsesSettings)
                 return;
+
             if (lstResponsesTurns.SelectedItem is not ChatMessage selectedMsg)
                 return;
 
             ResponsesState.SelectedTurn = selectedMsg;
 
-            string path = GetPrimaryImagePath(selectedMsg);
-
             if (string.Equals(selectedMsg.Role, "user", StringComparison.OrdinalIgnoreCase))
             {
                 ResponsesState.PromptText = selectedMsg.Content;
                 ResponsesState.ResponseText = string.Empty;
-
-                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
-                    ShowResponsesImagePreview(path);
-                else
-                    HideResponsesImagePreview();
+                ShowResponsesImageGallery(selectedMsg);
             }
             else if (string.Equals(selectedMsg.Role, "assistant", StringComparison.OrdinalIgnoreCase))
             {
                 ResponsesState.ResponseText = selectedMsg.Content;
-
-                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
-                    ShowResponsesImagePreview(path);
-                else
-                    HideResponsesImagePreview();
+                ShowResponsesImageGallery(selectedMsg);
             }
+            else
+            {
+                ClearResponsePreviewImages();
+                HideResponsesImagePreview();
+            }
+        }
+
+        private void lstResponsesImages_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstResponsesImages.SelectedItem is not MediaFile selectedImage)
+                return;
+
+            if (string.IsNullOrWhiteSpace(selectedImage.LocalPath) || !File.Exists(selectedImage.LocalPath))
+                return;
+
+            ShowResponsesImagePreview(selectedImage.LocalPath);
+            UpdateResponsesPreviewInfo();
         }
 
         private void btnResponsesAttachImage_Click(object sender, RoutedEventArgs e)

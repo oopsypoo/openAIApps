@@ -42,7 +42,9 @@ namespace openAIApps
         
         private string _responsesImagePath = string.Empty;
         private string _videoReferencePath = string.Empty;
-
+        private string _responsesPreviewImagePath = string.Empty;
+        public ObservableCollection<MediaFile> ResponsePreviewImages { get; } = new();
+        
         private Responses _responsesClient;
 
         private readonly HistoryService _historyService;
@@ -59,6 +61,7 @@ namespace openAIApps
         public ObservableCollection<VideoListItem> VideoHistory => _videoHistory;
         public ObservableCollection<ChatMessage> CurrentVideoMessages { get; } = new();
         public ObservableCollection<ResponseAttachmentItem> PendingResponseAttachments { get; } = new();
+        
         public VideoPanelState VideoState { get; } = new();
 
         /// <summary>
