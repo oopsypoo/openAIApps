@@ -27,7 +27,10 @@ namespace openAIApps
         public string WebSearchContextSize { get; set; } = "medium";
         public string ImageGenQuality { get; set; } = "auto";
         public string ImageGenSize { get; set; } = "auto";
-
+        public string ImageGenOutputFormat { get; set; } = "jpeg";
+        public int ImageGenOutputCompression { get; set; } = 85;
+        public string ImageGenBackground { get; set; } = "auto";
+        public string ImageGenInputFidelity { get; set; } = "high";
 
         public Responses(string apiKey)
         {
@@ -76,9 +79,24 @@ namespace openAIApps
 
             var parsed = ParseResponseRich(apiResponse);
             parsed.RawJson = responseString;
+            parsed.ImageOutputFormat = NormalizeImageOutputFormat(ImageGenOutputFormat);
             return parsed;
         }
 
+        private static string NormalizeImageOutputFormat(string format)
+        {
+            if (string.IsNullOrWhiteSpace(format))
+                return "png";
+
+            return format.Trim().ToLowerInvariant() switch
+            {
+                "jpg" => "jpeg",
+                "jpeg" => "jpeg",
+                "png" => "png",
+                "webp" => "webp",
+                _ => "png"
+            };
+        }
         public async Task<string> GetResponseAsync(string prompt)
         {
             var request = BuildRequest(prompt);
@@ -200,7 +218,21 @@ namespace openAIApps
 
             if (ActiveTools.Contains(ResponseToolKeys.ImageGeneration))
             {
-                tools.Add(new ImageGenerationTool(ImageGenQuality, ImageGenSize));
+                int? compression = null;
+
+                if (string.Equals(ImageGenOutputFormat, "jpeg", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(ImageGenOutputFormat, "webp", StringComparison.OrdinalIgnoreCase))
+                {
+                    compression = ImageGenOutputCompression;
+                }
+
+                tools.Add(new ImageGenerationTool(
+                    ImageGenQuality,
+                    ImageGenSize,
+                    ImageGenOutputFormat,
+                    compression,
+                    ImageGenBackground,
+                    ImageGenInputFidelity));
             }
 
             return tools.ToArray();
@@ -327,11 +359,23 @@ namespace openAIApps
 
         private class ImageGenerationTool : Tool
         {
-            public ImageGenerationTool(string quality, string size)
+            public ImageGenerationTool(
+                string quality,
+                string size,
+                string outputFormat,
+                int? outputCompression,
+                string background,
+                string inputFidelity)
             {
                 Type = "image_generation";
                 Quality = quality ?? "auto";
                 Size = size ?? "auto";
+                OutputFormat = string.IsNullOrWhiteSpace(outputFormat) ? "jpeg" : outputFormat;
+                Background = string.IsNullOrWhiteSpace(background) ? "auto" : background;
+                InputFidelity = string.IsNullOrWhiteSpace(inputFidelity) ? "high" : inputFidelity;
+
+                if (outputCompression.HasValue)
+                    OutputCompression = outputCompression.Value;
             }
 
             [JsonPropertyName("quality")]
@@ -339,6 +383,19 @@ namespace openAIApps
 
             [JsonPropertyName("size")]
             public string Size { get; set; } = "auto";
+
+            [JsonPropertyName("output_format")]
+            public string OutputFormat { get; set; } = "jpeg";
+
+            [JsonPropertyName("output_compression")]
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+            public int? OutputCompression { get; set; }
+
+            [JsonPropertyName("background")]
+            public string Background { get; set; } = "auto";
+
+            [JsonPropertyName("input_fidelity")]
+            public string InputFidelity { get; set; } = "high";
         }
 
 
@@ -420,14 +477,14 @@ namespace openAIApps
             [JsonPropertyName("effort")]
             public string Effort { get; set; }
         }
-        
+
 
         public class ResponsesResult
         {
             public string AssistantText { get; set; }
             public string RawJson { get; set; }
             public List<string> ImagePayloads { get; set; } = new();
-            // You can add this if you want the if(result.IsSuccess) syntax:
+            public string ImageOutputFormat { get; set; } = "png";
             public bool IsSuccess => !string.IsNullOrEmpty(AssistantText);
         }
 
@@ -485,121 +542,5 @@ namespace openAIApps
             };
         }
 
-
-        // In Responses.cs
-        /*
-        public async Task<ResponsesResult> GetResponseAsync(string prompt, string imagePath)
-        {
-            var request = BuildRequestWithImage(prompt, imagePath);
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                WriteIndented = true
-            };
-
-            var json = JsonSerializer.Serialize(request, options);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            using var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
-            var responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return new ResponsesResult
-                {
-                    AssistantText = $"Error {response.StatusCode}: {responseString}"
-                };
-            }
-
-            var result = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
-
-            if (!string.IsNullOrEmpty(result?.Id))
-                LastResponseId = result.Id;
-
-            var parsed = ParseResponseRich(result);
-            parsed.RawJson = responseString;
-            return parsed;
-        }
-
-        private ResponsesRequest BuildRequestWithImage(string prompt, string imagePath)
-        {
-            string dataUrl = ImageInputHelper.ToDataUrl(imagePath);
-
-            object inputObject;
-
-            if (!string.IsNullOrWhiteSpace(prompt) && !string.IsNullOrEmpty(dataUrl))
-            {
-                inputObject = new[]
-                {
-            new
-            {
-                role = "user",
-                content = new object[]
-                {
-                    new { type = "input_text", text = prompt },
-                    new { type = "input_image", image_url = dataUrl }
-                }
-            }
-        };
-            }
-            else if (!string.IsNullOrWhiteSpace(prompt))
-            {
-                inputObject = prompt;
-            }
-            else if (!string.IsNullOrEmpty(dataUrl))
-            {
-                inputObject = new[]
-                {
-            new
-            {
-                role = "user",
-                content = new object[]
-                {
-                    new { type = "input_image", image_url = dataUrl }
-                }
-            }
-        };
-            }
-            else
-            {
-                inputObject = prompt ?? string.Empty;
-            }
-
-            var tools = GetToolsForCurrentSelection();
-
-            var request = new ResponsesRequest
-            {
-                Model = CurrentModel,
-                Input = inputObject,
-                Truncation = "auto",
-                Tools = tools.Cast<object>().ToArray(),
-                Store = false,
-                PreviousResponseId = LastResponseId
-            };
-
-            if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
-            {
-                request.Reasoning = new ReasoningConfig
-                {
-                    Effort = CurrentReasoning
-                };
-            }
-
-            if (tools.Length > 0)
-            {
-                if (ActiveTools.Contains(ResponseToolKeys.ImageGeneration) && ActiveTools.Count == 1)
-                {
-                    request.ToolChoice = new { type = "image_generation" };
-                }
-                else
-                {
-                    request.ToolChoice = "auto";
-                }
-            }
-
-            return request;
-        }*/
     }
 }

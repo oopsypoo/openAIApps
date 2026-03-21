@@ -102,6 +102,11 @@ namespace openAIApps.Data
 
             db.Database.ExecuteSqlRaw(
                 "CREATE INDEX IF NOT EXISTS IX_Media_ChatMessageId ON Media (ChatMessageId);");
+            if (!ColumnExists(db, "Messages", "ImageToolSettingsJson"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN ImageToolSettingsJson TEXT NOT NULL DEFAULT '';");
+            }
         }
         private static bool ColumnExists(AppDbContext db, string tableName, string columnName)
         {

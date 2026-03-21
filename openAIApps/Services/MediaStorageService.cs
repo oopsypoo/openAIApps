@@ -39,7 +39,7 @@ namespace openAIApps.Services
             return _imagesFolder;
         }
 
-        public List<string> SaveAssistantImages(IEnumerable<string> payloads)
+        public List<string> SaveAssistantImages(IEnumerable<string> payloads, string outputFormat = "png")
         {
             var savedPaths = new List<string>();
 
@@ -47,6 +47,8 @@ namespace openAIApps.Services
                 return savedPaths;
 
             string folder = EnsureImagesFolder();
+            string normalizedFormat = NormalizeImageFormat(outputFormat);
+            string extension = GetExtensionForImageFormat(normalizedFormat);
 
             foreach (var payload in payloads)
             {
@@ -68,6 +70,10 @@ namespace openAIApps.Services
                             string ext = ".png";
                             if (meta.Contains("jpeg", StringComparison.OrdinalIgnoreCase))
                                 ext = ".jpg";
+                            else if (meta.Contains("webp", StringComparison.OrdinalIgnoreCase))
+                                ext = ".webp";
+                            else if (meta.Contains("png", StringComparison.OrdinalIgnoreCase))
+                                ext = ".png";
 
                             byte[] bytes = Convert.FromBase64String(b64);
                             string name = $"resp_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}_{Guid.NewGuid():N}{ext}";
@@ -78,12 +84,12 @@ namespace openAIApps.Services
                     else if (payload.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                              payload.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Leave URL download support for a later phase.
+                        // Leave URL download support for later.
                     }
                     else
                     {
                         byte[] bytes = Convert.FromBase64String(payload);
-                        string name = $"resp_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}_{Guid.NewGuid():N}.png";
+                        string name = $"resp_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}_{Guid.NewGuid():N}{extension}";
                         filePath = Path.Combine(folder, name);
                         File.WriteAllBytes(filePath, bytes);
                     }
@@ -100,6 +106,31 @@ namespace openAIApps.Services
             }
 
             return savedPaths;
+        }
+
+        private static string NormalizeImageFormat(string format)
+        {
+            if (string.IsNullOrWhiteSpace(format))
+                return "png";
+
+            return format.Trim().ToLowerInvariant() switch
+            {
+                "jpg" => "jpeg",
+                "jpeg" => "jpeg",
+                "png" => "png",
+                "webp" => "webp",
+                _ => "png"
+            };
+        }
+
+        private static string GetExtensionForImageFormat(string format)
+        {
+            return format switch
+            {
+                "jpeg" => ".jpg",
+                "webp" => ".webp",
+                _ => ".png"
+            };
         }
 
         public void DeleteFiles(IEnumerable<string> filePaths)

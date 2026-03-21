@@ -177,12 +177,17 @@ namespace openAIApps
                 case nameof(ResponsesPanelState.SearchContextSize):
                 case nameof(ResponsesPanelState.ImageGenQuality):
                 case nameof(ResponsesPanelState.ImageGenSize):
+                case nameof(ResponsesPanelState.ImageGenOutputFormat):
+                case nameof(ResponsesPanelState.ImageGenOutputCompression):
+                case nameof(ResponsesPanelState.ImageGenBackground):
+                case nameof(ResponsesPanelState.ImageGenInputFidelity):
                 case nameof(ResponsesPanelState.UseTextTool):
                 case nameof(ResponsesPanelState.UseWebSearch):
                 case nameof(ResponsesPanelState.UseComputerUse):
                 case nameof(ResponsesPanelState.UseImageGeneration):
                     ValidateResponsesState();
                     NormalizeResponsesToolsState();
+                    ValidateImageGenerationSettings();
                     ApplyResponsesStateToClient();
                     break;
             }

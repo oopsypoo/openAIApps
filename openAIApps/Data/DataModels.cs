@@ -76,11 +76,13 @@ namespace openAIApps.Data
         public string RemoteId { get; set; } = string.Empty;
         public string SourceRemoteId { get; set; } = string.Empty;
         public string RawJson { get; set; } = string.Empty;
-        
 
+        public string ImageToolSettingsJson { get; set; } = string.Empty;
         public virtual ChatSession ChatSession { get; set; }
 
         public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();
+        [NotMapped]
+        public string ImageToolSummary => ImageToolSettingsSummaryHelper.Build(ImageToolSettingsJson);
     }
 
     public class MediaFile

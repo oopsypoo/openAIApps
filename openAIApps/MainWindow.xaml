@@ -9,6 +9,7 @@
         Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <!-- For the status bar. See almost last line. This is noisy and bad. Make it better -->
         <Style x:Key="StatusBar" TargetType="StatusBar">
             <Setter Property="FontSize" Value="12" />
@@ -650,9 +651,11 @@
                                     </ComboBox>
                                 </StackPanel>
                             </Grid>
+                            <!-- keep hidden (noise). For later -->
                             <CheckBox x:Name="cbToolComputerUse"
-                                  Content="Computer use (preview)"
-                                  IsChecked="{Binding ResponsesState.UseComputerUse, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                      Visibility="Hidden"
+                                      Content="Computer use (preview)"
+                                      IsChecked="{Binding ResponsesState.UseComputerUse, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                             <Grid Margin="0,2,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -660,9 +663,13 @@
                                 </Grid.ColumnDefinitions>
                                 <CheckBox x:Name="cbToolImageGeneration" Grid.Column="0"
                                   Content="Image Generation"
-                                  Margin="0,4,0,-4"
+                                  Margin="0,4,0,4"
                                   IsChecked="{Binding ResponsesState.UseImageGeneration, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                                <StackPanel Grid.Column="1"  Orientation="Vertical">
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Vertical"
+                                            Visibility="{Binding ResponsesState.IsImageGenerationOptionsVisible,
+                                                         RelativeSource={RelativeSource AncestorType=Window},
+                                                         Converter={StaticResource BoolToVisibilityConverter}}">
                                     <Label Content="Image Quality" />
                                     <ComboBox x:Name="cmbImageGenQuality"
                                               SelectedValuePath="Tag"
@@ -683,6 +690,55 @@
                                         <ComboBoxItem Content="1024x1024" Tag="1024x1024"/>
                                         <ComboBoxItem Content="1536x1024" Tag="1536x1024" />
                                         <ComboBoxItem Content="1024x1536" Tag="1024x1536"/>
+                                    </ComboBox>
+                                    <Label Content="Output Format"
+                                           ToolTip="jpeg = smaller/faster, png = transparency, webp = compression + transparency"
+                                           Margin="0,5,0,0"/>
+                                    <ComboBox x:Name="cmbImageGenOutputFormat"
+                                              SelectedValuePath="Tag"
+                                              IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedValue="{Binding ResponsesState.ImageGenOutputFormat, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                                        <ComboBoxItem Content="jpeg" Tag="jpeg" IsSelected="True"/>
+                                        <ComboBoxItem Content="png" Tag="png"/>
+                                        <ComboBoxItem Content="webp" Tag="webp"/>
+                                    </ComboBox>
+                                    <Label Content="Output Compression"
+                                           ToolTip="The compression level (0-100%) for the generated images. This parameter is only supported for the GPT image models with the webp or jpeg output formats, and defaults to 85."
+                                           Margin="0,5,0,0"/>
+                                    <StackPanel Orientation="Horizontal"
+                                                IsEnabled="{Binding ResponsesState.IsOutputCompressionEnabled, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <Slider Minimum="0"
+                                                Maximum="100"
+                                                Width="120"
+                                                TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                Value="{Binding ResponsesState.ImageGenOutputCompression, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                        <TextBlock Margin="8,0,4,0"
+                                                   VerticalAlignment="Center"
+                                                   Background="Aqua"
+                                                   Text="{Binding ResponsesState.ImageGenOutputCompression, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                    </StackPanel>
+                                    <Label Content="Background"
+                                           ToolTip="Allows to set transparency for the background of the generated image(s). This parameter is only supported for the GPT image models. Must be one of transparent, opaque or auto (default value). When auto is used, the model will automatically determine the best background for the image."
+                                           Margin="0,5,0,0"/>
+                                    <ComboBox x:Name="cmbImageGenBackground"
+                                              SelectedValuePath="Tag"
+                                              SelectedValue="{Binding ResponsesState.ImageGenBackground, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                                        <ComboBoxItem Content="auto" Tag="auto"/>
+                                        <ComboBoxItem Content="opaque" Tag="opaque"/>
+                                        <ComboBoxItem Content="transparent"
+                                                      Tag="transparent"
+                                                      IsEnabled="{Binding ResponsesState.IsTransparentBackgroundAllowed, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                    </ComboBox>
+                                    <!-- Hide this. I misunderstood somewhere. This is for image-input. Not for generation -->
+                                    <Label Content="Input Fidelity" Margin="0,5,0,0" Visibility="Hidden"/>
+                                    <ComboBox x:Name="cmbImageGenInputFidelity"
+                                              Visibility="Hidden"
+                                              SelectedValuePath="Tag"
+                                              IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                              SelectedValue="{Binding ResponsesState.ImageGenInputFidelity, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                                        <ComboBoxItem Content="high" Tag="high" IsSelected="True"/>
+                                        <ComboBoxItem Content="low" Tag="low"/>
                                     </ComboBox>
                                 </StackPanel>
                             </Grid>
@@ -714,6 +770,7 @@
                                                                 <Run Text="  "/>
                                                                 <Run Text="{Binding MediaType}"/>
                                                         </TextBlock>
+                                                        
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -726,8 +783,11 @@
                                                         <Run Text="{Binding ReasoningLevel}"/>
                                                         <Run Text=" | Tools: "/>
                                                         <Run Text="{Binding ActiveTools}"/>
-                                                         
                                             </TextBlock>
+                                            <TextBlock FontSize="10"
+                                                       Foreground="SlateGray"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding ImageToolSummary, Mode=OneWay}" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>

@@ -6,13 +6,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Text.RegularExpressions;
 
 /*
  * Code for Responses-tab-controls
@@ -148,7 +150,10 @@ namespace openAIApps
             ResponsesState.SearchContextSize = "medium";
             ResponsesState.ImageGenQuality = "auto";
             ResponsesState.ImageGenSize = "auto";
-
+            ResponsesState.ImageGenOutputFormat = "jpeg";
+            ResponsesState.ImageGenOutputCompression = 85;
+            ResponsesState.ImageGenBackground = "auto";
+            ResponsesState.ImageGenInputFidelity = "high";
             ApplyResponsesStateToClient();
         }
         private ChatMessage GetSelectedResponseMessage()
@@ -518,6 +523,7 @@ namespace openAIApps
                 string imgSize = ResponsesState.ImageGenSize;
                 string imgQual = ResponsesState.ImageGenQuality;
                 string searchSize = ResponsesState.SearchContextSize;
+                string imageToolSettingsJson = BuildImageToolSettingsJson();
 
                 string toolsCsv = string.Join(",",
                     _responsesClient.ActiveTools
@@ -538,7 +544,8 @@ namespace openAIApps
                     tools: toolsCsv,
                     imgSize: imgSize,
                     imgQual: imgQual,
-                    searchSize: searchSize);
+                    searchSize: searchSize,
+                    imageToolSettingsJson: imageToolSettingsJson);
 
                 if (hasAttachedFiles)
                 {
@@ -575,7 +582,9 @@ namespace openAIApps
 
                     if (result.ImagePayloads?.Count > 0)
                     {
-                        var paths = _mediaStorageService.SaveAssistantImages(result.ImagePayloads);
+                        var paths = _mediaStorageService.SaveAssistantImages(
+                            result.ImagePayloads,
+                            result.ImageOutputFormat);
 
                         foreach (var path in paths)
                         {
@@ -814,7 +823,8 @@ namespace openAIApps
                 !string.IsNullOrWhiteSpace(message.ActiveTools) ||
                 !string.IsNullOrWhiteSpace(message.SearchContextSize) ||
                 !string.IsNullOrWhiteSpace(message.ImageSize) ||
-                !string.IsNullOrWhiteSpace(message.ImageQuality);
+                !string.IsNullOrWhiteSpace(message.ImageQuality) ||
+                !string.IsNullOrWhiteSpace(message.ImageToolSettingsJson);
         }
         
         
@@ -884,6 +894,11 @@ namespace openAIApps
                 ResponsesState.ImageGenSize = string.IsNullOrWhiteSpace(settingsMessage.ImageSize)
                     ? "auto"
                     : settingsMessage.ImageSize;
+                
+                ResponsesState.ImageGenOutputFormat = "jpeg";
+                ResponsesState.ImageGenBackground = "auto";
+                ResponsesState.ImageGenInputFidelity = "high";
+                ResponsesState.ImageGenOutputCompression = 85;
 
                 ApplyResponsesToolsToState(settingsMessage.ActiveTools);
             }
@@ -946,6 +961,10 @@ namespace openAIApps
             _responsesClient.WebSearchContextSize = ResponsesState.SearchContextSize;
             _responsesClient.ImageGenQuality = ResponsesState.ImageGenQuality;
             _responsesClient.ImageGenSize = ResponsesState.ImageGenSize;
+            _responsesClient.ImageGenOutputFormat = ResponsesState.ImageGenOutputFormat;
+            _responsesClient.ImageGenOutputCompression = ResponsesState.ImageGenOutputCompression;
+            _responsesClient.ImageGenBackground = ResponsesState.ImageGenBackground;
+            _responsesClient.ImageGenInputFidelity = ResponsesState.ImageGenInputFidelity;
 
             _responsesClient.ActiveTools.Clear();
 
@@ -985,6 +1004,98 @@ namespace openAIApps
                 StatusText.Text = "gpt-5-pro requires high reasoning.";
             }
         }
+        private sealed class ImageToolSettingsSnapshot
+        {
+            [JsonPropertyName("quality")]
+            public string Quality { get; set; } = "auto";
+
+            [JsonPropertyName("size")]
+            public string Size { get; set; } = "auto";
+
+            [JsonPropertyName("output_format")]
+            public string OutputFormat { get; set; } = "jpeg";
+
+            [JsonPropertyName("output_compression")]
+            public int? OutputCompression { get; set; }
+
+            [JsonPropertyName("background")]
+            public string Background { get; set; } = "auto";
+
+            [JsonPropertyName("input_fidelity")]
+            public string InputFidelity { get; set; } = "high";
+        }
+        private string BuildImageToolSettingsJson()
+        {
+            if (!ResponsesState.UseImageGeneration)
+                return string.Empty;
+
+            var snapshot = new ImageToolSettingsSnapshot
+            {
+                Quality = string.IsNullOrWhiteSpace(ResponsesState.ImageGenQuality)
+                    ? "auto"
+                    : ResponsesState.ImageGenQuality,
+
+                Size = string.IsNullOrWhiteSpace(ResponsesState.ImageGenSize)
+                    ? "auto"
+                    : ResponsesState.ImageGenSize,
+
+                OutputFormat = string.IsNullOrWhiteSpace(ResponsesState.ImageGenOutputFormat)
+                    ? "jpeg"
+                    : ResponsesState.ImageGenOutputFormat,
+
+                OutputCompression = ResponsesState.IsOutputCompressionEnabled
+                    ? ResponsesState.ImageGenOutputCompression
+                    : null,
+
+                Background = string.IsNullOrWhiteSpace(ResponsesState.ImageGenBackground)
+                    ? "auto"
+                    : ResponsesState.ImageGenBackground,
+
+                InputFidelity = string.IsNullOrWhiteSpace(ResponsesState.ImageGenInputFidelity)
+                    ? "high"
+                    : ResponsesState.ImageGenInputFidelity
+            };
+
+            return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            });
+        }
+
+        private void ApplyImageToolSettingsFromJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return;
+
+            try
+            {
+                var snapshot = JsonSerializer.Deserialize<ImageToolSettingsSnapshot>(json);
+                if (snapshot == null)
+                    return;
+
+                ResponsesState.ImageGenQuality =
+                    string.IsNullOrWhiteSpace(snapshot.Quality) ? "auto" : snapshot.Quality;
+
+                ResponsesState.ImageGenSize =
+                    string.IsNullOrWhiteSpace(snapshot.Size) ? "auto" : snapshot.Size;
+
+                ResponsesState.ImageGenOutputFormat =
+                    string.IsNullOrWhiteSpace(snapshot.OutputFormat) ? "jpeg" : snapshot.OutputFormat;
+
+                ResponsesState.ImageGenBackground =
+                    string.IsNullOrWhiteSpace(snapshot.Background) ? "auto" : snapshot.Background;
+
+                ResponsesState.ImageGenInputFidelity =
+                    string.IsNullOrWhiteSpace(snapshot.InputFidelity) ? "high" : snapshot.InputFidelity;
+
+                if (snapshot.OutputCompression.HasValue)
+                    ResponsesState.ImageGenOutputCompression = snapshot.OutputCompression.Value;
+            }
+            catch
+            {
+                // Keep tolerant; old rows may not have valid JSON
+            }
+        }
         private void ApplyResponsesToolsToState(string toolsCsv)
         {
             var tools = (toolsCsv ?? string.Empty)
@@ -1003,6 +1114,48 @@ namespace openAIApps
             ResponsesState.UseWebSearch = tools.Contains(ResponseToolKeys.WebSearch);
             ResponsesState.UseComputerUse = tools.Contains(ResponseToolKeys.ComputerUsePreview);
             ResponsesState.UseImageGeneration = tools.Contains(ResponseToolKeys.ImageGeneration);
+        }
+        private void ValidateImageGenerationSettings()
+        {
+            if (ResponsesState.ImageGenOutputCompression < 0)
+                ResponsesState.ImageGenOutputCompression = 0;
+
+            if (ResponsesState.ImageGenOutputCompression > 100)
+                ResponsesState.ImageGenOutputCompression = 100;
+
+            if (!ResponsesState.UseImageGeneration)
+                return;
+
+            bool compressionAllowed =
+                string.Equals(ResponsesState.ImageGenOutputFormat, "jpeg", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ResponsesState.ImageGenOutputFormat, "webp", StringComparison.OrdinalIgnoreCase);
+
+            bool transparentAllowed =
+                string.Equals(ResponsesState.ImageGenOutputFormat, "png", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ResponsesState.ImageGenOutputFormat, "webp", StringComparison.OrdinalIgnoreCase);
+
+            if (!compressionAllowed)
+            {
+                // Keep a default value stored, but it won't be sent.
+                if (ResponsesState.ImageGenOutputCompression < 0 || ResponsesState.ImageGenOutputCompression > 100)
+                    ResponsesState.ImageGenOutputCompression = 85;
+            }
+
+            if (!transparentAllowed &&
+                string.Equals(ResponsesState.ImageGenBackground, "transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                ResponsesState.ImageGenBackground = "auto";
+                StatusText.Text = $"Transparent background is not supported with {ResponsesState.ImageGenOutputFormat}.";
+            }
+
+            if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenOutputFormat))
+                ResponsesState.ImageGenOutputFormat = "jpeg";
+
+            if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenBackground))
+                ResponsesState.ImageGenBackground = "auto";
+
+            if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenInputFidelity))
+                ResponsesState.ImageGenInputFidelity = "high";
         }
         private void UpdateResponsesResponseDocument(string text)
         {

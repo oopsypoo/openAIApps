@@ -42,7 +42,8 @@ namespace openAIApps.Services
                     string videoSize = null,
                     bool isRemix = false,
                     string remoteId = null,
-                    string sourceRemoteId = null)
+                    string sourceRemoteId = null,
+                    string imageToolSettingsJson = null)
         {
             await using var context = CreateDbContext();
 
@@ -69,7 +70,8 @@ namespace openAIApps.Services
                 IsRemix = isRemix,
                 RemoteId = remoteId ?? string.Empty,
                 SourceRemoteId = sourceRemoteId ?? string.Empty,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                ImageToolSettingsJson = imageToolSettingsJson ?? string.Empty
             };
 
             context.Messages.Add(msg);

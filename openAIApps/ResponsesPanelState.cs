@@ -1,4 +1,5 @@
 ﻿using openAIApps.Data;
+using System;
 
 namespace openAIApps
 {
@@ -6,6 +7,7 @@ namespace openAIApps
     {
         public bool IsWebSearchOptionsEnabled => UseWebSearch;
         public bool IsImageGenerationOptionsEnabled => UseImageGeneration;
+        public bool IsImageGenerationOptionsVisible => UseImageGeneration;
 
         private string _promptText = string.Empty;
         public string PromptText
@@ -65,8 +67,15 @@ namespace openAIApps
             get => _useImageGeneration;
             set
             {
-                if (SetProperty(ref _useImageGeneration, value))
+                if (_useImageGeneration != value)
+                {
+                    _useImageGeneration = value;
+                    OnPropertyChanged();
                     OnPropertyChanged(nameof(IsImageGenerationOptionsEnabled));
+                    OnPropertyChanged(nameof(IsImageGenerationOptionsVisible));
+                    OnPropertyChanged(nameof(IsOutputCompressionEnabled));
+                    OnPropertyChanged(nameof(IsTransparentBackgroundAllowed));
+                }
             }
         }
 
@@ -97,5 +106,72 @@ namespace openAIApps
             get => _imageGenSize;
             set => SetProperty(ref _imageGenSize, string.IsNullOrWhiteSpace(value) ? "auto" : value);
         }
-    }
+        private string _imageGenOutputFormat = "jpeg";
+        public string ImageGenOutputFormat
+        {
+            get => _imageGenOutputFormat;
+            set
+            {
+                if (_imageGenOutputFormat != value)
+                {
+                    _imageGenOutputFormat = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsOutputCompressionEnabled));
+                    OnPropertyChanged(nameof(IsTransparentBackgroundAllowed));
+                }
+            }
+        }
+
+        private int _imageGenOutputCompression = 85;
+        public int ImageGenOutputCompression
+        {
+            get => _imageGenOutputCompression;
+            set
+            {
+                if (_imageGenOutputCompression != value)
+                {
+                    _imageGenOutputCompression = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _imageGenBackground = "auto";
+        public string ImageGenBackground
+        {
+            get => _imageGenBackground;
+            set
+            {
+                if (_imageGenBackground != value)
+                {
+                    _imageGenBackground = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private string _imageGenInputFidelity = "high";
+        public string ImageGenInputFidelity
+        {
+            get => _imageGenInputFidelity;
+            set
+            {
+                if (_imageGenInputFidelity != value)
+                {
+                    _imageGenInputFidelity = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool IsOutputCompressionEnabled =>
+            string.Equals(ImageGenOutputFormat, "jpeg", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(ImageGenOutputFormat, "webp", StringComparison.OrdinalIgnoreCase);
+
+        public bool IsTransparentBackgroundAllowed =>
+            UseImageGeneration &&
+            (string.Equals(ImageGenOutputFormat, "png", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(ImageGenOutputFormat, "webp", StringComparison.OrdinalIgnoreCase));
+            }
+
 }
