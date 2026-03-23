@@ -754,6 +754,7 @@
                                  FontSize="12"
                                  BorderBrush="DarkGray"
                                  BorderThickness="1"
+                                 PreviewKeyDown="rtbResponsesResponse_PreviewKeyDown"
                                  Background="White">
                                     <RichTextBox.ContextMenu>
                                         <ContextMenu Opened="ResponsesRichTextContextMenu_Opened">

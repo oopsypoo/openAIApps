@@ -1640,8 +1640,36 @@ namespace openAIApps
             if (!string.IsNullOrWhiteSpace(markdown))
                 Clipboard.SetText(markdown);
         }
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            int childCount = VisualTreeHelper.GetChildrenCount(parent);
+
+            for (int i = 0; i < childCount; i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+
+                if (child is T typedChild)
+                    return typedChild;
+
+                T descendant = FindVisualChild<T>(child);
+                if (descendant != null)
+                    return descendant;
+            }
+
+            return null;
+        }
+        private ScrollViewer GetResponsesRichTextScrollViewer()
+        {
+            return FindVisualChild<ScrollViewer>(rtbResponsesResponse);
+        }
         private void rtbResponsesResponse_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (rtbResponsesResponse == null)
+                return;
+
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.A)
             {
                 rtbResponsesResponse.SelectAll();
@@ -1670,6 +1698,43 @@ namespace openAIApps
                 }
 
                 e.Handled = true;
+                return;
+            }
+
+            ScrollViewer scrollViewer = GetResponsesRichTextScrollViewer();
+            if (scrollViewer == null)
+                return;
+
+            switch (e.Key)
+            {
+                case Key.Down:
+                    scrollViewer.LineDown();
+                    e.Handled = true;
+                    break;
+
+                case Key.Up:
+                    scrollViewer.LineUp();
+                    e.Handled = true;
+                    break;
+
+                case Key.PageDown:
+                    scrollViewer.PageDown();
+                    e.Handled = true;
+                    break;
+
+                case Key.PageUp:
+                    scrollViewer.PageUp();
+                    e.Handled = true;
+                    break;
+                case Key.Home:
+                    scrollViewer.ScrollToHome();
+                    e.Handled = true;
+                    break;
+
+                case Key.End:
+                    scrollViewer.ScrollToEnd();
+                    e.Handled = true;
+                    break;
             }
         }
         private void btnResponsesAttachFiles_Click(object sender, RoutedEventArgs e)
