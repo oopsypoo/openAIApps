@@ -217,6 +217,9 @@ namespace openAIApps
             _videoClient = new VideoClient(apiKey: OpenAPIKey);
             InitVideoState();
             InitVideoList();
+            // set it here to avoid whisper from trying to use it before it's set
+            // whisper is collapsed, ubtil I fix it
+            tabMain.SelectedItem = tpResponses;
         }
 
         private void menuHelp_Click(object sender, RoutedEventArgs e)
@@ -227,12 +230,6 @@ namespace openAIApps
         {
             About about = new About();
             about.ShowDialog();
-        }
-
-        private void menuThisAssistant_Click(object sender, RoutedEventArgs e)
-        {
-            rassistant ra = new rassistant();
-            ra.ShowDialog();
         }
 
         private void menuFile_Click(object sender, RoutedEventArgs e)

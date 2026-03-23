@@ -183,7 +183,6 @@
             </MenuItem>
             <MenuItem Header="Help" Name="menuHelp" Click="menuHelp_Click" IsEnabled="True" AllowDrop="True">
                 <MenuItem Header="About" Name="menuAbout" Click="menuAbout_Click" IsEnabled="True"/>
-                <MenuItem Header="ThisAssist" Name="menuThisAssistant" Click="menuThisAssistant_Click" IsEnabled="True"/>
             </MenuItem>
         </Menu>
         <TabControl Grid.Row="1"
@@ -197,9 +196,9 @@
             <!-- vision and image-generation) and video-tab.-->
             <!-- Not giving up/removing STT or TTS (whisper) yet-->
             <!-- ******************************************** -->
-<!-- Until i fix/ckean up the code, this is just hogwash -->
-<!--
-            <TabItem Header="Whisper"  Name="tpWhisper" TabIndex="3">
+
+            <!-- Until i fix/ckean up the code for whisper (STT and TTS, this is just hogwash -->
+            <TabItem Header="Whisper"  Name="tpWhisper" TabIndex="3" Visibility="Collapsed">
                 <Grid x:Name="gridWhisper" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="cdWhisperReqRes" Width="185*"/>
@@ -213,7 +212,8 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical" Grid.ColumnSpan="3" Margin="0,0,268,0" >
+                    <!-- For now hide it -->
+                    <StackPanel Visibility="Collapsed" Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" x:Name="spWhisperInput" Orientation="Vertical" Grid.ColumnSpan="3" Margin="0,0,268,0" >
                         <Label Grid.Row="0" Grid.Column="0">OpenAi response</Label>
                         <TextBox  Grid.Column="0" Style="{StaticResource TextBoxResponse}"  x:Name="txtWhisperPrompt" />
                         <Button  Grid.Column="0" Style="{StaticResource SendRequest}" x:Name="btnWhisperSendRequest" Click="btnWhisperSendRequest_Click"/>
@@ -222,7 +222,8 @@
                                   Style="{StaticResource TextBoxResponse}"  
                                   x:Name="txtWhisperResponse" />
                     </StackPanel>
-                    <GroupBox x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
+                    <!-- For now hide it -->
+                    <GroupBox Visibility="Collapsed" x:Name="groupWhisper" Header="Whisper Options" Grid.Row="0" Grid.Column="2" Grid.RowSpan="5">
                         <StackPanel x:Name="spWhisper" Orientation="Vertical" Margin="5">
                             <Label Content="Speach to text" />
                             <ComboBox x:Name="cmbSpeachToText" IsEditable="False" IsReadOnly="True" SelectionChanged="cmbSpeachToText_SelectionChanged">
@@ -245,7 +246,7 @@
 
                 </Grid>
             </TabItem>
- -->           
+            
             <TabItem Header="Video" Name="tpVideo">
                 <Grid x:Name="gridVideo"
                         VerticalAlignment="Stretch"
