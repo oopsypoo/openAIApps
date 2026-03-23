@@ -142,7 +142,7 @@ namespace openAIApps
 
             return matchesType && matchesText;
         }
-
+        
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             await InitResponsesControlsAsync();

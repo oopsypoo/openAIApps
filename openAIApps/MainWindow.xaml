@@ -10,117 +10,63 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <!-- For the status bar. See almost last line. This is noisy and bad. Make it better -->
-        <Style x:Key="StatusBar" TargetType="StatusBar">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Margin" Value="0,2,2,0" />
-            <Setter Property="IsEnabled" Value="True" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="Background" Value="OrangeRed" />
-            <Setter Property="BorderBrush" Value="DarkRed" />
-            <Setter Property="Grid.Row" Value="5" />
-            <Setter Property="Grid.Column" Value="0" />
-            <Setter Property="Height" Value="25" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type StatusBar}" >
-                        <Border x:Name="bg" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Background="{TemplateBinding Background}">
-                            <Grid>
-                                <ContentPresenter x:Name="PART_ContentHost" Focusable="True" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+
+        <Style x:Key="StatusBarStyle" TargetType="StatusBar">
+            <Setter Property="Height" Value="22" />
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="OrangeRed"/>
+            <Setter Property="BorderBrush" Value="DarkRed"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
         </Style>
-        <!-- All text-boxes taking requests have this style -->
+
         <Style x:Key="TextBoxRequest" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="MinHeight" Value="250" />
-            <Setter Property="Margin" Value="0,2,2,0" />
-            <Setter Property="IsEnabled" Value="True" />
-            <Setter Property="IsReadOnly" Value="False" />
-            <Setter Property="Grid.Row" Value="1" />
-            <Setter Property="Grid.Column" Value="0" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="AcceptsReturn" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="TabIndex" Value="1" />
-            <Setter Property="MaxHeight" Value="500" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
-            <EventSetter Event="GotKeyboardFocus" Handler="SelectAllTextBox_GotKeyboardFocus"/>
-            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="SelectAllTextBox_PreviewMouseLeftButtonDown"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TextBox}" >
-                        <Border x:Name="bg" BorderThickness="1" BorderBrush="DarkGray" Background="White">
-                            <Grid>
-                                <ScrollViewer x:Name="PART_ContentHost" Focusable="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" TargetName="bg" Value="Black" />
-                                <Setter Property="BorderThickness" TargetName="bg" Value="2"/>
-                                <Setter Property="FontSize" Value="16" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
-        <!-- All text-boxes receiving the AI-response have this style -->
+
         <Style x:Key="TextBoxResponse" TargetType="TextBox">
             <Setter Property="FontSize" Value="12" />
-
-            <Setter Property="Margin" Value="2,0,2,0" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="IsEnabled" Value="True" />
-            <Setter Property="IsReadOnly" Value="False" />
-            <Setter Property="Grid.Row" Value="4" />
-            <Setter Property="Grid.Column" Value="0" />
             <Setter Property="IsReadOnly" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <!--<Setter Property="MaxHeight" Value="300" />-->
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Visible" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type TextBox}" >
-                        <Border x:Name="bg" BorderThickness="1" BorderBrush="DarkGray" Background="White">
-                            <Grid>
-                                <ScrollViewer x:Name="PART_ContentHost" Focusable="True" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" TargetName="bg" Value="Black" />
-                                <Setter Property="BorderThickness" TargetName="bg" Value="2"/>
-                                <Setter Property="FontSize" Value="16" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <Style x:Key="SliderGPTOptions" TargetType="Slider">
             <Setter Property="SmallChange" Value="0.1" />
         </Style>
+
         <Style TargetType="GroupBox">
-            <Setter Property="FontSize" Value="9"></Setter>
-            <Setter Property="FontStyle" Value="Normal"></Setter>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontStyle" Value="Normal"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
         </Style>
+
         <Style TargetType="Label">
             <Setter Property="FontStyle" Value="Italic" />
-            <Setter Property="Margin" Value="0,0,2,0" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="DarkGray" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Padding" Value="0" />
         </Style>
+
         <Style x:Key="SendRequest" TargetType="Button">
-            <Setter Property="Margin" Value="0,2,2,2" />
+            <Setter Property="Margin" Value="0,6,0,0" />
             <Setter Property="TabIndex" Value="2" />
             <Setter Property="Content" Value="Send Request" />
-            <Setter Property="Grid.Row" Value="2" />
-            <Setter Property="Grid.Column" Value="0" />
+            <Setter Property="MinWidth" Value="120" />
+            <Setter Property="Padding" Value="10,4" />
         </Style>
+
         <Style x:Key="DeleteButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -134,11 +80,11 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Bd"
-                        Background="{TemplateBinding Background}"
-                        CornerRadius="4"
-                        Padding="{TemplateBinding Padding}">
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -156,19 +102,82 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Subtle horizontal splitter -->
+        <Style x:Key="HorizontalGridSplitterStyle" TargetType="GridSplitter">
+            <Setter Property="Height" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#D0D0D0"/>
+            <Setter Property="ShowsPreview" Value="True"/>
+            <Setter Property="ResizeDirection" Value="Rows"/>
+            <Setter Property="ResizeBehavior" Value="PreviousAndNext"/>
+            <Setter Property="Cursor" Value="SizeNS"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Border Background="Transparent">
+                            <Border Height="1"
+                                VerticalAlignment="Center"
+                                Background="#B8B8B8"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#C7D7EA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Subtle vertical splitter -->
+        <Style x:Key="VerticalGridSplitterStyle" TargetType="GridSplitter">
+            <Setter Property="Width" Value="5"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="#D0D0D0"/>
+            <Setter Property="ShowsPreview" Value="True"/>
+            <Setter Property="ResizeDirection" Value="Columns"/>
+            <Setter Property="ResizeBehavior" Value="PreviousAndNext"/>
+            <Setter Property="Cursor" Value="SizeWE"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridSplitter">
+                        <Border Background="Transparent">
+                            <Border Width="1"
+                                HorizontalAlignment="Center"
+                                Background="#B8B8B8"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#C7D7EA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <DockPanel LastChildFill="True" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" UseLayoutRounding="False" >
+    <Grid VerticalAlignment="Stretch"
+          HorizontalAlignment="Stretch"
+          UseLayoutRounding="True">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-        <Menu DockPanel.Dock="Top" Height="18" IsEnabled="True" IsMainMenu="True">
+        <Menu Grid.Row="0" Height="18" IsEnabled="True" IsMainMenu="True">
             <MenuItem Header="File" Name="menuFile" Click="menuFile_Click" IsEnabled="True" AllowDrop="True">
-                <MenuItem Header="Settings" x:Name="menuSettings"  IsEnabled="True" Click="menuSettings_Click"/>
+                <MenuItem Header="Settings" x:Name="menuSettings" IsEnabled="True" Click="menuSettings_Click"/>
                 <MenuItem Header="Exit" Name="menuExit" Click="menuExit_Click" IsEnabled="True" />
             </MenuItem>
             <MenuItem Header="Tools" Name="menuTools" IsEnabled="True" AllowDrop="True">
                 <MenuItem Header="Record sound" Name="menuRecord" Click="menuRecord_Click" IsEnabled="True" />
-                <MenuItem Header="Convert WAV" Name="menuConvert" Click="menuConvert_Click"  IsEnabled="True" />
-                <MenuItem Header="Play Sound File" Name="menuPlayFile" Click="menuPlayFile_Click"  IsEnabled="True" />
+                <MenuItem Header="Convert WAV" Name="menuConvert" Click="menuConvert_Click" IsEnabled="True" />
+                <MenuItem Header="Play Sound File" Name="menuPlayFile" Click="menuPlayFile_Click" IsEnabled="True" />
                 <MenuItem Header="SpeechSynthesis Options" Name="menuSpeechSynthesisTool" Click="menuSpeechSynthesisTool_Click" IsEnabled="True" />
                 <MenuItem Header="Available Models" Name="menuAvlblMdls" Click="menuAvailableModels_Click" IsEnabled="True" />
             </MenuItem>
@@ -177,15 +186,20 @@
                 <MenuItem Header="ThisAssist" Name="menuThisAssistant" Click="menuThisAssistant_Click" IsEnabled="True"/>
             </MenuItem>
         </Menu>
-        <TabControl x:Name="tabMain" DockPanel.Dock="Top" SelectionChanged="tabMain_SelectionChanged">
+        <TabControl Grid.Row="1"
+                Background="Azure"
+                x:Name="tabMain"
+                HorizontalContentAlignment="Stretch"
+                VerticalContentAlignment="Stretch"
+                SelectionChanged="tabMain_SelectionChanged">
             <!-- ******************************************** -->
             <!-- Centered around Responses-tab(takes over for -->
             <!-- vision and image-generation) and video-tab.-->
             <!-- Not giving up/removing STT or TTS (whisper) yet-->
             <!-- ******************************************** -->
-
-
-            <TabItem Header="Whisper"  Name="tpWhisper">
+<!-- Until i fix/ckean up the code, this is just hogwash -->
+<!--
+            <TabItem Header="Whisper"  Name="tpWhisper" TabIndex="3">
                 <Grid x:Name="gridWhisper" VerticalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition x:Name="cdWhisperReqRes" Width="185*"/>
@@ -231,99 +245,234 @@
 
                 </Grid>
             </TabItem>
-            <TabItem Header="Video"  Name="tpVideo">
-                <Grid x:Name="gridVideo" VerticalAlignment="Stretch">
+ -->           
+            <TabItem Header="Video" Name="tpVideo">
+                <Grid x:Name="gridVideo"
+                        VerticalAlignment="Stretch"
+                        HorizontalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="cdVideoReqRes" Width="1.5*"/>
-                        <ColumnDefinition x:Name="cdVideoOptions" Width="0.5*"/>
+                        <ColumnDefinition x:Name="cdVideoReqRes" Width="3*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition x:Name="cdVideoOptions" Width="1*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="6" x:Name="spVideoInput" Orientation="Vertical" Grid.ColumnSpan="1">
-                        <Label Grid.Row="1" Grid.Column="0" Margin="2,20,2,2">Video prompt</Label>
-                        <TextBox Style="{StaticResource TextBoxRequest}"
-                                 x:Name="txtVideoPrompt"
-                                 Text="{Binding VideoState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 TextChanged="txtVideoPrompt_TextChanged"/>
-                        <Button Style="{StaticResource SendRequest}" x:Name="btnVideoSendRequest" Click="btnVideoGenerateClick"/>
-                        <Label Grid.Row="3" Grid.Column="0" Margin="2,20,2,2">OpenAi response</Label>
-                        <TextBox Style="{StaticResource TextBoxResponse}"
-                                 x:Name="txtVideoResponse"
-                                 Text="{Binding VideoState.ResponseText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                        <Label Grid.Row="4" Grid.Column="0" Margin="2,10,2,2">Session history</Label>
 
-                        <ListBox x:Name="lstVideoSessionTurns"
-                                 Height="140"
-                                 ItemsSource="{Binding CurrentVideoMessages, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 SelectedItem="{Binding VideoState.SelectedSessionTurn, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                 SelectionChanged="lstVideoSessionTurns_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="{Binding Role}" FontWeight="Bold" Foreground="Gray" FontSize="10"/>
-                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap"/>
-                                        <TextBlock FontSize="10" Foreground="DimGray" TextWrapping="Wrap">
-                                            <Run Text="Model: "/>
-                                            <Run Text="{Binding ModelUsed}"/>
-                                            <Run Text=" | Length: "/>
-                                            <Run Text="{Binding VideoLength}"/>
-                                            <Run Text=" | Size: "/>
-                                            <Run Text="{Binding VideoSize}"/>
-                                            <Run Text=" | RemoteId: "/>
-                                            <Run Text="{Binding RemoteId}"/>
-                                            <Run Text=" | Source: "/>
-                                            <Run Text="{Binding SourceRemoteId}"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </StackPanel>
-                    <GroupBox x:Name="groupVideo" Header="Video Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel x:Name="spVideo" Orientation="Vertical" Margin="5">
-                                <Label Content="Model" />
-                                <ComboBox x:Name="cmbVideoModel"
-                                          IsEditable="False"
-                                          IsReadOnly="True"
-                                          SelectedValuePath="Content"
-                                          SelectedValue="{Binding VideoState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                    <!-- LEFT SIDE -->
+                    <GroupBox x:Name="groupVideoIO"
+          Header="Video IO"
+          Grid.Row="0"
+          Grid.Column="0"
+          Margin="0"
+          VerticalAlignment="Stretch"
+          HorizontalAlignment="Stretch">
+                        <Grid Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="2*" MinHeight="140"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="2*" MinHeight="120"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="*" MinHeight="90"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- PROMPT SECTION -->
+                            <Grid Grid.Row="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Label Grid.Row="0"
+                   Content="Video prompt"
+                   Margin="0,0,0,2"/>
+
+                                <TextBox Grid.Row="1"
+                     x:Name="txtVideoPrompt"
+                     Style="{StaticResource TextBoxRequest}"
+                     Text="{Binding VideoState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     TextChanged="txtVideoPrompt_TextChanged"/>
+
+                                <Button Grid.Row="2"
+                    x:Name="btnVideoSendRequest"
+                    Style="{StaticResource SendRequest}"
+                    HorizontalAlignment="Stretch"
+                    Click="btnVideoGenerateClick"/>
+                            </Grid>
+
+                            <!-- SPLITTER 1 -->
+                            <GridSplitter Grid.Row="1"
+                      Style="{StaticResource HorizontalGridSplitterStyle}" />
+
+                            <!-- SESSION HISTORY SECTION -->
+                            <Grid Grid.Row="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Label Grid.Row="0"
+                   Content="Session history"
+                   Margin="0,0,0,2"/>
+
+                                <ListBox Grid.Row="1"
+                     x:Name="lstVideoSessionTurns"
+                     VerticalAlignment="Stretch"
+                     ItemsSource="{Binding CurrentVideoMessages, RelativeSource={RelativeSource AncestorType=Window}}"
+                     SelectedItem="{Binding VideoState.SelectedSessionTurn, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                     SelectionChanged="lstVideoSessionTurns_SelectionChanged">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="4">
+                                                <TextBlock Text="{Binding Role}"
+                                       FontWeight="Bold"
+                                       Foreground="Gray"
+                                       FontSize="10"/>
+                                                <TextBlock Text="{Binding Content}"
+                                       TextWrapping="Wrap"/>
+                                                <TextBlock FontSize="10"
+                                       Foreground="DimGray"
+                                       TextWrapping="Wrap">
+                                <Run Text="Model: "/>
+                                <Run Text="{Binding ModelUsed}"/>
+                                <Run Text=" | Length: "/>
+                                <Run Text="{Binding VideoLength}"/>
+                                <Run Text=" | Size: "/>
+                                <Run Text="{Binding VideoSize}"/>
+                                <Run Text=" | RemoteId: "/>
+                                <Run Text="{Binding RemoteId}"/>
+                                <Run Text=" | Source: "/>
+                                <Run Text="{Binding SourceRemoteId}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+
+                            <!-- SPLITTER 2 -->
+                            <GridSplitter Grid.Row="3"
+                      Style="{StaticResource HorizontalGridSplitterStyle}" />
+
+                            <!-- RESPONSE SECTION -->
+                            <Grid Grid.Row="4">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Label Grid.Row="0"
+                   Content="OpenAi response"
+                   Margin="0,0,0,2"/>
+
+                                <TextBox Grid.Row="1"
+                     x:Name="txtVideoResponse"
+                     Style="{StaticResource TextBoxResponse}"
+                     Text="{Binding VideoState.ResponseText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                            </Grid>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- VERTICAL SPLITTER -->
+                    <GridSplitter Grid.Row="0"
+                      Grid.Column="1"
+                      Style="{StaticResource VerticalGridSplitterStyle}" />
+
+                    <!-- RIGHT SIDE -->
+                    <GroupBox x:Name="groupVideo"
+                  Header="Video Options"
+                  Grid.Row="0"
+                  Grid.Column="2"
+                  Margin="0"
+                  VerticalAlignment="Stretch"
+                  HorizontalAlignment="Stretch">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="6">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Label Grid.Row="0" Content="Model" />
+                                <ComboBox Grid.Row="1"
+                              x:Name="cmbVideoModel"
+                              IsEditable="False"
+                              IsReadOnly="True"
+                              SelectedValuePath="Content"
+                              SelectedValue="{Binding VideoState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
                                     <ComboBoxItem IsSelected="True" Content="sora-2" />
                                     <ComboBoxItem Content="sora-2-pro" />
                                 </ComboBox>
-                                <Label Content="Video Length" />
-                                <ComboBox x:Name="cmbVideoLength"
-                                          SelectedValuePath="Content"
-                                          SelectedValue="{Binding VideoState.SelectedLength, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+
+                                <Label Grid.Row="2" Content="Video Length" Margin="0,5,0,2"/>
+                                <ComboBox Grid.Row="3"
+                              x:Name="cmbVideoLength"
+                              SelectedValuePath="Content"
+                              SelectedValue="{Binding VideoState.SelectedLength, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
                                     <ComboBoxItem IsSelected="True" Content="4" />
                                     <ComboBoxItem Content="8" />
                                     <ComboBoxItem Content="12" />
                                 </ComboBox>
-                                <Label Content="Video Size" />
-                                <ComboBox x:Name="cmbVideoSize"
-                                          SelectedValuePath="Content"
-                                          SelectedValue="{Binding VideoState.SelectedSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+
+                                <Label Grid.Row="4" Content="Video Size" Margin="0,5,0,2"/>
+                                <ComboBox Grid.Row="5"
+                              x:Name="cmbVideoSize"
+                              SelectedValuePath="Content"
+                              SelectedValue="{Binding VideoState.SelectedSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
                                     <ComboBoxItem IsSelected="True" Content="720x1280" />
                                     <ComboBoxItem Content="1280x720" />
                                     <ComboBoxItem Content="1024x1792" />
                                     <ComboBoxItem Content="1792x1024" />
                                 </ComboBox>
 
-                                <Label Content="Input Reference - select an image" />
-                                <Button x:Name="btnOpenVReference" Content="Choose Image" IsEnabled="True" Click="btnOpenVReference_Click"/>
-                                <Image x:Name="imgVideo" Margin="0,5,0,0" MaxHeight="250" Stretch="Uniform" Source="/no_pic.png" />
+                                <Label Grid.Row="6" Content="Input Reference - select an image" Margin="0,5,0,2"/>
+                                <Button Grid.Row="7"
+                            x:Name="btnOpenVReference"
+                            Content="Choose Image"
+                            Padding="5,2"
+                            Click="btnOpenVReference_Click"/>
 
-                                <Button x:Name="btmRemoveImage" Content="Remove reference pic" IsEnabled="True" Click="btmRemoveImage_Click" />
-                                <!-- Video history listbox with color-coded items -->
-                                <ListBox x:Name="lstVideoFiles"
-                                         ItemsSource="{Binding VideoHistory, RelativeSource={RelativeSource AncestorType=Window}}"
-                                         SelectedItem="{Binding VideoState.SelectedLibraryVideo, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                         SelectionChanged="lstVideoFiles_SelectionChanged">
+                                <Border Grid.Row="8"
+                            Margin="0,6,0,0"
+                            Padding="6"
+                            BorderBrush="DarkGray"
+                            BorderThickness="1"
+                            Background="#FFF8F8F8">
+                                    <Image x:Name="imgVideo"
+                               MaxHeight="250"
+                               Stretch="Uniform"
+                               Source="/no_pic.png" />
+                                </Border>
+
+                                <Button Grid.Row="9"
+                            x:Name="btmRemoveImage"
+                            Margin="0,6,0,0"
+                            Padding="5,2"
+                            Content="Remove reference pic"
+                            Click="btmRemoveImage_Click" />
+
+                                <Label Grid.Row="10" Content="Video history" Margin="0,5,0,2"/>
+                                <ListBox Grid.Row="11"
+                             x:Name="lstVideoFiles"
+                             MinHeight="120"
+                             MaxHeight="220"
+                             ItemsSource="{Binding VideoHistory, RelativeSource={RelativeSource AncestorType=Window}}"
+                             SelectedItem="{Binding VideoState.SelectedLibraryVideo, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                             SelectionChanged="lstVideoFiles_SelectionChanged">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding Id}" />
@@ -334,17 +483,12 @@
                                         <Style TargetType="ListBoxItem">
                                             <Setter Property="Background" Value="White" />
                                             <Style.Triggers>
-                                                <!-- Downloaded: light green -->
                                                 <DataTrigger Binding="{Binding IsDownloaded}" Value="True">
                                                     <Setter Property="Background" Value="#FFC8FFC8"/>
                                                 </DataTrigger>
-
-                                                <!-- Error: light red -->
                                                 <DataTrigger Binding="{Binding HasError}" Value="True">
                                                     <Setter Property="Background" Value="#FFFFC8C8"/>
                                                 </DataTrigger>
-
-                                                <!-- Not downloaded and no error: light orange -->
                                                 <DataTrigger Binding="{Binding IsDownloaded}" Value="False">
                                                     <Setter Property="Background" Value="#FFFFE0B2"/>
                                                 </DataTrigger>
@@ -352,452 +496,597 @@
                                         </Style>
                                     </ListBox.ItemContainerStyle>
                                 </ListBox>
-                                <CheckBox x:Name="cbVideoRemix"
-                                          Content="Remix selected video"
-                                          Margin="0,0,0,4"
-                                          IsChecked="{Binding VideoState.IsRemix, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
-                                <Button x:Name="btnDownloadVideo" Content="Download Selected Video" IsEnabled="True" Click="btnDownloadVideo_Click"/>
-                                
-                                <Button x:Name="btnGetStatus" Content="GetVideoStatus" IsEnabled="True" Click="btnGetStatus_Click" />
-                                <Button x:Name="btnPlayVideo" Content="Play Selected Video" IsEnabled="True" Click="btnPlayVideo_Click" />
-                                <Button x:Name="btnNewVideSession" Content="New Session" Margin="0,4,0,4" Background="LightGreen" IsEnabled="True" Click="btnNewVideSession_Click" />
-                                <Button x:Name="btnDeleteVideo" Content="Delete selected Video" IsEnabled="True" Background="#FFF64343" Click="btnDeleteVideo_Click" />
-                            </StackPanel>
+
+                                <StackPanel Grid.Row="12" Margin="0,10,0,0">
+                                    <CheckBox x:Name="cbVideoRemix"
+                                  Content="Remix selected video"
+                                  Margin="0,0,0,8"
+                                  IsChecked="{Binding VideoState.IsRemix, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+
+                                    <Button x:Name="btnDownloadVideo"
+                                Margin="0,0,0,2"
+                                Padding="5,2"
+                                Content="Download Selected Video"
+                                Click="btnDownloadVideo_Click"/>
+
+                                    <Button x:Name="btnGetStatus"
+                                Margin="0,0,0,2"
+                                Padding="5,2"
+                                Content="GetVideoStatus"
+                                Click="btnGetStatus_Click" />
+
+                                    <Button x:Name="btnPlayVideo"
+                                Margin="0,0,0,2"
+                                Padding="5,2"
+                                Content="Play Selected Video"
+                                Click="btnPlayVideo_Click" />
+
+                                    <Button x:Name="btnNewVideSession"
+                                Margin="0,0,0,2"
+                                Padding="5,2"
+                                Background="LightGreen"
+                                Content="New Session"
+                                Click="btnNewVideSession_Click" />
+
+                                    <Button x:Name="btnDeleteVideo"
+                                Padding="5,2"
+                                Background="#FFF64343"
+                                Content="Delete selected Video"
+                                Click="btnDeleteVideo_Click" />
+                                </StackPanel>
+                            </Grid>
                         </ScrollViewer>
                     </GroupBox>
-
                 </Grid>
             </TabItem>
             <TabItem Header="Responses" Name="tpResponses" Height="20" VerticalAlignment="Bottom">
-                <Grid x:Name="gridResponses" VerticalAlignment="Stretch">
+                <Grid x:Name="gridResponses"
+          VerticalAlignment="Stretch"
+          HorizontalAlignment="Stretch">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="cdResponsesReqRes" Width="1.5*"/>
-                        <ColumnDefinition x:Name="cdResponsesOptions" Width="0.5*"/>
+                        <ColumnDefinition x:Name="cdResponsesReqRes" Width="3*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition x:Name="cdResponsesOptions" Width="1*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <GroupBox x:Name="groupIO" Header="IO" Grid.Row="0" Grid.Column="0" Grid.RowSpan="5" Margin="0">
-                        <Grid Margin="5">
+
+                    <!-- LEFT: IO -->
+                    <GroupBox x:Name="groupIO"
+                  Header="IO"
+                  Grid.Row="0"
+                  Grid.Column="0"
+                  VerticalAlignment="Stretch"
+                  HorizontalAlignment="Stretch"
+                  Margin="0">
+                        <Grid Margin="6">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <!-- prompt label + button -->
-                                <RowDefinition Height="*"/>
-                                <!-- prompt + image preview -->
-                                <RowDefinition Height="Auto"/>
-                                <!-- send button -->
-                                <RowDefinition Height="Auto"/>
-                                <!-- response label -->
-                                <RowDefinition Height="*"/>
-                                <!-- response textbox -->
+                                <RowDefinition Height="*" MinHeight="150"/>
+                                <RowDefinition Height="5"/>
+                                <RowDefinition Height="*" MinHeight="150"/>
                             </Grid.RowDefinitions>
 
-                            <!-- 1) Prompt label and toggle button in one row -->
-                            <Grid Grid.Row="0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                            <!-- REQUEST SECTION -->
+                            <DockPanel Grid.Row="0" LastChildFill="True">
+                                <!-- Header -->
+                                <Grid DockPanel.Dock="Top" Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                                <Label Grid.Column="0" Margin="2,0,2,2">
-                                    Responses prompt
-                                </Label>
+                                    <Label Grid.Column="0"
+                               VerticalAlignment="Center"
+                               Content="Responses prompt" />
 
-                                <Button Grid.Column="1"
-                                        x:Name="btnResponsesAttachFiles"
-                                        Margin="4,0,0,0"
-                                        Content="Attach files"
-                                        Click="btnResponsesAttachFiles_Click"/>
+                                    <Button Grid.Column="1"
+                                x:Name="btnResponsesAttachFiles"
+                                Margin="6,0,0,0"
+                                Padding="5,2"
+                                Content="Attach files"
+                                Click="btnResponsesAttachFiles_Click"/>
 
-                                <Button Grid.Column="2"
-                                        x:Name="btnResponsesClearAttachments"
-                                        Margin="4,0,0,0"
-                                        Content="Clear all"
-                                        Click="btnResponsesClearAttachments_Click"/>
-                            </Grid>
+                                    <Button Grid.Column="2"
+                                x:Name="btnResponsesClearAttachments"
+                                Margin="6,0,0,0"
+                                Padding="5,2"
+                                Content="Clear all"
+                                Click="btnResponsesClearAttachments_Click"/>
+                                </Grid>
 
-                            <!-- 2) Prompt + image preview row -->
-                            <Grid Grid.Row="1">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition x:Name="colResponsesPrompt" Width="*" />
-                                    <ColumnDefinition x:Name="colResponsesImage" Width="0" />
-                                </Grid.ColumnDefinitions>
+                                <!-- Send button -->
+                                <Button DockPanel.Dock="Bottom"
+                            x:Name="btnResponsesSendRequest"
+                            Style="{StaticResource SendRequest}"
+                            HorizontalAlignment="Stretch"
+                            Click="btnResponsesSendRequestClick"/>
 
-                                <!-- Left side: prompt + pending attachments -->
-                                <Grid Grid.Column="0">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
+                                <!-- Attachments -->
+                                <Border DockPanel.Dock="Bottom"
+                            x:Name="borderResponsesAttachments"
+                            Margin="0,6,0,0"
+                            Padding="6"
+                            BorderBrush="DarkGray"
+                            BorderThickness="1"
+                            Background="#FFF8F8F8"
+                            Visibility="Collapsed">
+                                    <StackPanel>
+                                        <TextBlock Text="Attached files"
+                                       FontStyle="Italic"
+                                       Margin="0,0,0,2"/>
 
-                                    <TextBox Grid.Row="0"
-                                             Style="{StaticResource TextBoxRequest}"
-                                             x:Name="txtResponsesPrompt"
-                                             Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <ListBox x:Name="lstResponsesPendingAttachments"
+                                     MaxHeight="120"
+                                     ItemsSource="{Binding PendingResponseAttachments, RelativeSource={RelativeSource AncestorType=Window}}"
+                                     SelectionChanged="lstResponsesPendingAttachments_SelectionChanged">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <DockPanel Margin="0,2">
+                                                        <StackPanel DockPanel.Dock="Right"
+                                                        Orientation="Horizontal">
+                                                            <Button Content="Open"
+                                                        Margin="6,0,0,0"
+                                                        Padding="8,2"
+                                                        Click="btnResponsesOpenPendingAttachment_Click"/>
+                                                            <Button Content="Remove"
+                                                        Margin="6,0,0,0"
+                                                        Padding="8,2"
+                                                        Click="btnResponsesRemovePendingAttachment_Click"/>
+                                                        </StackPanel>
 
-                                    <Border Grid.Row="1"
-                                            x:Name="borderResponsesAttachments"
-                                            Margin="0,4,0,0"
-                                            Padding="4"
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding FileName, Mode=OneWay}"
+                                                           FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding MediaType}"
+                                                           FontSize="10"
+                                                           Foreground="DimGray"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Main prompt content -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition x:Name="colResponsesPrompt" Width="*" />
+                                        <ColumnDefinition x:Name="colResponsesImage" Width="0" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox Grid.Column="0"
+                                 x:Name="txtResponsesPrompt"
+                                 Style="{StaticResource TextBoxRequest}"
+                                 Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                                    <Border Grid.Column="1"
+                                            x:Name="borderResponsesImage"
+                                            Margin="6,0,0,0"
                                             BorderBrush="DarkGray"
                                             BorderThickness="1"
                                             Background="#FFF8F8F8"
                                             Visibility="Collapsed">
-                                        <StackPanel>
-                                            <TextBlock Text="Attached files"
-                                                       FontStyle="Italic"
-                                                       Margin="0,0,0,4"/>
+                                        <Grid Margin="6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="120"/>
+                                            </Grid.RowDefinitions>
 
-                                            <ListBox x:Name="lstResponsesPendingAttachments"
-                                                     MaxHeight="120"
-                                                     ItemsSource="{Binding PendingResponseAttachments, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                     SelectionChanged="lstResponsesPendingAttachments_SelectionChanged">
+                                            <Label Grid.Row="0"
+                                       Content="Image Preview" />
+
+                                            <TextBlock Grid.Row="1"
+                                           x:Name="txtResponsesPreviewInfo"
+                                           Margin="0,0,0,2"
+                                           FontSize="10"
+                                           Foreground="DimGray"
+                                           HorizontalAlignment="Right"
+                                           TextWrapping="NoWrap" />
+
+                                            <Image Grid.Row="2"
+                                       x:Name="imgResponsesPreview"
+                                       Stretch="Uniform"
+                                       MaxHeight="250"
+                                       MouseLeftButtonDown="imgResponsesPreview_MouseLeftButtonDown">
+                                                <Image.ContextMenu>
+                                                    <ContextMenu x:Name="ctxImagePreview">
+                                                        <MenuItem Header="Open" Click="MenuItemImageOpen_Click"/>
+                                                        <Separator/>
+                                                        <MenuItem Header="Open with" Click="MenuItemImageOpenWith_Click" />
+                                                    </ContextMenu>
+                                                </Image.ContextMenu>
+                                            </Image>
+
+                                            <TextBlock Grid.Row="3"
+                                           Margin="0,8,0,6"
+                                           Text="Images in selected turn"
+                                           FontStyle="Italic"
+                                           Foreground="DimGray" />
+
+                                            <ListBox Grid.Row="4"
+                                         x:Name="lstResponsesImages"
+                                         ItemsSource="{Binding ResponsePreviewImages, RelativeSource={RelativeSource AncestorType=Window}}"
+                                         SelectionChanged="lstResponsesImages_SelectionChanged">
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
-                                                        <DockPanel Margin="0,2">
-                                                            <StackPanel DockPanel.Dock="Right"
-                                                                        Orientation="Horizontal">
-                                                            <Button Content="Open"
-                                                                    Margin="4,0,0,0"
-                                                                    Padding="8,2"
-                                                                    Click="btnResponsesOpenPendingAttachment_Click"/>
-                                                                <Button Content="Remove"
-                                                                        Margin="4,0,0,0"
-                                                                        Padding="8,2"
-                                                                        Click="btnResponsesRemovePendingAttachment_Click"/>
-                                                            </StackPanel>
-
-                                                            <StackPanel>
-                                                                <TextBlock Text="{Binding FileName, Mode=OneWay}"
-                                                                           FontWeight="SemiBold"/>
-                                                                <TextBlock Text="{Binding MediaType}"
-                                                                           FontSize="10"
-                                                                           Foreground="DimGray"/>
-                                                            </StackPanel>
-                                                        </DockPanel>
+                                                        <StackPanel Margin="4,2">
+                                                            <TextBlock Text="{Binding FileName, Mode=OneWay}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding MediaType, Mode=OneWay}"
+                                                           FontSize="10"
+                                                           Foreground="DimGray"
+                                                           TextWrapping="Wrap"/>
+                                                        </StackPanel>
                                                     </DataTemplate>
                                                 </ListBox.ItemTemplate>
                                             </ListBox>
-                                        </StackPanel>
+                                        </Grid>
                                     </Border>
                                 </Grid>
+                            </DockPanel>
 
-                                <!-- Right side: image preview only -->
-                                <Border Grid.Column="1"
-                                        x:Name="borderResponsesImage"
-                                        Margin="4,0,0,0"
-                                        BorderBrush="DarkGray"
-                                        BorderThickness="1"
-                                        Background="#FFF8F8F8"
-                                        Visibility="Collapsed">
-                                    <Grid Margin="4">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="120"/>
-                                        </Grid.RowDefinitions>
+                            <!-- HORIZONTAL SPLITTER -->
+                            <GridSplitter Grid.Row="1"
+                              Style="{StaticResource HorizontalGridSplitterStyle}" />
 
-                                        <Label Grid.Row="0"
-                                               Content="Image Preview"
-                                               FontStyle="Italic" />
+                            <!-- RESPONSE SECTION -->
+                            <DockPanel Grid.Row="2" LastChildFill="True" Margin="0">
+                                <Label DockPanel.Dock="Top"
+                           Margin="0,0,0,2"
+                           Content="OpenAi response" />
 
-                                        <TextBlock Grid.Row="1"
-                                                   x:Name="txtResponsesPreviewInfo"
-                                                   Margin="0,0,0,4"
-                                                   FontSize="10"
-                                                   Foreground="DimGray"
-                                                   HorizontalAlignment="Right"
-                                                   TextWrapping="NoWrap" />
-
-                                        <Image Grid.Row="2"
-                                               x:Name="imgResponsesPreview"
-                                               Stretch="Uniform"
-                                               MaxHeight="250"
-                                               MouseLeftButtonDown="imgResponsesPreview_MouseLeftButtonDown">
-                                            <Image.ContextMenu>
-                                                <ContextMenu x:Name="ctxImagePreview">
-                                                    <MenuItem Header="Open" Click="MenuItemImageOpen_Click"/>
-                                                    <Separator/>
-                                                    <MenuItem Header="Open with" Click="MenuItemImageOpenWith_Click" />
-                                                </ContextMenu>
-                                            </Image.ContextMenu>
-                                        </Image>
-
-                                        <TextBlock Grid.Row="3"
-                                                   Margin="0,8,0,4"
-                                                   Text="Images in selected turn"
-                                                   FontStyle="Italic"
-                                                   Foreground="DimGray" />
-
-                                        <ListBox Grid.Row="4"
-                                                 x:Name="lstResponsesImages"
-                                                 ItemsSource="{Binding ResponsePreviewImages, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                 SelectionChanged="lstResponsesImages_SelectionChanged">
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Margin="4,2">
-                                                        <TextBlock Text="{Binding FileName, Mode=OneWay}"
-                                                                   FontWeight="SemiBold"
-                                                                   TextWrapping="Wrap"/>
-                                                        <TextBlock Text="{Binding MediaType, Mode=OneWay}"
-                                                                   FontSize="10"
-                                                                   Foreground="DimGray"
-                                                                   TextWrapping="Wrap"/>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                    </Grid>
-                                </Border>
-                            </Grid>
-
-                            <!-- 3) Send button -->
-                            <Button Grid.Row="2"
-                                    Style="{StaticResource SendRequest}"
-                                    x:Name="btnResponsesSendRequest"
-                                    Click="btnResponsesSendRequestClick"/>
-
-                            <!-- 4) Response label -->
-                            <Label Grid.Row="3" Margin="2,10,2,2">
-                                OpenAi response
-                            </Label>
-
-                            <!-- 5) Response (rixh)textbox -->
-                            <RichTextBox Grid.Row="4"
-                                         x:Name="rtbResponsesResponse"
-                                         Margin="2,0,2,0"
-                                         IsReadOnly="True"
-                                         IsDocumentEnabled="True"
-                                         VerticalScrollBarVisibility="Visible"
-                                         HorizontalScrollBarVisibility="Auto"
-                                         FontSize="12"
-                                         BorderBrush="DarkGray"
-                                         BorderThickness="1"
-                                         Background="White">
-                                <RichTextBox.ContextMenu>
-                                    <ContextMenu Opened="ResponsesRichTextContextMenu_Opened">
-                                        <MenuItem x:Name="miResponsesCopySelection"
-                                                  Header="Copy selection"
-                                                  Click="miResponsesCopySelection_Click"/>
-                                        <MenuItem x:Name="miResponsesCopyAll"
-                                                  Header="Copy all"
-                                                  Click="miResponsesCopyAll_Click"/>
-                                        <MenuItem x:Name="miResponsesCopyMarkdown"
-                                                  Header="Copy as Markdown"
-                                                  Click="miResponsesCopyMarkdown_Click"/>
-                                        <Separator/>
-                                        <MenuItem x:Name="miResponsesCopyCurrentBlock"
-                                                  Header="Copy current block"
-                                                  Click="miResponsesCopyCurrentBlock_Click"/>
-                                        <MenuItem x:Name="miResponsesCopyCurrentCodeBlock"
-                                                  Header="Copy current code block"
-                                                  Click="miResponsesCopyCurrentCodeBlock_Click"/>
-                                    </ContextMenu>
-                                </RichTextBox.ContextMenu>
-                            </RichTextBox>
+                                <RichTextBox x:Name="rtbResponsesResponse"
+                                 Margin="0"
+                                 VerticalAlignment="Stretch"
+                                 HorizontalAlignment="Stretch"
+                                 IsReadOnly="True"
+                                 IsDocumentEnabled="True"
+                                 VerticalScrollBarVisibility="Visible"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 FontSize="12"
+                                 BorderBrush="DarkGray"
+                                 BorderThickness="1"
+                                 Background="White">
+                                    <RichTextBox.ContextMenu>
+                                        <ContextMenu Opened="ResponsesRichTextContextMenu_Opened">
+                                            <MenuItem x:Name="miResponsesCopySelection"
+                                          Header="Copy selection"
+                                          Click="miResponsesCopySelection_Click"/>
+                                            <MenuItem x:Name="miResponsesCopyAll"
+                                          Header="Copy all"
+                                          Click="miResponsesCopyAll_Click"/>
+                                            <MenuItem x:Name="miResponsesCopyMarkdown"
+                                          Header="Copy as Markdown"
+                                          Click="miResponsesCopyMarkdown_Click"/>
+                                            <Separator/>
+                                            <MenuItem x:Name="miResponsesCopyCurrentBlock"
+                                          Header="Copy current block"
+                                          Click="miResponsesCopyCurrentBlock_Click"/>
+                                            <MenuItem x:Name="miResponsesCopyCurrentCodeBlock"
+                                          Header="Copy current code block"
+                                          Click="miResponsesCopyCurrentCodeBlock_Click"/>
+                                        </ContextMenu>
+                                    </RichTextBox.ContextMenu>
+                                </RichTextBox>
+                            </DockPanel>
                         </Grid>
                     </GroupBox>
 
+                    <!-- VERTICAL SPLITTER -->
+                    <GridSplitter Grid.Row="0"
+                      Grid.Column="1"
+                      Style="{StaticResource VerticalGridSplitterStyle}" />
 
-                    <GroupBox x:Name="groupResponses" Header="Responses Options" Grid.Row="0" Grid.Column="1" Grid.RowSpan="5">
-                        <StackPanel x:Name="spResponses" Orientation="Vertical" Margin="5">
-                            <Label Content="Model" />
-                            <ComboBox x:Name="cmbResponsesModel"
-                                      IsEditable="False"
-                                      IsReadOnly="True"
-                                      SelectedValuePath="Tag"
-                                      SelectedValue="{Binding ResponsesState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                            <Label Content="Reasoning" Margin="0,10,0,0"/>
-                            <ComboBox x:Name="cmbReasoning"
-                                      IsEditable="False"
-                                      SelectedValuePath="Tag"
-                                      SelectedValue="{Binding ResponsesState.SelectedReasoning, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                <ComboBoxItem Content="none" IsSelected="True" Tag="none"/>
-                                <ComboBoxItem Content="minimal" Tag="minimal"/>
-                                <ComboBoxItem Content="low" Tag="low"/>
-                                <ComboBoxItem Content="medium" Tag="medium"/>
-                                <ComboBoxItem Content="high" Tag="high"/>
-                                <ComboBoxItem Content="xhigh" Tag="xhigh"/>
-                            </ComboBox>
-                            <Label Content="Available Tools" />
-                            <CheckBox x:Name="cbToolText"
-                                      Content="Text (no tools)"
-                                      IsChecked="{Binding ResponsesState.UseTextTool, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                            <Grid Margin="0,2,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                    <!-- RIGHT: OPTIONS -->
+                    <GroupBox x:Name="groupResponses"
+                  Header="Responses Options"
+                  Grid.Row="0"
+                  Grid.Column="2"
+                  VerticalAlignment="Stretch"
+                  HorizontalAlignment="Stretch"
+                  Margin="0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="6">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                                <CheckBox x:Name="cbToolWebSearch" Grid.Column="0"
-                                  Content="Web search"
-                                  IsChecked="{Binding ResponsesState.UseWebSearch, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                                <StackPanel Grid.Column="1"  Orientation="Vertical">
-                                    <Label Content="Search Context Size" />
-                                    <ComboBox x:Name="cmbSearchContextSize"
+                                <!-- Model -->
+                                <Label Grid.Row="0" Content="Model" />
+                                <ComboBox Grid.Row="1"
+                              x:Name="cmbResponsesModel"
+                              IsEditable="False"
+                              IsReadOnly="True"
+                              SelectedValuePath="Tag"
+                              SelectedValue="{Binding ResponsesState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+
+                                <!-- Reasoning -->
+                                <Label Grid.Row="2" Content="Reasoning" Margin="0,5,0,2"/>
+                                <ComboBox Grid.Row="3"
+                              x:Name="cmbReasoning"
+                              IsEditable="False"
+                              SelectedValuePath="Tag"
+                              SelectedValue="{Binding ResponsesState.SelectedReasoning, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                                    <ComboBoxItem Content="none" IsSelected="True" Tag="none"/>
+                                    <ComboBoxItem Content="minimal" Tag="minimal"/>
+                                    <ComboBoxItem Content="low" Tag="low"/>
+                                    <ComboBoxItem Content="medium" Tag="medium"/>
+                                    <ComboBoxItem Content="high" Tag="high"/>
+                                    <ComboBoxItem Content="xhigh" Tag="xhigh"/>
+                                </ComboBox>
+
+                                <!-- Tools -->
+                                <Label Grid.Row="4" Content="Available Tools" Margin="0,5,0,2"/>
+
+                                <Grid Grid.Row="5" Margin="0,2,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <CheckBox Grid.Row="0"
+                                  x:Name="cbToolText"
+                                  Content="Text (no tools)"
+                                  Margin="0,0,0,2"
+                                  IsChecked="{Binding ResponsesState.UseTextTool, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+
+                                    <!-- Web search -->
+                                    <Border Grid.Row="1"
+                                Margin="0,0,0,8"
+                                Padding="6"
+                                BorderBrush="#DDDDDD"
+                                BorderThickness="1"
+                                Background="#FFF8F8F8">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <CheckBox Grid.Row="0"
+                                          x:Name="cbToolWebSearch"
+                                          Content="Web search"
+                                          IsChecked="{Binding ResponsesState.UseWebSearch, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+
+                                            <Grid Grid.Row="1"
+                                      Margin="16,6,0,0"
+                                      Visibility="{Binding ResponsesState.IsWebSearchOptionsEnabled,
+                                                           RelativeSource={RelativeSource AncestorType=Window},
+                                                           Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <Label Grid.Row="0" Content="Search Context Size" />
+                                                <ComboBox Grid.Row="1"
+                                              x:Name="cmbSearchContextSize"
                                               SelectedValuePath="Tag"
-                                              IsEnabled="{Binding ResponsesState.IsWebSearchOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                               SelectedValue="{Binding ResponsesState.SearchContextSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                        <ComboBoxItem Content="low" Tag="low"/>
-                                        <ComboBoxItem Content="medium" Tag="medium"/>
-                                        <ComboBoxItem Content="high" Tag="high"/>
-                                    </ComboBox>
-                                </StackPanel>
-                            </Grid>
-                            <!-- keep hidden (noise). For later -->
-                            <CheckBox x:Name="cbToolComputerUse"
-                                      Visibility="Hidden"
-                                      Content="Computer use (preview)"
-                                      IsChecked="{Binding ResponsesState.UseComputerUse, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                            <Grid Margin="0,2,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <CheckBox x:Name="cbToolImageGeneration" Grid.Column="0"
-                                  Content="Image Generation"
-                                  Margin="0,4,0,4"
-                                  IsChecked="{Binding ResponsesState.UseImageGeneration, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                                <StackPanel Grid.Column="1"
-                                            Orientation="Vertical"
-                                            Visibility="{Binding ResponsesState.IsImageGenerationOptionsVisible,
-                                                         RelativeSource={RelativeSource AncestorType=Window},
-                                                         Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <Label Content="Image Quality" />
-                                    <ComboBox x:Name="cmbImageGenQuality"
+                                                    <ComboBoxItem Content="low" Tag="low"/>
+                                                    <ComboBoxItem Content="medium" Tag="medium"/>
+                                                    <ComboBoxItem Content="high" Tag="high"/>
+                                                </ComboBox>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Image generation -->
+                                    <Border Grid.Row="2"
+                                Margin="0,0,0,8"
+                                Padding="6"
+                                BorderBrush="#DDDDDD"
+                                BorderThickness="1"
+                                Background="#FFF8F8F8">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <CheckBox Grid.Row="0"
+                                          x:Name="cbToolImageGeneration"
+                                          Content="Image Generation"
+                                          Margin="0,0,0,2"
+                                          IsChecked="{Binding ResponsesState.UseImageGeneration, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+
+                                            <Grid Grid.Row="1"
+                                      Margin="16,6,0,0"
+                                      Visibility="{Binding ResponsesState.IsImageGenerationOptionsVisible,
+                                                           RelativeSource={RelativeSource AncestorType=Window},
+                                                           Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <Label Grid.Row="0" Content="Image Quality" />
+                                                <ComboBox Grid.Row="1"
+                                              x:Name="cmbImageGenQuality"
                                               SelectedValuePath="Tag"
                                               IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                               SelectedValue="{Binding ResponsesState.ImageGenQuality, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                        <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
-                                        <ComboBoxItem Content="low" Tag="low"/>
-                                        <ComboBoxItem Content="medium" Tag="medium"/>
-                                        <ComboBoxItem Content="high" Tag="high"/>
-                                    </ComboBox>
-                                    <Label Content="Image Size" Margin="0,5,0,0"/>
-                                    <ComboBox x:Name="cmbImageGenSize"  
-                                              Margin="0,0,0,5"
+                                                    <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
+                                                    <ComboBoxItem Content="low" Tag="low"/>
+                                                    <ComboBoxItem Content="medium" Tag="medium"/>
+                                                    <ComboBoxItem Content="high" Tag="high"/>
+                                                </ComboBox>
+
+                                                <Label Grid.Row="2" Content="Image Size" Margin="0,8,0,4"/>
+                                                <ComboBox Grid.Row="3"
+                                              x:Name="cmbImageGenSize"
                                               SelectedValuePath="Tag"
                                               IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                               SelectedValue="{Binding ResponsesState.ImageGenSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                        <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
-                                        <ComboBoxItem Content="1024x1024" Tag="1024x1024"/>
-                                        <ComboBoxItem Content="1536x1024" Tag="1536x1024" />
-                                        <ComboBoxItem Content="1024x1536" Tag="1024x1536"/>
-                                    </ComboBox>
-                                    <Label Content="Output Format"
-                                           ToolTip="jpeg = smaller/faster, png = transparency, webp = compression + transparency"
-                                           Margin="0,5,0,0"/>
-                                    <ComboBox x:Name="cmbImageGenOutputFormat"
+                                                    <ComboBoxItem Content="auto" Tag="auto" IsSelected="True"/>
+                                                    <ComboBoxItem Content="1024x1024" Tag="1024x1024"/>
+                                                    <ComboBoxItem Content="1536x1024" Tag="1536x1024"/>
+                                                    <ComboBoxItem Content="1024x1536" Tag="1024x1536"/>
+                                                </ComboBox>
+
+                                                <Label Grid.Row="4"
+                                           Content="Output Format"
+                                           Margin="0,8,0,4"
+                                           ToolTip="jpeg = smaller/faster, png = transparency, webp = compression + transparency"/>
+                                                <ComboBox Grid.Row="5"
+                                              x:Name="cmbImageGenOutputFormat"
                                               SelectedValuePath="Tag"
                                               IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                               SelectedValue="{Binding ResponsesState.ImageGenOutputFormat, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                        <ComboBoxItem Content="jpeg" Tag="jpeg" IsSelected="True"/>
-                                        <ComboBoxItem Content="png" Tag="png"/>
-                                        <ComboBoxItem Content="webp" Tag="webp"/>
-                                    </ComboBox>
-                                    <Label Content="Output Compression"
-                                           ToolTip="The compression level (0-100%) for the generated images. This parameter is only supported for the GPT image models with the webp or jpeg output formats, and defaults to 85."
-                                           Margin="0,5,0,0"/>
-                                    <StackPanel Orientation="Horizontal"
-                                                IsEnabled="{Binding ResponsesState.IsOutputCompressionEnabled, RelativeSource={RelativeSource AncestorType=Window}}">
-                                        <Slider Minimum="0"
+                                                    <ComboBoxItem Content="jpeg" Tag="jpeg" IsSelected="True"/>
+                                                    <ComboBoxItem Content="png" Tag="png"/>
+                                                    <ComboBoxItem Content="webp" Tag="webp"/>
+                                                </ComboBox>
+
+                                                <Label Grid.Row="6"
+                                           Content="Output Compression"
+                                           Margin="0,8,0,4"
+                                           ToolTip="The compression level (0-100%) for the generated images. This parameter is only supported for the GPT image models with the webp or jpeg output formats, and defaults to 85."/>
+                                                <Grid Grid.Row="7"
+                                          IsEnabled="{Binding ResponsesState.IsOutputCompressionEnabled, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Slider Grid.Column="0"
+                                                Minimum="0"
                                                 Maximum="100"
-                                                Width="120"
                                                 TickFrequency="5"
                                                 IsSnapToTickEnabled="True"
                                                 Value="{Binding ResponsesState.ImageGenOutputCompression, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                                        <TextBlock Margin="8,0,4,0"
+
+                                                    <TextBlock Grid.Column="1"
+                                                   Margin="8,0,0,0"
                                                    VerticalAlignment="Center"
+                                                   Padding="6,1"
                                                    Background="Aqua"
                                                    Text="{Binding ResponsesState.ImageGenOutputCompression, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                    </StackPanel>
-                                    <Label Content="Background"
-                                           ToolTip="Allows to set transparency for the background of the generated image(s). This parameter is only supported for the GPT image models. Must be one of transparent, opaque or auto (default value). When auto is used, the model will automatically determine the best background for the image."
-                                           Margin="0,5,0,0"/>
-                                    <ComboBox x:Name="cmbImageGenBackground"
+                                                </Grid>
+
+                                                <Label Grid.Row="8"
+                                           Content="Background"
+                                           Margin="0,8,0,4"
+                                           ToolTip="Allows to set transparency for the background of the generated image(s). This parameter is only supported for the GPT image models. Must be one of transparent, opaque or auto."/>
+                                                <ComboBox Grid.Row="9"
+                                              x:Name="cmbImageGenBackground"
                                               SelectedValuePath="Tag"
                                               SelectedValue="{Binding ResponsesState.ImageGenBackground, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                        <ComboBoxItem Content="auto" Tag="auto"/>
-                                        <ComboBoxItem Content="opaque" Tag="opaque"/>
-                                        <ComboBoxItem Content="transparent"
+                                                    <ComboBoxItem Content="auto" Tag="auto"/>
+                                                    <ComboBoxItem Content="opaque" Tag="opaque"/>
+                                                    <ComboBoxItem Content="transparent"
                                                       Tag="transparent"
                                                       IsEnabled="{Binding ResponsesState.IsTransparentBackgroundAllowed, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                    </ComboBox>
-                                    <!-- Hide this. I misunderstood somewhere. This is for image-input. Not for generation -->
-                                    <Label Content="Input Fidelity" Margin="0,5,0,0" Visibility="Hidden"/>
-                                    <ComboBox x:Name="cmbImageGenInputFidelity"
-                                              Visibility="Hidden"
-                                              SelectedValuePath="Tag"
-                                              IsEnabled="{Binding ResponsesState.IsImageGenerationOptionsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              SelectedValue="{Binding ResponsesState.ImageGenInputFidelity, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                        <ComboBoxItem Content="high" Tag="high" IsSelected="True"/>
-                                        <ComboBoxItem Content="low" Tag="low"/>
-                                    </ComboBox>
-                                </StackPanel>
+                                                </ComboBox>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+
+                                    <CheckBox Grid.Row="3"
+                                  x:Name="cbToolComputerUse"
+                                  Visibility="Collapsed"
+                                  Content="Computer use (preview)"
+                                  IsChecked="{Binding ResponsesState.UseComputerUse, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                </Grid>
+
+                                <!-- Actions -->
+                                <Button Grid.Row="6"
+                            x:Name="btnResponsesNewChat"
+                            Margin="0,8,0,0"
+                            Padding="5,2"
+                            Content="New Conversation"
+                            Click="btnResponsesNewChat_Click"/>
+
+                                <ListBox Grid.Row="7"
+                             x:Name="lstResponsesTurns"
+                             Height="150"
+                             Margin="0,8,0,0"
+                             ItemsSource="{Binding CurrentChatMessages, RelativeSource={RelativeSource AncestorType=Window}}"
+                             SelectedItem="{Binding ResponsesState.SelectedTurn, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                             SelectionChanged="lstResponsesTurns_SelectionChanged"
+                             MouseDoubleClick="lstResponsesTurns_MouseDoubleClick">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="5">
+                                                <TextBlock Text="{Binding Role}"
+                                               FontWeight="Bold"
+                                               Foreground="Gray"
+                                               FontSize="10"/>
+
+                                                <TextBlock Text="{Binding Content}"
+                                               TextWrapping="Wrap"/>
+
+                                                <ItemsControl ItemsSource="{Binding MediaFiles}" Margin="0,4,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock FontSize="10"
+                                                           Foreground="SlateGray"
+                                                           TextWrapping="Wrap">
+                                                    <Run Text="📎 "/>
+                                                    <Run Text="{Binding FileName, Mode=OneWay}"/>
+                                                    <Run Text="  "/>
+                                                    <Run Text="{Binding MediaType}"/>
+                                                            </TextBlock>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <TextBlock FontSize="10"
+                                               Foreground="DimGray"
+                                               TextWrapping="Wrap">
+                                        <Run Text="Model: "/>
+                                        <Run Text="{Binding ModelUsed}"/>
+                                        <Run Text=" | Reasoning: "/>
+                                        <Run Text="{Binding ReasoningLevel}"/>
+                                        <Run Text=" | Tools: "/>
+                                        <Run Text="{Binding ActiveTools}"/>
+                                                </TextBlock>
+
+                                                <TextBlock FontSize="10"
+                                                           Foreground="SlateGray"
+                                                           TextWrapping="Wrap"
+                                               Text="{Binding ImageToolSummary, Mode=OneWay}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <Button Grid.Row="8"
+                                        x:Name="btnResponsesDeleteChat"
+                                        Margin="0,8,0,0"
+                                        Padding="5,2"
+                                        Content="Delete Conversation"
+                                        Click="btnResponsesDeleteChat_Click"/>
                             </Grid>
-                            <Button x:Name="btnResponsesNewChat" Content="New Conversation" Click="btnResponsesNewChat_Click"/>
-                            <ListBox x:Name="lstResponsesTurns" 
-                                     Height="150" 
-                                     ItemsSource="{Binding CurrentChatMessages, RelativeSource={RelativeSource AncestorType=Window}}"
-                                     SelectedItem="{Binding ResponsesState.SelectedTurn, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
-                                     SelectionChanged="lstResponsesTurns_SelectionChanged" 
-                                     MouseDoubleClick="lstResponsesTurns_MouseDoubleClick">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Margin="5">
-                                            <TextBlock Text="{Binding Role}"
-                                                       FontWeight="Bold"
-                                                       Foreground="Gray"
-                                                       FontSize="10"/>
-
-                                            <TextBlock Text="{Binding Content}"
-                                                       TextWrapping="Wrap"/>
-                                            <ItemsControl ItemsSource="{Binding MediaFiles}" Margin="0,4,0,0">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock FontSize="10"
-                                                                Foreground="SlateGray"
-                                                                TextWrapping="Wrap">
-                                                                <Run Text="📎 "/>
-                                                                <Run Text="{Binding FileName, Mode=OneWay}"/>
-                                                                <Run Text="  "/>
-                                                                <Run Text="{Binding MediaType}"/>
-                                                        </TextBlock>
-                                                        
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            <TextBlock FontSize="10"
-                                                       Foreground="DimGray"
-                                                       TextWrapping="Wrap">
-                                                        <Run Text="Model: "/>
-                                                        <Run Text="{Binding ModelUsed}"/>
-                                                        <Run Text=" | Reasoning: "/>
-                                                        <Run Text="{Binding ReasoningLevel}"/>
-                                                        <Run Text=" | Tools: "/>
-                                                        <Run Text="{Binding ActiveTools}"/>
-                                            </TextBlock>
-                                            <TextBlock FontSize="10"
-                                                       Foreground="SlateGray"
-                                                       TextWrapping="Wrap"
-                                                       Text="{Binding ImageToolSummary, Mode=OneWay}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <Button x:Name="btnResponsesDeleteChat" Content="Delete Conversation" Click="btnResponsesDeleteChat_Click"/>
-                        </StackPanel>
-
-
+                        </ScrollViewer>
                     </GroupBox>
-
                 </Grid>
             </TabItem>
             <TabItem Header="Logs" x:Name="tabLogs">
@@ -873,7 +1162,7 @@
                                                 Click="OnDeleteSessionClick"
                                                 ClickMode="Press"
                                                 CommandParameter="{Binding}"
-                                                ToolTip="{Binding Title, StringFormat=Delete {0}}"/>       
+                                                ToolTip="{Binding Title, StringFormat=Delete {0}}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -882,11 +1171,12 @@
                 </Grid>
             </TabItem>
         </TabControl>
-        <StatusBar DockPanel.Dock="Bottom" Style="{StaticResource StatusBar}">
-            <StatusBarItem>
-                <TextBlock x:Name="StatusText" 
-                           Text="Ready" />
+        <StatusBar Grid.Row="2" Style="{StaticResource StatusBarStyle}">
+            <StatusBarItem Padding="4,0">
+                <TextBlock x:Name="StatusText"
+                       Text="Ready"
+                       VerticalAlignment="Center" />
             </StatusBarItem>
         </StatusBar>
-    </DockPanel>
+    </Grid>
 </Window>
