@@ -172,6 +172,142 @@ namespace openAIApps
             UseImageGeneration &&
             (string.Equals(ImageGenOutputFormat, "png", StringComparison.OrdinalIgnoreCase) ||
              string.Equals(ImageGenOutputFormat, "webp", StringComparison.OrdinalIgnoreCase));
+
+        //Developer functions-controls
+        private bool _useDeveloperTools;
+        public bool UseDeveloperTools
+        {
+            get => _useDeveloperTools;
+            set
+            {
+                if (_useDeveloperTools == value) return;
+                _useDeveloperTools = value;
+                OnPropertyChanged(nameof(UseDeveloperTools));
+                OnPropertyChanged(nameof(IsDeveloperToolsOptionsVisible));
             }
+        }
+
+        private string _developerRepositoryRoot = string.Empty;
+        public string DeveloperRepositoryRoot
+        {
+            get => _developerRepositoryRoot;
+            set
+            {
+                if (_developerRepositoryRoot == value) return;
+                _developerRepositoryRoot = value;
+                OnPropertyChanged(nameof(DeveloperRepositoryRoot));
+            }
+        }
+
+        private string _developerScope = "repository";
+        public string DeveloperScope
+        {
+            get => _developerScope;
+            set
+            {
+                if (_developerScope == value) return;
+                _developerScope = value;
+                OnPropertyChanged(nameof(DeveloperScope));
+            }
+        }
+
+        private bool _developerAllowReadOnlyOnly = true;
+        public bool DeveloperAllowReadOnlyOnly
+        {
+            get => _developerAllowReadOnlyOnly;
+            set
+            {
+                if (_developerAllowReadOnlyOnly == value) return;
+                _developerAllowReadOnlyOnly = value;
+                OnPropertyChanged(nameof(DeveloperAllowReadOnlyOnly));
+            }
+        }
+
+        private bool _developerRequireConfirmation;
+        public bool DeveloperRequireConfirmation
+        {
+            get => _developerRequireConfirmation;
+            set
+            {
+                if (_developerRequireConfirmation == value) return;
+                _developerRequireConfirmation = value;
+                OnPropertyChanged(nameof(DeveloperRequireConfirmation));
+            }
+        }
+
+        private bool _developerShowToolLogs = true;
+        public bool DeveloperShowToolLogs
+        {
+            get => _developerShowToolLogs;
+            set
+            {
+                if (_developerShowToolLogs == value) return;
+                _developerShowToolLogs = value;
+                OnPropertyChanged(nameof(DeveloperShowToolLogs));
+            }
+        }
+
+        private bool _developerToolSearchProjectText = true;
+        public bool DeveloperToolSearchProjectText
+        {
+            get => _developerToolSearchProjectText;
+            set
+            {
+                if (_developerToolSearchProjectText == value) return;
+                _developerToolSearchProjectText = value;
+                OnPropertyChanged(nameof(DeveloperToolSearchProjectText));
+            }
+        }
+
+        private bool _developerToolReadProjectFile = true;
+        public bool DeveloperToolReadProjectFile
+        {
+            get => _developerToolReadProjectFile;
+            set
+            {
+                if (_developerToolReadProjectFile == value) return;
+                _developerToolReadProjectFile = value;
+                OnPropertyChanged(nameof(DeveloperToolReadProjectFile));
+            }
+        }
+
+        private bool _developerToolListProjectFiles;
+        public bool DeveloperToolListProjectFiles
+        {
+            get => _developerToolListProjectFiles;
+            set
+            {
+                if (_developerToolListProjectFiles == value) return;
+                _developerToolListProjectFiles = value;
+                OnPropertyChanged(nameof(DeveloperToolListProjectFiles));
+            }
+        }
+
+        private bool _developerToolRunDiagnostics;
+        public bool DeveloperToolRunDiagnostics
+        {
+            get => _developerToolRunDiagnostics;
+            set
+            {
+                if (_developerToolRunDiagnostics == value) return;
+                _developerToolRunDiagnostics = value;
+                OnPropertyChanged(nameof(DeveloperToolRunDiagnostics));
+            }
+        }
+
+        private string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
+        public string DeveloperAllowedExtensionsCsv
+        {
+            get => _developerAllowedExtensionsCsv;
+            set
+            {
+                if (_developerAllowedExtensionsCsv == value) return;
+                _developerAllowedExtensionsCsv = value;
+                OnPropertyChanged(nameof(DeveloperAllowedExtensionsCsv));
+            }
+        }
+
+        public bool IsDeveloperToolsOptionsVisible => UseDeveloperTools;
+    }
 
 }

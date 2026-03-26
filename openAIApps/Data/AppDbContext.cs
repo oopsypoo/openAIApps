@@ -107,6 +107,11 @@ namespace openAIApps.Data
                 db.Database.ExecuteSqlRaw(
                     "ALTER TABLE Messages ADD COLUMN ImageToolSettingsJson TEXT NOT NULL DEFAULT '';");
             }
+            if (!ColumnExists(db, "Messages", "DeveloperToolSettingsJson"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN DeveloperToolSettingsJson TEXT NOT NULL DEFAULT '';");
+            }
         }
         private static bool ColumnExists(AppDbContext db, string tableName, string columnName)
         {

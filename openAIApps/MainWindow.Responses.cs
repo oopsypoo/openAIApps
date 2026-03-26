@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using openAIApps.Data;
 using openAIApps.Native;
+using openAIApps.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -154,6 +155,18 @@ namespace openAIApps
             ResponsesState.ImageGenOutputCompression = 85;
             ResponsesState.ImageGenBackground = "auto";
             ResponsesState.ImageGenInputFidelity = "high";
+            //--------Developer function-tool-calls-----------
+            ResponsesState.UseDeveloperTools = false;
+            ResponsesState.DeveloperRepositoryRoot = string.Empty;
+            ResponsesState.DeveloperScope = "repository";
+            ResponsesState.DeveloperAllowReadOnlyOnly = true;
+            ResponsesState.DeveloperRequireConfirmation = false;
+            ResponsesState.DeveloperShowToolLogs = true;
+            ResponsesState.DeveloperToolSearchProjectText = true;
+            ResponsesState.DeveloperToolReadProjectFile = true;
+            ResponsesState.DeveloperToolListProjectFiles = false;
+            ResponsesState.DeveloperToolRunDiagnostics = false;
+            ResponsesState.DeveloperAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
             ApplyResponsesStateToClient();
         }
         private ChatMessage GetSelectedResponseMessage()
@@ -369,9 +382,25 @@ namespace openAIApps
             _responsesPreviewImagePath = string.Empty;
             ClearResponsePreviewImages();
             HideResponsesImagePreview();
+            ResetDeveloperToolsState();
 
             if (_responsesClient != null)
                 _responsesClient.ClearConversation();
+        }
+        private void ResetDeveloperToolsState()
+        {
+            ResponsesState.UseDeveloperTools = false;
+            ResponsesState.DeveloperRepositoryRoot = string.Empty;
+            ResponsesState.DeveloperScope = "repository";
+            ResponsesState.DeveloperAllowReadOnlyOnly = true;
+            ResponsesState.DeveloperRequireConfirmation = false;
+            ResponsesState.DeveloperShowToolLogs = true;
+            ResponsesState.DeveloperToolSearchProjectText = true;
+            ResponsesState.DeveloperToolReadProjectFile = true;
+            ResponsesState.DeveloperToolListProjectFiles = false;
+            ResponsesState.DeveloperToolRunDiagnostics = false;
+            ResponsesState.DeveloperAllowedExtensionsCsv =
+                ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
         }
         private void UpdatePendingAttachmentsPanel()
         {
@@ -524,6 +553,7 @@ namespace openAIApps
                 string imgQual = ResponsesState.ImageGenQuality;
                 string searchSize = ResponsesState.SearchContextSize;
                 string imageToolSettingsJson = BuildImageToolSettingsJson();
+                string developerToolSettingsJson = BuildDeveloperToolSettingsJson();
 
                 string toolsCsv = string.Join(",",
                     _responsesClient.ActiveTools
@@ -545,7 +575,8 @@ namespace openAIApps
                     imgSize: imgSize,
                     imgQual: imgQual,
                     searchSize: searchSize,
-                    imageToolSettingsJson: imageToolSettingsJson);
+                    imageToolSettingsJson: imageToolSettingsJson,
+                    developerToolSettingsJson: developerToolSettingsJson);
 
                 if (hasAttachedFiles)
                 {
@@ -564,7 +595,14 @@ namespace openAIApps
                 }
 
                 var context = await _historyService.GetContextForApiAsync(sid);
-                var result = await _responsesClient.GetChatCompletionAsync(context);
+                var developerToolsOptions = BuildDeveloperToolsOptionsFromState();
+                // We are sending full DB history, so start a fresh response chain.
+                _responsesClient.ClearConversation();
+                var result = await _responsesClient.GetChatCompletionWithLocalToolsAsync(
+                    context,
+                    developerToolsOptions,
+                    confirmLocalCallAsync: ConfirmDeveloperToolCallAsync,
+                    onToolCallLoggedAsync: LogDeveloperToolCallAsync);
 
                 if (result != null)
                 {
@@ -578,7 +616,8 @@ namespace openAIApps
                         tools: toolsCsv,
                         imgSize: imgSize,
                         imgQual: imgQual,
-                        searchSize: searchSize);
+                        searchSize: searchSize,
+                        developerToolSettingsJson: developerToolSettingsJson);
 
                     if (result.ImagePayloads?.Count > 0)
                     {
@@ -824,7 +863,8 @@ namespace openAIApps
                 !string.IsNullOrWhiteSpace(message.SearchContextSize) ||
                 !string.IsNullOrWhiteSpace(message.ImageSize) ||
                 !string.IsNullOrWhiteSpace(message.ImageQuality) ||
-                !string.IsNullOrWhiteSpace(message.ImageToolSettingsJson);
+                !string.IsNullOrWhiteSpace(message.ImageToolSettingsJson) ||
+                !string.IsNullOrWhiteSpace(message.DeveloperToolSettingsJson);
         }
         
         
@@ -899,8 +939,8 @@ namespace openAIApps
                 ResponsesState.ImageGenBackground = "auto";
                 ResponsesState.ImageGenInputFidelity = "high";
                 ResponsesState.ImageGenOutputCompression = 85;
-
                 ApplyResponsesToolsToState(settingsMessage.ActiveTools);
+                ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
             }
             finally
             {
@@ -909,6 +949,7 @@ namespace openAIApps
 
             NormalizeResponsesToolsState();
             ApplyResponsesStateToClient();
+            ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
         }
         private void NormalizeResponsesToolsState()
         {
@@ -1024,6 +1065,43 @@ namespace openAIApps
             [JsonPropertyName("input_fidelity")]
             public string InputFidelity { get; set; } = "high";
         }
+
+        private sealed class DeveloperToolSettingsSnapshot
+        {
+            [JsonPropertyName("enabled")]
+            public bool Enabled { get; set; }
+
+            [JsonPropertyName("repository_root")]
+            public string RepositoryRoot { get; set; } = string.Empty;
+
+            [JsonPropertyName("scope")]
+            public string Scope { get; set; } = "repository";
+
+            [JsonPropertyName("search_project_text")]
+            public bool SearchProjectText { get; set; } = true;
+
+            [JsonPropertyName("read_project_file")]
+            public bool ReadProjectFile { get; set; } = true;
+
+            [JsonPropertyName("list_project_files")]
+            public bool ListProjectFiles { get; set; }
+
+            [JsonPropertyName("run_diagnostics")]
+            public bool RunDiagnostics { get; set; }
+
+            [JsonPropertyName("read_only_only")]
+            public bool ReadOnlyOnly { get; set; } = true;
+
+            [JsonPropertyName("require_confirmation")]
+            public bool RequireConfirmation { get; set; }
+
+            [JsonPropertyName("show_tool_logs")]
+            public bool ShowToolLogs { get; set; } = true;
+
+            [JsonPropertyName("allowed_extensions_csv")]
+            public string AllowedExtensionsCsv { get; set; } =
+                ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
+        }
         private string BuildImageToolSettingsJson()
         {
             if (!ResponsesState.UseImageGeneration)
@@ -1062,6 +1140,35 @@ namespace openAIApps
             });
         }
 
+        private string BuildDeveloperToolSettingsJson()
+        {
+            var snapshot = new DeveloperToolSettingsSnapshot
+            {
+                Enabled = ResponsesState.UseDeveloperTools,
+                RepositoryRoot = ResponsesState.DeveloperRepositoryRoot ?? string.Empty,
+                Scope = string.IsNullOrWhiteSpace(ResponsesState.DeveloperScope)
+                    ? "repository"
+                    : ResponsesState.DeveloperScope,
+
+                SearchProjectText = ResponsesState.DeveloperToolSearchProjectText,
+                ReadProjectFile = ResponsesState.DeveloperToolReadProjectFile,
+                ListProjectFiles = ResponsesState.DeveloperToolListProjectFiles,
+                RunDiagnostics = ResponsesState.DeveloperToolRunDiagnostics,
+
+                ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
+                RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
+                ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
+
+                AllowedExtensionsCsv = string.IsNullOrWhiteSpace(ResponsesState.DeveloperAllowedExtensionsCsv)
+                    ? ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets"
+                    : ResponsesState.DeveloperAllowedExtensionsCsv
+            };
+
+            return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions
+            {
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            });
+        }
         private void ApplyImageToolSettingsFromJson(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
@@ -1094,6 +1201,41 @@ namespace openAIApps
             catch
             {
                 // Keep tolerant; old rows may not have valid JSON
+            }
+        }
+        private void ApplyDeveloperToolSettingsFromJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return;
+
+            try
+            {
+                var snapshot = JsonSerializer.Deserialize<DeveloperToolSettingsSnapshot>(json);
+                if (snapshot == null)
+                    return;
+
+                ResponsesState.UseDeveloperTools = snapshot.Enabled;
+                ResponsesState.DeveloperRepositoryRoot = snapshot.RepositoryRoot ?? string.Empty;
+                ResponsesState.DeveloperScope = string.IsNullOrWhiteSpace(snapshot.Scope)
+                    ? "repository"
+                    : snapshot.Scope;
+
+                ResponsesState.DeveloperToolSearchProjectText = snapshot.SearchProjectText;
+                ResponsesState.DeveloperToolReadProjectFile = snapshot.ReadProjectFile;
+                ResponsesState.DeveloperToolListProjectFiles = snapshot.ListProjectFiles;
+                ResponsesState.DeveloperToolRunDiagnostics = snapshot.RunDiagnostics;
+
+                ResponsesState.DeveloperAllowReadOnlyOnly = snapshot.ReadOnlyOnly;
+                ResponsesState.DeveloperRequireConfirmation = snapshot.RequireConfirmation;
+                ResponsesState.DeveloperShowToolLogs = snapshot.ShowToolLogs;
+                ResponsesState.DeveloperAllowedExtensionsCsv =
+                    string.IsNullOrWhiteSpace(snapshot.AllowedExtensionsCsv)
+                        ? ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets"
+                        : snapshot.AllowedExtensionsCsv;
+            }
+            catch
+            {
+                // Keep tolerant for older rows or malformed JSON
             }
         }
         private void ApplyResponsesToolsToState(string toolsCsv)
@@ -1800,6 +1942,79 @@ namespace openAIApps
 
             if (item.IsImage && File.Exists(item.LocalPath))
                 ShowResponsesImagePreview(item.LocalPath);
+        }
+        private void btnDeveloperBrowseRoot_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Select any file inside the repository root",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                ResponsesState.DeveloperRepositoryRoot = Path.GetDirectoryName(dlg.FileName) ?? string.Empty;
+            }
+        }
+        private DeveloperToolsOptions BuildDeveloperToolsOptionsFromState()
+        {
+            var extensions = (ResponsesState.DeveloperAllowedExtensionsCsv ?? string.Empty)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToArray();
+
+            return new DeveloperToolsOptions
+            {
+                Enabled = ResponsesState.UseDeveloperTools,
+                RepositoryRoot = ResponsesState.DeveloperRepositoryRoot ?? string.Empty,
+                ScopeMode = ResponsesState.DeveloperScope ?? "repository",
+
+                ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
+                RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
+                ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
+
+                SearchProjectTextEnabled = ResponsesState.DeveloperToolSearchProjectText,
+                ReadProjectFileEnabled = ResponsesState.DeveloperToolReadProjectFile,
+                ListProjectFilesEnabled = ResponsesState.DeveloperToolListProjectFiles,
+                RunDiagnosticsEnabled = ResponsesState.DeveloperToolRunDiagnostics,
+
+                AllowedExtensions = extensions,
+                MaxReadLines = 300,
+                MaxSearchResults = 100,
+                MaxFileBytes = 512 * 1024
+            };
+        }
+        private Task<bool> ConfirmDeveloperToolCallAsync(string toolName, string argumentsJson)
+        {
+            if (!ResponsesState.DeveloperRequireConfirmation)
+                return Task.FromResult(true);
+
+            var result = MessageBox.Show(
+                $"Allow local tool call?\n\nTool: {toolName}\n\nArguments:\n{argumentsJson}",
+                "Confirm local developer tool call",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            return Task.FromResult(result == MessageBoxResult.Yes);
+        }
+
+        private Task LogDeveloperToolCallAsync(string toolName, string argumentsJson, string resultJson)
+        {
+            if (!ResponsesState.DeveloperShowToolLogs)
+                return Task.CompletedTask;
+
+            Dispatcher.Invoke(() =>
+            {
+                StatusText.Text = $"Local tool used: {toolName}";
+            });
+
+            Debug.WriteLine($"[LOCAL TOOL] {toolName}");
+            Debug.WriteLine(argumentsJson);
+            Debug.WriteLine(resultJson);
+
+            return Task.CompletedTask;
         }
     }
 }

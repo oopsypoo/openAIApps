@@ -11,7 +11,6 @@ namespace openAIApps.Data
         Responses,
         Video
     }
-
     public class ChatSession
     {
         public ChatSession()
@@ -78,6 +77,7 @@ namespace openAIApps.Data
         public string RawJson { get; set; } = string.Empty;
 
         public string ImageToolSettingsJson { get; set; } = string.Empty;
+        public string DeveloperToolSettingsJson { get; set; } = string.Empty;
         public virtual ChatSession ChatSession { get; set; }
 
         public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using openAIApps.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -34,7 +35,10 @@ namespace openAIApps
 
         public Responses(string apiKey)
         {
-            _httpClient = new HttpClient();
+            _httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(5)
+            };
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
 
         }
@@ -82,7 +86,284 @@ namespace openAIApps
             parsed.ImageOutputFormat = NormalizeImageOutputFormat(ImageGenOutputFormat);
             return parsed;
         }
+        private string BuildInstructions(DeveloperToolsOptions developerToolsOptions)
+        {
+            var baseInstructions = "You are a helpful assistant. Return all answers as GitHub-style Markdown. Use headings, bullet lists, and fenced code blocks.";
 
+            if (developerToolsOptions == null || !developerToolsOptions.Enabled)
+                return baseInstructions;
+
+            string allowedExtensions = developerToolsOptions.AllowedExtensions?.Length > 0
+                ? string.Join(", ", developerToolsOptions.AllowedExtensions)
+                : "(application-defined)";
+
+            return
+                    $@"{baseInstructions}
+
+                        You are assisting inside a local C# / WPF project workspace.
+
+                        You have access to read-only local developer tools.
+                        The repository root is fixed by the application and cannot be changed.
+                        Allowed file types are: {allowedExtensions}
+
+                        Behavior rules:
+                        - Prefer search_project_text before reading files.
+                        - Read only the minimum number of files needed.
+                        - Prefer narrow line ranges when reading files.
+                        - Use list_project_files only when needed.
+                        - Treat tool results as the source of truth.
+                        - Do not assume access outside the configured repository root.
+                        - Do not claim to modify files directly.";
+        }
+        private object[] GetLocalFunctionTools(DeveloperToolsOptions developerToolsOptions)
+{
+    if (developerToolsOptions == null || !developerToolsOptions.Enabled)
+        return Array.Empty<object>();
+
+    var tools = new List<object>();
+
+    if (developerToolsOptions.SearchProjectTextEnabled)
+    {
+        tools.Add(new
+        {
+            type = "function",
+            name = "search_project_text",
+            description = "Search text in allowed files under the configured repository root. Returns matching relative paths, line numbers, and snippets. Read-only.",
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    query = new
+                    {
+                        type = "string",
+                        description = "Text to search for."
+                    },
+                    glob = new
+                    {
+                        type = "string",
+                        description = "Optional filter like *.cs or *.xaml."
+                    },
+                    subpath = new
+                    {
+                        type = "string",
+                        description = "Optional relative subfolder inside the repository root."
+                    },
+                    case_sensitive = new
+                    {
+                        type = "boolean",
+                        description = "Whether the search should be case sensitive."
+                    },
+                    max_results = new
+                    {
+                        type = "integer",
+                        minimum = 1,
+                        maximum = 200
+                    }
+                },
+                required = new[] { "query" },
+                additionalProperties = false
+            }
+        });
+    }
+
+    if (developerToolsOptions.ReadProjectFileEnabled)
+    {
+        tools.Add(new
+        {
+            type = "function",
+            name = "read_project_file",
+            description = "Read a text file from the configured repository root using a relative path. Returns line-numbered text. Read-only.",
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    path = new
+                    {
+                        type = "string",
+                        description = "Relative file path inside the repository root."
+                    },
+                    start_line = new
+                    {
+                        type = "integer",
+                        minimum = 1
+                    },
+                    end_line = new
+                    {
+                        type = "integer",
+                        minimum = 1
+                    }
+                },
+                required = new[] { "path" },
+                additionalProperties = false
+            }
+        });
+    }
+
+    if (developerToolsOptions.ListProjectFilesEnabled)
+    {
+        tools.Add(new
+        {
+            type = "function",
+            name = "list_project_files",
+            description = "List files under the configured repository root. Returns relative paths only. Read-only.",
+            parameters = new
+            {
+                type = "object",
+                properties = new
+                {
+                    subpath = new { type = "string" },
+                    glob = new { type = "string" },
+                    max_results = new
+                    {
+                        type = "integer",
+                        minimum = 1,
+                        maximum = 500
+                    }
+                },
+                additionalProperties = false
+            }
+        });
+    }
+
+    return tools.ToArray();
+}
+        private ResponsesRequest BuildRequest(object input, string previousResponseId, DeveloperToolsOptions developerToolsOptions)
+        {
+            var hostedTools = GetToolsForCurrentSelection().Cast<object>().ToList();
+            var localFunctionTools = GetLocalFunctionTools(developerToolsOptions);
+
+            var allTools = hostedTools.Concat(localFunctionTools).ToArray();
+
+            var request = new ResponsesRequest
+            {
+                Model = CurrentModel,
+                Input = input,
+                Store = true,
+                PreviousResponseId = previousResponseId,
+                Tools = allTools,
+                ToolChoice = allTools.Length > 0 ? "auto" : null,
+                ParallelToolCalls = true
+            };
+
+            if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
+            {
+                request.Reasoning = new ReasoningConfig { Effort = CurrentReasoning };
+            }
+
+            request.Instructions = BuildInstructions(developerToolsOptions);
+
+            return request;
+        }
+        public async Task<ResponsesResult> GetChatCompletionWithLocalToolsAsync(
+        List<object> openAIContext,
+        DeveloperToolsOptions developerToolsOptions,
+        Func<string, string, Task<bool>> confirmLocalCallAsync = null,
+        Func<string, string, string, Task> onToolCallLoggedAsync = null)
+        {
+            if (developerToolsOptions == null ||
+                !developerToolsOptions.Enabled ||
+                string.IsNullOrWhiteSpace(developerToolsOptions.RepositoryRoot))
+            {
+                return await GetChatCompletionAsync(openAIContext);
+            }
+
+            var guard = new WorkspaceGuard(developerToolsOptions);
+            var fileService = new ProjectFileToolService(developerToolsOptions, guard);
+            var searchService = new ProjectSearchToolService(developerToolsOptions, guard);
+            var dispatcher = new LocalToolDispatcher(fileService, searchService);
+
+            string previousResponseId = null;
+            object currentInput = openAIContext;
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = true
+            };
+
+            while (true)
+            {
+                var request = BuildRequest(currentInput, previousResponseId, developerToolsOptions);
+
+                var json = JsonSerializer.Serialize(request, options);
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("Responses request JSON:");
+                System.Diagnostics.Debug.WriteLine(json);
+#endif
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception($"OpenAI Error {response.StatusCode}: {responseString}");
+
+                var apiResponse = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
+
+                if (!string.IsNullOrEmpty(apiResponse?.Id))
+                {
+                    previousResponseId = apiResponse.Id;
+                    LastResponseId = apiResponse.Id; // okay to store, but not use as input source
+                }
+
+                var functionCalls = ExtractFunctionCalls(apiResponse);
+
+                if (functionCalls.Count == 0)
+                {
+                    var parsed = ParseResponseRich(apiResponse);
+                    parsed.RawJson = responseString;
+                    parsed.ImageOutputFormat = NormalizeImageOutputFormat(ImageGenOutputFormat);
+                    return parsed;
+                }
+
+                var toolOutputs = new List<object>();
+
+                foreach (var call in functionCalls)
+                {
+                    if (confirmLocalCallAsync != null)
+                    {
+                        bool allowed = await confirmLocalCallAsync(call.Name, call.Arguments ?? "{}");
+                        if (!allowed)
+                        {
+                            string denied = JsonSerializer.Serialize(new
+                            {
+                                ok = false,
+                                error = "User denied local tool call."
+                            });
+
+                            if (onToolCallLoggedAsync != null)
+                                await onToolCallLoggedAsync(call.Name, call.Arguments ?? "{}", denied);
+
+                            toolOutputs.Add(new
+                            {
+                                type = "function_call_output",
+                                call_id = call.CallId,
+                                output = denied
+                            });
+
+                            continue;
+                        }
+                    }
+
+                    string toolResult = await dispatcher.DispatchAsync(call.Name, call.Arguments ?? "{}");
+
+                    if (onToolCallLoggedAsync != null)
+                        await onToolCallLoggedAsync(call.Name, call.Arguments ?? "{}", toolResult);
+
+                    toolOutputs.Add(new
+                    {
+                        type = "function_call_output",
+                        call_id = call.CallId,
+                        output = toolResult
+                    });
+                }
+
+                currentInput = toolOutputs;
+            }
+        }
         private static string NormalizeImageOutputFormat(string format)
         {
             if (string.IsNullOrWhiteSpace(format))
@@ -453,11 +734,25 @@ namespace openAIApps
 
             [JsonPropertyName("content")]
             public List<ContentItem>? Content { get; set; }
-            // For image_generation_call
+
             [JsonPropertyName("result")]
             public string? Result { get; set; }
-        }
 
+            [JsonPropertyName("name")]
+            public string? Name { get; set; }
+
+            [JsonPropertyName("arguments")]
+            public string? Arguments { get; set; }
+
+            [JsonPropertyName("call_id")]
+            public string? CallId { get; set; }
+        }
+        private sealed class FunctionCallItem
+        {
+            public string Name { get; set; }
+            public string Arguments { get; set; }
+            public string CallId { get; set; }
+        }
         private class ContentItem
         {
             [JsonPropertyName("type")]
@@ -488,7 +783,31 @@ namespace openAIApps
             public bool IsSuccess => !string.IsNullOrEmpty(AssistantText);
         }
 
+        private List<FunctionCallItem> ExtractFunctionCalls(ResponsesResponse response)
+        {
+            var result = new List<FunctionCallItem>();
 
+            if (response?.Output == null)
+                return result;
+
+            foreach (var item in response.Output)
+            {
+                if (!string.Equals(item.Type, "function_call", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(item.Name) || string.IsNullOrWhiteSpace(item.CallId))
+                    continue;
+
+                result.Add(new FunctionCallItem
+                {
+                    Name = item.Name,
+                    Arguments = item.Arguments ?? "{}",
+                    CallId = item.CallId
+                });
+            }
+
+            return result;
+        }
         private ResponsesResult ParseResponseRich(ResponsesResponse result)
         {
             var sb = new StringBuilder();

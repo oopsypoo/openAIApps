@@ -1,0 +1,25 @@
+﻿namespace openAIApps.Services
+{
+    public sealed class DeveloperToolsOptions
+    {
+        public bool Enabled { get; set; }
+
+        public string RepositoryRoot { get; set; } = string.Empty;
+        public string ScopeMode { get; set; } = "repository";
+
+        public bool ReadOnlyOnly { get; set; } = true;
+        public bool RequireConfirmation { get; set; } = false;
+        public bool ShowToolLogs { get; set; } = true;
+
+        public bool SearchProjectTextEnabled { get; set; } = true;
+        public bool ReadProjectFileEnabled { get; set; } = true;
+        public bool ListProjectFilesEnabled { get; set; } = false;
+        public bool RunDiagnosticsEnabled { get; set; } = false;
+
+        public string[] AllowedExtensions { get; set; } = new string[0];
+
+        public int MaxReadLines { get; set; } = 300;
+        public int MaxSearchResults { get; set; } = 100;
+        public int MaxFileBytes { get; set; } = 512 * 1024;
+    }
+}

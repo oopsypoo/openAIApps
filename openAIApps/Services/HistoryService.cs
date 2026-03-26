@@ -43,7 +43,8 @@ namespace openAIApps.Services
                     bool isRemix = false,
                     string remoteId = null,
                     string sourceRemoteId = null,
-                    string imageToolSettingsJson = null)
+                    string imageToolSettingsJson = null,
+                    string developerToolSettingsJson = null)
         {
             await using var context = CreateDbContext();
 
@@ -71,7 +72,8 @@ namespace openAIApps.Services
                 RemoteId = remoteId ?? string.Empty,
                 SourceRemoteId = sourceRemoteId ?? string.Empty,
                 Timestamp = DateTime.UtcNow,
-                ImageToolSettingsJson = imageToolSettingsJson ?? string.Empty
+                ImageToolSettingsJson = imageToolSettingsJson ?? string.Empty,
+                DeveloperToolSettingsJson = developerToolSettingsJson
             };
 
             context.Messages.Add(msg);

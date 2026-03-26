@@ -659,9 +659,11 @@
                                     </Grid.ColumnDefinitions>
 
                                     <TextBox Grid.Column="0"
-                                 x:Name="txtResponsesPrompt"
-                                 Style="{StaticResource TextBoxRequest}"
-                                 Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                             x:Name="txtResponsesPrompt"
+                                             Style="{StaticResource TextBoxRequest}"
+                                             GotKeyboardFocus="SelectAllTextBox_GotKeyboardFocus"
+                                             PreviewMouseLeftButtonDown="SelectAllTextBox_PreviewMouseLeftButtonDown"
+                                             Text="{Binding ResponsesState.PromptText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                                     <Border Grid.Column="1"
                                             x:Name="borderResponsesImage"
@@ -1010,7 +1012,86 @@
                                             </Grid>
                                         </Grid>
                                     </Border>
+                                    <Border Grid.Row="4"
+        Margin="0,0,0,8"
+        Padding="6"
+        BorderBrush="#DDDDDD"
+        BorderThickness="1"
+        Background="#FFF8F8F8">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
 
+                                            <CheckBox Grid.Row="0"
+                  x:Name="cbToolDeveloperTools"
+                  Content="Developer Tools"
+                  IsChecked="{Binding ResponsesState.UseDeveloperTools, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+
+                                            <Grid Grid.Row="1"
+              Margin="16,6,0,0"
+              Visibility="{Binding ResponsesState.IsDeveloperToolsOptionsVisible,
+                                   RelativeSource={RelativeSource AncestorType=Window},
+                                   Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <Label Grid.Row="0" Content="Repository root" />
+                                                <DockPanel Grid.Row="1" LastChildFill="True">
+                                                    <Button Content="Browse"
+                        Width="70"
+                        Margin="0,0,6,0"
+                        Click="btnDeveloperBrowseRoot_Click"/>
+                                                    <TextBox Text="{Binding ResponsesState.DeveloperRepositoryRoot, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                </DockPanel>
+
+                                                <Label Grid.Row="2" Content="Scope" Margin="0,8,0,2"/>
+                                                <ComboBox Grid.Row="3"
+                      SelectedValuePath="Tag"
+                      SelectedValue="{Binding ResponsesState.DeveloperScope, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
+                                                    <ComboBoxItem Content="Current repository only" Tag="repository"/>
+                                                    <ComboBoxItem Content="Workspace" Tag="workspace"/>
+                                                    <ComboBoxItem Content="Custom" Tag="custom"/>
+                                                </ComboBox>
+
+                                                <TextBlock Grid.Row="4" Margin="0,8,0,2" Text="Available functions" FontWeight="SemiBold"/>
+
+                                                <StackPanel Grid.Row="5">
+                                                    <CheckBox Content="Search project text"
+                          IsChecked="{Binding ResponsesState.DeveloperToolSearchProjectText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                    <CheckBox Content="Read project file"
+                          IsChecked="{Binding ResponsesState.DeveloperToolReadProjectFile, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                    <CheckBox Content="List project files"
+                          IsChecked="{Binding ResponsesState.DeveloperToolListProjectFiles, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                    <CheckBox Content="Run diagnostics"
+                          IsChecked="{Binding ResponsesState.DeveloperToolRunDiagnostics, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                </StackPanel>
+
+                                                <TextBlock Grid.Row="6" Margin="0,8,0,2" Text="Advanced options" FontWeight="SemiBold"/>
+
+                                                <StackPanel Grid.Row="7">
+                                                    <CheckBox Content="Allow read-only only"
+                          IsChecked="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                    <CheckBox Content="Require confirmation before local calls"
+                          IsChecked="{Binding ResponsesState.DeveloperRequireConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                    <CheckBox Content="Show tool call logs"
+                          IsChecked="{Binding ResponsesState.DeveloperShowToolLogs, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+
+                                                    <TextBlock Margin="0,8,0,2" Text="Allowed file types" FontWeight="SemiBold"/>
+                                                    <TextBox Text="{Binding ResponsesState.DeveloperAllowedExtensionsCsv, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
                                     <CheckBox Grid.Row="3"
                                   x:Name="cbToolComputerUse"
                                   Visibility="Collapsed"
