@@ -61,7 +61,7 @@ namespace openAIApps
         public ObservableCollection<VideoListItem> VideoHistory => _videoHistory;
         public ObservableCollection<ChatMessage> CurrentVideoMessages { get; } = new();
         public ObservableCollection<ResponseAttachmentItem> PendingResponseAttachments { get; } = new();
-        
+        public ObservableCollection<DeveloperToolCallLogItem> DeveloperToolCallLogs { get; } = new();
         public VideoPanelState VideoState { get; } = new();
 
         /// <summary>

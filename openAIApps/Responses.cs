@@ -116,119 +116,119 @@ namespace openAIApps
                         - Do not claim to modify files directly.";
         }
         private object[] GetLocalFunctionTools(DeveloperToolsOptions developerToolsOptions)
-{
-    if (developerToolsOptions == null || !developerToolsOptions.Enabled)
-        return Array.Empty<object>();
-
-    var tools = new List<object>();
-
-    if (developerToolsOptions.SearchProjectTextEnabled)
-    {
-        tools.Add(new
         {
-            type = "function",
-            name = "search_project_text",
-            description = "Search text in allowed files under the configured repository root. Returns matching relative paths, line numbers, and snippets. Read-only.",
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    query = new
-                    {
-                        type = "string",
-                        description = "Text to search for."
-                    },
-                    glob = new
-                    {
-                        type = "string",
-                        description = "Optional filter like *.cs or *.xaml."
-                    },
-                    subpath = new
-                    {
-                        type = "string",
-                        description = "Optional relative subfolder inside the repository root."
-                    },
-                    case_sensitive = new
-                    {
-                        type = "boolean",
-                        description = "Whether the search should be case sensitive."
-                    },
-                    max_results = new
-                    {
-                        type = "integer",
-                        minimum = 1,
-                        maximum = 200
-                    }
-                },
-                required = new[] { "query" },
-                additionalProperties = false
-            }
-        });
-    }
+            if (developerToolsOptions == null || !developerToolsOptions.Enabled)
+                return Array.Empty<object>();
 
-    if (developerToolsOptions.ReadProjectFileEnabled)
-    {
-        tools.Add(new
-        {
-            type = "function",
-            name = "read_project_file",
-            description = "Read a text file from the configured repository root using a relative path. Returns line-numbered text. Read-only.",
-            parameters = new
-            {
-                type = "object",
-                properties = new
-                {
-                    path = new
-                    {
-                        type = "string",
-                        description = "Relative file path inside the repository root."
-                    },
-                    start_line = new
-                    {
-                        type = "integer",
-                        minimum = 1
-                    },
-                    end_line = new
-                    {
-                        type = "integer",
-                        minimum = 1
-                    }
-                },
-                required = new[] { "path" },
-                additionalProperties = false
-            }
-        });
-    }
+            var tools = new List<object>();
 
-    if (developerToolsOptions.ListProjectFilesEnabled)
-    {
-        tools.Add(new
-        {
-            type = "function",
-            name = "list_project_files",
-            description = "List files under the configured repository root. Returns relative paths only. Read-only.",
-            parameters = new
+            if (developerToolsOptions.SearchProjectTextEnabled)
             {
-                type = "object",
-                properties = new
+                tools.Add(new
                 {
-                    subpath = new { type = "string" },
-                    glob = new { type = "string" },
-                    max_results = new
+                    type = "function",
+                    name = "search_project_text",
+                    description = "Search text in allowed files under the configured repository root. Returns matching relative paths, line numbers, and snippets. Read-only.",
+                    parameters = new
                     {
-                        type = "integer",
-                        minimum = 1,
-                        maximum = 500
+                        type = "object",
+                        properties = new
+                        {
+                            query = new
+                            {
+                                type = "string",
+                                description = "Text to search for."
+                            },
+                            glob = new
+                            {
+                                type = "string",
+                                description = "Optional filter like *.cs or *.xaml."
+                            },
+                            subpath = new
+                            {
+                                type = "string",
+                                description = "Optional relative subfolder inside the repository root."
+                            },
+                            case_sensitive = new
+                            {
+                                type = "boolean",
+                                description = "Whether the search should be case sensitive."
+                            },
+                            max_results = new
+                            {
+                                type = "integer",
+                                minimum = 1,
+                                maximum = 200
+                            }
+                        },
+                        required = new[] { "query" },
+                        additionalProperties = false
                     }
-                },
-                additionalProperties = false
+                });
             }
-        });
-    }
 
-    return tools.ToArray();
-}
+            if (developerToolsOptions.ReadProjectFileEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "read_project_file",
+                    description = "Read a text file from the configured repository root using a relative path. Returns line-numbered text. Read-only.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            path = new
+                            {
+                                type = "string",
+                                description = "Relative file path inside the repository root."
+                            },
+                            start_line = new
+                            {
+                                type = "integer",
+                                minimum = 1
+                            },
+                            end_line = new
+                            {
+                                type = "integer",
+                                minimum = 1
+                            }
+                        },
+                        required = new[] { "path" },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            if (developerToolsOptions.ListProjectFilesEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "list_project_files",
+                    description = "List files under the configured repository root. Returns relative paths only. Read-only.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            subpath = new { type = "string" },
+                            glob = new { type = "string" },
+                            max_results = new
+                            {
+                                type = "integer",
+                                minimum = 1,
+                                maximum = 500
+                            }
+                        },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            return tools.ToArray();
+        }
         private ResponsesRequest BuildRequest(object input, string previousResponseId, DeveloperToolsOptions developerToolsOptions)
         {
             var hostedTools = GetToolsForCurrentSelection().Cast<object>().ToList();

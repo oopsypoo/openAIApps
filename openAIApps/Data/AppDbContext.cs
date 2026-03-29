@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System;
+using System.Diagnostics.Metrics;
 using System.IO;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace openAIApps.Data
 {
@@ -111,6 +114,11 @@ namespace openAIApps.Data
             {
                 db.Database.ExecuteSqlRaw(
                     "ALTER TABLE Messages ADD COLUMN DeveloperToolSettingsJson TEXT NOT NULL DEFAULT '';");
+            }
+            if (!ColumnExists(db, "Messages", "ToolCallLogJson"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN ToolCallLogJson TEXT NOT NULL DEFAULT '';");
             }
         }
         private static bool ColumnExists(AppDbContext db, string tableName, string columnName)

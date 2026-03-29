@@ -78,6 +78,7 @@ namespace openAIApps.Data
 
         public string ImageToolSettingsJson { get; set; } = string.Empty;
         public string DeveloperToolSettingsJson { get; set; } = string.Empty;
+        public string ToolCallLogJson { get; set; } = string.Empty;
         public virtual ChatSession ChatSession { get; set; }
 
         public virtual ICollection<MediaFile> MediaFiles { get; set; } = new List<MediaFile>();

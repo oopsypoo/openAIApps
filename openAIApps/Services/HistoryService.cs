@@ -44,7 +44,9 @@ namespace openAIApps.Services
                     string remoteId = null,
                     string sourceRemoteId = null,
                     string imageToolSettingsJson = null,
-                    string developerToolSettingsJson = null)
+                    string developerToolSettingsJson = null,
+                    string toolCallLogJson = null)
+                    
         {
             await using var context = CreateDbContext();
 
@@ -73,7 +75,8 @@ namespace openAIApps.Services
                 SourceRemoteId = sourceRemoteId ?? string.Empty,
                 Timestamp = DateTime.UtcNow,
                 ImageToolSettingsJson = imageToolSettingsJson ?? string.Empty,
-                DeveloperToolSettingsJson = developerToolSettingsJson
+                DeveloperToolSettingsJson = developerToolSettingsJson,
+                ToolCallLogJson = toolCallLogJson ?? string.Empty
             };
 
             context.Messages.Add(msg);

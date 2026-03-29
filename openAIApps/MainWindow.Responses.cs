@@ -326,6 +326,7 @@ namespace openAIApps
             ReplaceCurrentChatMessages(history);
             ApplyResponsesSettingsFromHistory(history);
             ClearResponsePreviewImages();
+           ClearDeveloperToolCallLogs();
             if (CurrentChatMessages.Count > 0)
             {
                 var lastMessage = CurrentChatMessages.Last();
@@ -353,10 +354,12 @@ namespace openAIApps
                 if (string.Equals(selected.Role, "assistant", StringComparison.OrdinalIgnoreCase))
                 {
                     ResponsesState.ResponseText = selected.Content;
+                    ApplyDeveloperToolCallLogJson(selected.ToolCallLogJson);
                 }
                 else
                 {
                     ResponsesState.ResponseText = string.Empty;
+                    ClearDeveloperToolCallLogs();
                 }
 
                 ShowResponsesImageGallery(selected);
@@ -366,6 +369,8 @@ namespace openAIApps
                 ResponsesState.ResponseText = string.Empty;
                 ClearResponsePreviewImages();
                 HideResponsesImagePreview();
+                DeveloperToolCallLogs.Clear();
+                ClearDeveloperToolCallLogs();
             }
         }
 
@@ -381,6 +386,7 @@ namespace openAIApps
             _responsesImagePath = string.Empty;
             _responsesPreviewImagePath = string.Empty;
             ClearResponsePreviewImages();
+            ClearDeveloperToolCallLogs();
             HideResponsesImagePreview();
             ResetDeveloperToolsState();
 
@@ -564,7 +570,7 @@ namespace openAIApps
                                 ? userPrompt
                                 : (PendingResponseAttachments.FirstOrDefault()?.FileName ?? "[attachment prompt]");
                 int sid = await EnsureSessionActiveAsync(EndpointType.Responses, titleSeed);
-
+                
                 int userMsgId = await _historyService.AddMessageAsync(
                     sid,
                     "user",
@@ -597,13 +603,14 @@ namespace openAIApps
                 var context = await _historyService.GetContextForApiAsync(sid);
                 var developerToolsOptions = BuildDeveloperToolsOptionsFromState();
                 // We are sending full DB history, so start a fresh response chain.
+                ClearDeveloperToolCallLogs();
                 _responsesClient.ClearConversation();
                 var result = await _responsesClient.GetChatCompletionWithLocalToolsAsync(
                     context,
                     developerToolsOptions,
                     confirmLocalCallAsync: ConfirmDeveloperToolCallAsync,
                     onToolCallLoggedAsync: LogDeveloperToolCallAsync);
-
+                string toolCallLogJson = BuildDeveloperToolCallLogJson();
                 if (result != null)
                 {
                     int assistantMsgId = await _historyService.AddMessageAsync(
@@ -617,7 +624,9 @@ namespace openAIApps
                         imgSize: imgSize,
                         imgQual: imgQual,
                         searchSize: searchSize,
-                        developerToolSettingsJson: developerToolSettingsJson);
+                        developerToolSettingsJson: developerToolSettingsJson,
+                        toolCallLogJson: toolCallLogJson);
+
 
                     if (result.ImagePayloads?.Count > 0)
                     {
@@ -701,16 +710,19 @@ namespace openAIApps
                 ResponsesState.PromptText = selectedMsg.Content;
                 ResponsesState.ResponseText = string.Empty;
                 ShowResponsesImageGallery(selectedMsg);
+                ClearDeveloperToolCallLogs();
             }
             else if (string.Equals(selectedMsg.Role, "assistant", StringComparison.OrdinalIgnoreCase))
             {
                 ResponsesState.ResponseText = selectedMsg.Content;
                 ShowResponsesImageGallery(selectedMsg);
+                ApplyDeveloperToolCallLogJson(selectedMsg.ToolCallLogJson);
             }
             else
             {
                 ClearResponsePreviewImages();
                 HideResponsesImagePreview();
+                DeveloperToolCallLogs.Clear();
             }
         }
 
@@ -1596,85 +1608,165 @@ namespace openAIApps
 
             text ??= string.Empty;
 
-            string pattern = @"(\*\*[^*]+\*\*|`[^`]+`|\[(?<label>[^\]]+)\]\((?<url>https?://[^)]+)\))";
-            var matches = Regex.Matches(text, pattern);
+            int i = 0;
 
-            int currentIndex = 0;
-
-            foreach (Match match in matches)
+            while (i < text.Length)
             {
-                if (match.Index > currentIndex)
+                // Bold: **text**
+                if (i + 1 < text.Length && text[i] == '*' && text[i + 1] == '*')
                 {
-                    string plain = text.Substring(currentIndex, match.Index - currentIndex);
-                    paragraph.Inlines.Add(new Run(plain));
+                    int end = text.IndexOf("**", i + 2, StringComparison.Ordinal);
+                    if (end >= 0)
+                    {
+                        string boldText = text.Substring(i + 2, end - (i + 2));
+                        paragraph.Inlines.Add(new Bold(new Run(boldText)));
+                        i = end + 2;
+                        continue;
+                    }
                 }
 
-                string token = match.Value;
-
-                if (token.StartsWith("**") && token.EndsWith("**"))
+                // Inline code: `text`
+                if (text[i] == '`')
                 {
-                    string boldText = token.Substring(2, token.Length - 4);
-                    paragraph.Inlines.Add(new Bold(new Run(boldText)));
-                }
-                else if (token.StartsWith("`") && token.EndsWith("`"))
-                {
-                    string codeText = token.Substring(1, token.Length - 2);
-                    var run = new Run(codeText)
+                    int end = text.IndexOf('`', i + 1);
+                    if (end >= 0)
                     {
-                        FontFamily = new FontFamily("Consolas"),
-                        Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
-                        Foreground = Brushes.DarkSlateBlue
-                    };
-                    paragraph.Inlines.Add(run);
-                }
-                else if (match.Groups["label"].Success && match.Groups["url"].Success)
-                {
-                    string label = match.Groups["label"].Value;
-                    string url = match.Groups["url"].Value;
-
-                    var link = new Hyperlink(new Run(label))
-                    {
-                        NavigateUri = new Uri(url),
-                        ToolTip = "Ctrl+Click to open link"
-                    };
-
-                    link.Click += (_, __) =>
-                    {
-                        if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+                        string codeText = text.Substring(i + 1, end - (i + 1));
+                        var run = new Run(codeText)
                         {
-                            StatusText.Text = "Hold Ctrl while clicking to open links.";
-                            return;
-                        }
+                            FontFamily = new FontFamily("Consolas"),
+                            Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                            Foreground = Brushes.DarkSlateBlue
+                        };
+                        paragraph.Inlines.Add(run);
+                        i = end + 1;
+                        continue;
+                    }
+                }
 
-                        try
+                // Link: [label](target)
+                if (text[i] == '[')
+                {
+                    int labelEnd = FindMatchingBracket(text, i, '[', ']');
+                    if (labelEnd > i + 1 && labelEnd + 1 < text.Length && text[labelEnd + 1] == '(')
+                    {
+                        int urlStart = labelEnd + 2;
+                        int urlEnd = FindMatchingParen(text, urlStart);
+
+                        if (urlEnd > urlStart)
                         {
-                            Process.Start(new ProcessStartInfo
+                            string label = text.Substring(i + 1, labelEnd - i - 1);
+                            string target = text.Substring(urlStart, urlEnd - urlStart).Trim();
+
+                            // Remove optional surrounding angle brackets: [x](<url>)
+                            if (target.Length >= 2 && target[0] == '<' && target[^1] == '>')
                             {
-                                FileName = url,
-                                UseShellExecute = true
-                            });
-                        }
-                        catch
-                        {
-                            // ignore
-                        }
-                    };
+                                target = target.Substring(1, target.Length - 2).Trim();
+                            }
 
-                    paragraph.Inlines.Add(link);
-                }
-                else
-                {
-                    paragraph.Inlines.Add(new Run(token));
+                            if (Uri.TryCreate(target, UriKind.Absolute, out Uri validUri))
+                            {
+                                var link = new Hyperlink(new Run(label))
+                                {
+                                    NavigateUri = validUri,
+                                    ToolTip = "Ctrl+Click to open link"
+                                };
+
+                                link.Click += (_, __) =>
+                                {
+                                    if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+                                    {
+                                        StatusText.Text = "Hold Ctrl while clicking to open links.";
+                                        return;
+                                    }
+
+                                    try
+                                    {
+                                        Process.Start(new ProcessStartInfo
+                                        {
+                                            FileName = validUri.ToString(),
+                                            UseShellExecute = true
+                                        });
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        MessageBox.Show($"Unable to open link: {ex.Message}");
+                                    }
+                                };
+
+                                paragraph.Inlines.Add(link);
+                            }
+                            else
+                            {
+                                // Invalid or relative target: preserve as plain text
+                                paragraph.Inlines.Add(new Run($"[{label}]({target})"));
+                            }
+
+                            i = urlEnd + 1;
+                            continue;
+                        }
+                    }
                 }
 
-                currentIndex = match.Index + match.Length;
+                // Fallback: plain text until the next possible markdown token
+                int next = FindNextMarkdownToken(text, i);
+                string plain = next > i ? text.Substring(i, next - i) : text[i].ToString();
+                paragraph.Inlines.Add(new Run(plain));
+                i += plain.Length;
             }
+        }
+        private static int FindNextMarkdownToken(string text, int startIndex)
+        {
+            int nextBold = text.IndexOf("**", startIndex, StringComparison.Ordinal);
+            int nextCode = text.IndexOf('`', startIndex);
+            int nextLink = text.IndexOf('[', startIndex);
 
-            if (currentIndex < text.Length)
+            int next = int.MaxValue;
+
+            if (nextBold >= 0 && nextBold < next) next = nextBold;
+            if (nextCode >= 0 && nextCode < next) next = nextCode;
+            if (nextLink >= 0 && nextLink < next) next = nextLink;
+
+            return next == int.MaxValue ? text.Length : next;
+        }
+
+        private static int FindMatchingBracket(string text, int startIndex, char openChar, char closeChar)
+        {
+            int depth = 0;
+
+            for (int i = startIndex; i < text.Length; i++)
             {
-                string tail = text.Substring(currentIndex);
-                paragraph.Inlines.Add(new Run(tail));
+                if (text[i] == openChar)
+                    depth++;
+                else if (text[i] == closeChar)
+                {
+                    depth--;
+                    if (depth == 0)
+                        return i;
+                }
             }
+
+            return -1;
+        }
+
+        private static int FindMatchingParen(string text, int startIndex)
+        {
+            int depth = 0;
+
+            for (int i = startIndex; i < text.Length; i++)
+            {
+                if (text[i] == '(')
+                    depth++;
+                else if (text[i] == ')')
+                {
+                    if (depth == 0)
+                        return i;
+
+                    depth--;
+                }
+            }
+
+            return -1;
         }
         private IEnumerable<string> SplitPlainTextIntoParagraphs(string text)
         {
@@ -1945,16 +2037,14 @@ namespace openAIApps
         }
         private void btnDeveloperBrowseRoot_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog
+            var dlg = new OpenFolderDialog
             {
-                Title = "Select any file inside the repository root",
-                CheckFileExists = true,
-                Multiselect = false
+                Title = "Select repository root"
             };
 
             if (dlg.ShowDialog() == true)
             {
-                ResponsesState.DeveloperRepositoryRoot = Path.GetDirectoryName(dlg.FileName) ?? string.Empty;
+                ResponsesState.DeveloperRepositoryRoot = dlg.FolderName ?? string.Empty;
             }
         }
         private DeveloperToolsOptions BuildDeveloperToolsOptionsFromState()
@@ -2014,7 +2104,57 @@ namespace openAIApps
             Debug.WriteLine(argumentsJson);
             Debug.WriteLine(resultJson);
 
+            AddDeveloperToolCallLog(toolName, argumentsJson, resultJson);
+
             return Task.CompletedTask;
+        }
+        private void AddDeveloperToolCallLog(string toolName, string argumentsJson, string resultJson)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                DeveloperToolCallLogs.Add(new DeveloperToolCallLogItem
+                {
+                    Timestamp = DateTime.Now,
+                    ToolName = toolName ?? string.Empty,
+                    ArgumentsJson = argumentsJson ?? string.Empty,
+                    ResultJson = resultJson ?? string.Empty
+                });
+            });
+        }
+
+        private void ClearDeveloperToolCallLogs()
+        {
+            DeveloperToolCallLogs.Clear();
+        }
+        private string BuildDeveloperToolCallLogJson()
+        {
+            if (DeveloperToolCallLogs.Count == 0)
+                return string.Empty;
+
+            return JsonSerializer.Serialize(DeveloperToolCallLogs);
+        }
+        private void ApplyDeveloperToolCallLogJson(string json)
+        {
+            DeveloperToolCallLogs.Clear();
+
+            if (string.IsNullOrWhiteSpace(json))
+                return;
+
+            try
+            {
+                var items = JsonSerializer.Deserialize<List<DeveloperToolCallLogItem>>(json);
+                if (items == null)
+                    return;
+
+                foreach (var item in items)
+                {
+                    DeveloperToolCallLogs.Add(item);
+                }
+            }
+            catch
+            {
+                // tolerate older rows / malformed JSON
+            }
         }
     }
 }
