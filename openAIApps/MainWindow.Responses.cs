@@ -320,13 +320,16 @@ namespace openAIApps
                 return;
             
             PendingResponseAttachments.Clear();
+            _appStatus.Set("Update attachment panel...");
             UpdatePendingAttachmentsPanel();
+            _appStatus.Set("Loading session history...");
             var history = await _historyService.GetFullSessionHistoryAsync(sessionId);
 
             ReplaceCurrentChatMessages(history);
+            _appStatus.Set($"Rendering {history.Count} messages...");
             ApplyResponsesSettingsFromHistory(history);
             ClearResponsePreviewImages();
-           ClearDeveloperToolCallLogs();
+            ClearDeveloperToolCallLogs();
             if (CurrentChatMessages.Count > 0)
             {
                 var lastMessage = CurrentChatMessages.Last();
@@ -361,7 +364,7 @@ namespace openAIApps
                     ResponsesState.ResponseText = string.Empty;
                     ClearDeveloperToolCallLogs();
                 }
-
+                _appStatus.Set("Showing Image gallery ");
                 ShowResponsesImageGallery(selected);
             }
             else
@@ -549,112 +552,127 @@ namespace openAIApps
             if (string.IsNullOrWhiteSpace(userPrompt) && !hasAttachedFiles)
                 return;
 
-            this.IsEnabled = false;
-
-            try
-            {
-                string model = ResponsesState.SelectedModel;
-                string reasoning = ResponsesState.SelectedReasoning;
-                string imgSize = ResponsesState.ImageGenSize;
-                string imgQual = ResponsesState.ImageGenQuality;
-                string searchSize = ResponsesState.SearchContextSize;
-                string imageToolSettingsJson = BuildImageToolSettingsJson();
-                string developerToolSettingsJson = BuildDeveloperToolSettingsJson();
-
-                string toolsCsv = string.Join(",",
-                    _responsesClient.ActiveTools
-                        .Where(t => !string.IsNullOrWhiteSpace(t))
-                        .OrderBy(t => t, StringComparer.OrdinalIgnoreCase));
-
-                string titleSeed = !string.IsNullOrWhiteSpace(userPrompt)
-                                ? userPrompt
-                                : (PendingResponseAttachments.FirstOrDefault()?.FileName ?? "[attachment prompt]");
-                int sid = await EnsureSessionActiveAsync(EndpointType.Responses, titleSeed);
-                
-                int userMsgId = await _historyService.AddMessageAsync(
-                    sid,
-                    "user",
-                    userPrompt,
-                    model: model,
-                    reasoning: reasoning,
-                    tools: toolsCsv,
-                    imgSize: imgSize,
-                    imgQual: imgQual,
-                    searchSize: searchSize,
-                    imageToolSettingsJson: imageToolSettingsJson,
-                    developerToolSettingsJson: developerToolSettingsJson);
-
-                if (hasAttachedFiles)
+            ResponsesState.IsRequestInProgress = true;
+            using (_appStatus.Operation("Preparing request..."))
+            { 
+                try
                 {
-                    foreach (var attachment in PendingResponseAttachments.ToList())
-                    {
-                        string storedPath = _mediaStorageService.ImportUserFile(attachment.LocalPath);
+                    string model = ResponsesState.SelectedModel;
+                    string reasoning = ResponsesState.SelectedReasoning;
+                    string imgSize = ResponsesState.ImageGenSize;
+                    string imgQual = ResponsesState.ImageGenQuality;
+                    string searchSize = ResponsesState.SearchContextSize;
+                    string imageToolSettingsJson = BuildImageToolSettingsJson();
+                    string developerToolSettingsJson = BuildDeveloperToolSettingsJson();
 
-                        if (!string.IsNullOrWhiteSpace(storedPath))
-                        {
-                            await _historyService.LinkMediaAsync(
-                                userMsgId,
-                                storedPath,
-                                attachment.MediaType);
-                        }
-                    }
-                }
+                    string toolsCsv = string.Join(",",
+                        _responsesClient.ActiveTools
+                            .Where(t => !string.IsNullOrWhiteSpace(t))
+                            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase));
 
-                var context = await _historyService.GetContextForApiAsync(sid);
-                var developerToolsOptions = BuildDeveloperToolsOptionsFromState();
-                // We are sending full DB history, so start a fresh response chain.
-                ClearDeveloperToolCallLogs();
-                _responsesClient.ClearConversation();
-                var result = await _responsesClient.GetChatCompletionWithLocalToolsAsync(
-                    context,
-                    developerToolsOptions,
-                    confirmLocalCallAsync: ConfirmDeveloperToolCallAsync,
-                    onToolCallLoggedAsync: LogDeveloperToolCallAsync);
-                string toolCallLogJson = BuildDeveloperToolCallLogJson();
-                if (result != null)
-                {
-                    int assistantMsgId = await _historyService.AddMessageAsync(
+                    string titleSeed = !string.IsNullOrWhiteSpace(userPrompt)
+                                    ? userPrompt
+                                    : (PendingResponseAttachments.FirstOrDefault()?.FileName ?? "[attachment prompt]");
+                    _appStatus.Set("Ensuring session...");
+                    int sid = await EnsureSessionActiveAsync(EndpointType.Responses, titleSeed);
+                    _appStatus.Set("Add user-message to DB");
+                    int userMsgId = await _historyService.AddMessageAsync(
                         sid,
-                        "assistant",
-                        result.AssistantText,
-                        result.RawJson,
+                        "user",
+                        userPrompt,
                         model: model,
                         reasoning: reasoning,
                         tools: toolsCsv,
                         imgSize: imgSize,
                         imgQual: imgQual,
                         searchSize: searchSize,
-                        developerToolSettingsJson: developerToolSettingsJson,
-                        toolCallLogJson: toolCallLogJson);
+                        imageToolSettingsJson: imageToolSettingsJson,
+                        developerToolSettingsJson: developerToolSettingsJson);
 
-
-                    if (result.ImagePayloads?.Count > 0)
+                    if (hasAttachedFiles)
                     {
-                        var paths = _mediaStorageService.SaveAssistantImages(
-                            result.ImagePayloads,
-                            result.ImageOutputFormat);
-
-                        foreach (var path in paths)
+                        int i = 0;
+                        var list = PendingResponseAttachments.ToList();
+                        _appStatus.Set($"Attaching {list.Count} file(s)...");
+                        foreach (var attachment in list)
                         {
-                            await _historyService.LinkMediaAsync(
-                                assistantMsgId,
-                                path,
-                                ImageInputHelper.GetMimeType(path));
+                            i++;
+                            _appStatus.Set($"Attaching file {i}/{list.Count}: {attachment.FileName}");
+                            string storedPath = _mediaStorageService.ImportUserFile(attachment.LocalPath);
+
+                            if (!string.IsNullOrWhiteSpace(storedPath))
+                            {
+                                await _historyService.LinkMediaAsync(userMsgId, storedPath, attachment.MediaType);
+                            }
                         }
                     }
+                    _appStatus.Set("Getting context for API");
+                    var context = await _historyService.GetContextForApiAsync(sid);
+                    var developerToolsOptions = BuildDeveloperToolsOptionsFromState();
+                    // We are sending full DB history, so start a fresh response chain.
+                    ClearDeveloperToolCallLogs();
+                    _responsesClient.ClearConversation();
+                    _appStatus.Set("GetChatCompletionWLocal tools.");
+                    var progress = new Progress<string>(msg => _appStatus.Set(msg));
+                    var result = await _responsesClient.GetChatCompletionWithLocalToolsAsync(
+                        context,
+                        developerToolsOptions,
+                        confirmLocalCallAsync: ConfirmDeveloperToolCallAsync,
+                        onToolCallLoggedAsync: LogDeveloperToolCallAsync,
+                        progress: progress);
+                    string toolCallLogJson = BuildDeveloperToolCallLogJson();
+                    if (result != null)
+                    {
+                        _appStatus.Set("Add assistant message to DB");
+                        int assistantMsgId = await _historyService.AddMessageAsync(
+                            sid,
+                            "assistant",
+                            result.AssistantText,
+                            result.RawJson,
+                            model: model,
+                            reasoning: reasoning,
+                            tools: toolsCsv,
+                            imgSize: imgSize,
+                            imgQual: imgQual,
+                            searchSize: searchSize,
+                            developerToolSettingsJson: developerToolSettingsJson,
+                            toolCallLogJson: toolCallLogJson);
 
-                    ClearPendingResponseAttachments();
 
-                    await RefreshCurrentChatUI(sid);
+                        if (result.ImagePayloads?.Count > 0)
+                        {
+                            _appStatus.Set($"Saving {result.ImagePayloads.Count} images...");
+                            var paths = _mediaStorageService.SaveAssistantImages(
+                                result.ImagePayloads,
+                                result.ImageOutputFormat);
+
+                            foreach (var path in paths)
+                            {
+                                await _historyService.LinkMediaAsync(
+                                    assistantMsgId,
+                                    path,
+                                    ImageInputHelper.GetMimeType(path));
+                            }
+                        }
+                        _appStatus.Set("Refreshing chat UI...");
+                        ClearPendingResponseAttachments();
+
+                        await RefreshCurrentChatUI(sid);
+                    }
+                    else
+                    {
+                        _appStatus.Set("No response");
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Execution Error: {ex.Message}");
-            }
-            finally
-            {
-                this.IsEnabled = true;
+                catch (Exception ex)
+                {
+                    _appStatus.Set("Error: " + ex.Message);
+                    MessageBox.Show($"Execution Error: {ex.Message}");
+                }
+                finally
+                {
+                    ResponsesState.IsRequestInProgress = false;
+                }
             }
         }
 
@@ -662,7 +680,10 @@ namespace openAIApps
         // New helper to keep UI in sync with DB
         private async Task RefreshCurrentChatUI(int sessionId)
         {
-            await LoadResponsesSessionAsync(sessionId);
+            using (_appStatus.Operation("Refreshing Current chat UI..."))
+            {
+                await LoadResponsesSessionAsync(sessionId);
+            }
         }
 
         private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
@@ -670,7 +691,7 @@ namespace openAIApps
             _activeResponsesSessionId = null;
             ResetResponsesUi(clearPrompt: true);
 
-            StatusText.Text = "New session started. History will be saved once you send a message.";
+            _appStatus.Set("New session started. History will be saved once you send a message.");
         }
 
         private async void btnResponsesDeleteChat_Click(object sender, RoutedEventArgs e)
@@ -686,7 +707,7 @@ namespace openAIApps
             if (confirm != MessageBoxResult.Yes)
                 return;
 
-            StatusText.Text = "Deleting session...: " + _activeResponsesSessionId.Value;
+            _appStatus.Set("Deleting session...: " + _activeResponsesSessionId.Value);
 
             await _sessionCleanupService.DeleteSessionAsync(_activeResponsesSessionId.Value);
 
@@ -1049,12 +1070,12 @@ namespace openAIApps
             if (!supportsReasoning && reasoning != "none")
             {
                 ResponsesState.SelectedReasoning = "none";
-                StatusText.Text = $"Model '{model}' does not support reasoning settings.";
+                _appStatus.Set($"Model '{model}' does not support reasoning settings.");
             }
             else if (model == "gpt-5-pro" && reasoning != "high")
             {
                 ResponsesState.SelectedReasoning = "high";
-                StatusText.Text = "gpt-5-pro requires high reasoning.";
+                _appStatus.Set("gpt-5-pro requires high reasoning.");
             }
         }
         private sealed class ImageToolSettingsSnapshot
@@ -1299,7 +1320,7 @@ namespace openAIApps
                 string.Equals(ResponsesState.ImageGenBackground, "transparent", StringComparison.OrdinalIgnoreCase))
             {
                 ResponsesState.ImageGenBackground = "auto";
-                StatusText.Text = $"Transparent background is not supported with {ResponsesState.ImageGenOutputFormat}.";
+                _appStatus.Set($"Transparent background is not supported with {ResponsesState.ImageGenOutputFormat}.");
             }
 
             if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenOutputFormat))
@@ -1676,7 +1697,7 @@ namespace openAIApps
                                 {
                                     if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
                                     {
-                                        StatusText.Text = "Hold Ctrl while clicking to open links.";
+                                        _appStatus.Set("Hold Ctrl whilodie clicking to open links.");
                                         return;
                                     }
 
@@ -2097,7 +2118,7 @@ namespace openAIApps
 
             Dispatcher.Invoke(() =>
             {
-                StatusText.Text = $"Local tool used: {toolName}";
+                _appStatus.Set($"Local tool used: {toolName}");
             });
 
             Debug.WriteLine($"[LOCAL TOOL] {toolName}");

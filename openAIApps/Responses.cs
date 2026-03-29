@@ -45,9 +45,10 @@ namespace openAIApps
         // Updated to accept the DB-rehydrated history
         // Responses.cs
 
-        public async Task<ResponsesResult> GetChatCompletionAsync(List<object> openAIContext)
+        public async Task<ResponsesResult> GetChatCompletionAsync(List<object> openAIContext, IProgress<string> progress = null)
         {
             // 1. Build the request object using our new overload
+            progress?.Report("Building request");
             var request = BuildRequest(openAIContext);
 
             var options = new JsonSerializerOptions
@@ -65,13 +66,17 @@ namespace openAIApps
 #endif
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             //using var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
+            progress?.Report("Sending request to OpenAI");
             var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
             var responseString = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
+                progress?.Report($"OpenAI Error {response.StatusCode}: {responseString}");
                 throw new Exception($"OpenAI Error {response.StatusCode}: {responseString}");
             }
+            else
+                progress?.Report("Response from OpenAI successfull");
 
             // 3. Deserialize the raw response
             var apiResponse = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
@@ -80,7 +85,7 @@ namespace openAIApps
             {
                 LastResponseId = apiResponse.Id;
             }
-
+            progress?.Report("Parsing response");
             var parsed = ParseResponseRich(apiResponse);
             parsed.RawJson = responseString;
             parsed.ImageOutputFormat = NormalizeImageOutputFormat(ImageGenOutputFormat);
@@ -256,17 +261,20 @@ namespace openAIApps
 
             return request;
         }
+        
         public async Task<ResponsesResult> GetChatCompletionWithLocalToolsAsync(
         List<object> openAIContext,
         DeveloperToolsOptions developerToolsOptions,
         Func<string, string, Task<bool>> confirmLocalCallAsync = null,
-        Func<string, string, string, Task> onToolCallLoggedAsync = null)
+        Func<string, string, string, Task> onToolCallLoggedAsync = null,
+        IProgress<string> progress = null)
         {
             if (developerToolsOptions == null ||
                 !developerToolsOptions.Enabled ||
                 string.IsNullOrWhiteSpace(developerToolsOptions.RepositoryRoot))
             {
-                return await GetChatCompletionAsync(openAIContext);
+                progress?.Report("Sending request to OpenAI...");
+                return await GetChatCompletionAsync(openAIContext, progress);
             }
 
             var guard = new WorkspaceGuard(developerToolsOptions);
@@ -286,6 +294,7 @@ namespace openAIApps
 
             while (true)
             {
+                progress?.Report("Building request...");
                 var request = BuildRequest(currentInput, previousResponseId, developerToolsOptions);
 
                 var json = JsonSerializer.Serialize(request, options);
@@ -293,14 +302,18 @@ namespace openAIApps
                 System.Diagnostics.Debug.WriteLine("Responses request JSON:");
                 System.Diagnostics.Debug.WriteLine(json);
 #endif
-
+                progress?.Report("Sending request to OpenAI...");
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(ResponsesEndpoint, content);
+                progress?.Report("Reading response content..");
                 var responseString = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
+                {
+                    progress?.Report($"OpenAI returned error: {(int)response.StatusCode} {response.StatusCode}");
                     throw new Exception($"OpenAI Error {response.StatusCode}: {responseString}");
-
+                }
+                progress?.Report("Parsing response...");
                 var apiResponse = JsonSerializer.Deserialize<ResponsesResponse>(responseString, options);
 
                 if (!string.IsNullOrEmpty(apiResponse?.Id))
@@ -313,6 +326,7 @@ namespace openAIApps
 
                 if (functionCalls.Count == 0)
                 {
+                    progress?.Report("Finalizing response...");
                     var parsed = ParseResponseRich(apiResponse);
                     parsed.RawJson = responseString;
                     parsed.ImageOutputFormat = NormalizeImageOutputFormat(ImageGenOutputFormat);
@@ -320,14 +334,16 @@ namespace openAIApps
                 }
 
                 var toolOutputs = new List<object>();
-
+                progress?.Report($"Model requested {functionCalls.Count} local tool call(s)...");
                 foreach (var call in functionCalls)
                 {
                     if (confirmLocalCallAsync != null)
                     {
+                        progress?.Report($"Running local tool: {call.Name}...");
                         bool allowed = await confirmLocalCallAsync(call.Name, call.Arguments ?? "{}");
                         if (!allowed)
                         {
+                            progress?.Report($"Local tool denied: {call.Name}. Continuing without it...");
                             string denied = JsonSerializer.Serialize(new
                             {
                                 ok = false,
@@ -348,7 +364,9 @@ namespace openAIApps
                         }
                     }
 
+                    progress?.Report($"Executing local tool: {call.Name}...");
                     string toolResult = await dispatcher.DispatchAsync(call.Name, call.Arguments ?? "{}");
+                    progress?.Report($"Local tool finished: {call.Name}. Sending output back...");
 
                     if (onToolCallLoggedAsync != null)
                         await onToolCallLoggedAsync(call.Name, call.Arguments ?? "{}", toolResult);
@@ -362,6 +380,7 @@ namespace openAIApps
                 }
 
                 currentInput = toolOutputs;
+                progress?.Report("Continuing conversation with tool outputs...");
             }
         }
         private static string NormalizeImageOutputFormat(string format)

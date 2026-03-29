@@ -308,6 +308,21 @@ namespace openAIApps
         }
 
         public bool IsDeveloperToolsOptionsVisible => UseDeveloperTools;
+        private bool _isRequestInProgress;
+        public bool IsRequestInProgress
+        {
+            get => _isRequestInProgress;
+            set
+            {
+                if (_isRequestInProgress != value)
+                {
+                    _isRequestInProgress = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(AreRequestEditingControlsEnabled));
+                }
+            }
+        }
+        public bool AreRequestEditingControlsEnabled => !IsRequestInProgress;
     }
 
 }

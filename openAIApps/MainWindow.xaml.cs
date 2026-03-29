@@ -73,8 +73,45 @@ namespace openAIApps
 
         private int? _activeResponsesSessionId;
         private int? _activeVideoSessionId;
+        private System.Windows.Threading.DispatcherTimer _statusEllipsisTimer;
+        private int _ellipsisCounter = 0;
+        private AppStatus _appStatus;
 
-        
+        private void InitStatusAnimation()
+        {
+            _statusEllipsisTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _statusEllipsisTimer.Tick += (s, e) =>
+            {
+                _ellipsisCounter = (_ellipsisCounter + 1) % 4;
+                if (ResponsesState.IsRequestInProgress)
+                {
+                    var baseText = StatusText.Text?.Split(new[] { '·', '.' }, StringSplitOptions.RemoveEmptyEntries)[0]?.Trim()
+                                   ?? "Working";
+                    _appStatus.Set(baseText + new string('.', _ellipsisCounter));
+                }
+            };
+
+            ResponsesState.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(ResponsesState.IsRequestInProgress))
+                {
+                    if (ResponsesState.IsRequestInProgress)
+                    {
+                        // start the animation
+                        _ellipsisCounter = 0;
+                        _statusEllipsisTimer.Start();
+                    }
+                    else
+                    {
+                        _statusEllipsisTimer.Stop();
+                    }
+                }
+            };
+        }
+
 
         private async Task<int> EnsureSessionActiveAsync(EndpointType type, string firstPrompt)
         {
@@ -145,6 +182,7 @@ namespace openAIApps
         
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            InitStatusAnimation();
             await InitResponsesControlsAsync();
             UpdateResponsesResponseDocument(ResponsesState.ResponseText);
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
@@ -195,7 +233,10 @@ namespace openAIApps
         public MainWindow()
         {
             InitializeComponent();
-
+            _appStatus = new AppStatus(
+                Dispatcher,
+                text => StatusText.Text = text ?? string.Empty
+            );
             AppDbContext.InitializeDatabase();
             _historyService = new HistoryService();
             _mediaStorageService = new MediaStorageService();
@@ -479,12 +520,14 @@ namespace openAIApps
             }
             else if (selectedSession.Endpoint == EndpointType.Responses)
             {
+                _appStatus.Set("Loading EndpointType.Responses");
                 await Dispatcher.InvokeAsync(() =>
                 {
                     tabMain.SelectedItem = tpResponses;
                     tabMain.UpdateLayout();
                 }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
+                _appStatus.Set("Loading EndpointType.Responses finisdhed");
                 _activeResponsesSessionId = selectedSession.Id;
                 await LoadResponsesSessionAsync(selectedSession.Id);
             }
@@ -508,5 +551,6 @@ namespace openAIApps
                 tb.Focus();
             }
         }
+        
     }
 }

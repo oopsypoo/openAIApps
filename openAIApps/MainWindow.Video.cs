@@ -57,7 +57,7 @@ namespace openAIApps
                     ShowVideoPreviewForLibraryItem(VideoState.SelectedLibraryVideo);
 
                 _activeVideoSessionId = sessionId;
-                StatusText.Text = $"Video session loaded: {sessionId}";
+                _appStatus.Set($"Video session loaded: {sessionId}");
             }
             finally
             {
@@ -201,7 +201,7 @@ namespace openAIApps
             {
                 string localFilePath = Path.Combine(_settings.VideosFolder, jobResponse.Id + ".mp4");
                 //await _historyService.LinkMediaAsync(assistantMsgId, localFilePath, "video/mp4");
-                StatusText.Text = "Video Ready.";
+                _appStatus.Set("Video Ready.");
             }
             else if (finalStatus?.Error != null)
             {
@@ -209,7 +209,7 @@ namespace openAIApps
                 string errorDetail = $"Code: {finalStatus.Error.Code}\nMessage: {finalStatus.Error.Message}";
                 await _historyService.AddMessageAsync(sessionId, "assistant", $"Processing Failed: {finalStatus.Error.Message}");
                 //MessageBox.Show(errorDetail, "Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                StatusText.Text = $"Processing Error: {errorDetail}";
+                _appStatus.Set($"Processing Error: {errorDetail}");
             }
         }
 
@@ -286,7 +286,7 @@ namespace openAIApps
             if (videoResult == null || videoResult.Error != null)
             {
                 string errorMsg = videoResult?.Error?.Message ?? "Unknown API Error";
-                StatusText.Text = $"Failed: {videoResult?.Error?.Code ?? "400"}";
+                _appStatus.Set($"Failed: {videoResult?.Error?.Code ?? "400"}");
 
                 await _historyService.AddMessageAsync(
                     sessionId,
@@ -325,7 +325,7 @@ namespace openAIApps
             else
             {
                 string errorMsg = videoResult?.Error?.Message ?? "The API returned a success code but no Video ID.";
-                StatusText.Text = $"Failed: {errorMsg}";
+                _appStatus.Set($"Failed: {errorMsg}");
                 MessageBox.Show(errorMsg, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
@@ -474,7 +474,7 @@ namespace openAIApps
                 _videoHistory.Remove(selectedVideo);
                 RefreshLogsTab();
 
-                StatusText.Text = "Video and logs deleted.";
+                _appStatus.Set("Video and logs deleted.");
             }
             catch (Exception ex)
             {
@@ -593,7 +593,7 @@ namespace openAIApps
             else
             {
                 VideoState.SelectedLibraryVideo = selectedVideo;
-                StatusText.Text = $"Video selected: {selectedVideo.Id}";
+                _appStatus.Set($"Video selected: {selectedVideo.Id}");
             }
         }
         private void lstVideoSessionTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -655,7 +655,7 @@ namespace openAIApps
 
             imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
 
-            StatusText.Text = "Ready for a new video job.";
+            _appStatus.Set("Ready for a new video job.");
         }
         private void txtVideoPrompt_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -665,7 +665,7 @@ namespace openAIApps
             if (_activeVideoSessionId != null && VideoState.IsRemix == false)
             {
                 _activeVideoSessionId = null;
-                StatusText.Text = "New prompt detected: A new session will be created.";
+                _appStatus.Set("New prompt detected: A new session will be created.");
             }
         }
 
