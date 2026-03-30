@@ -431,6 +431,7 @@ namespace openAIApps
 
             e.Handled = true;
             await OpenSessionFromLogsAsync(selectedSession);
+            _appStatus.Set($"Opened session '{selectedSession.Title}'");
         }
 
         private void tabMain_SelectionChanged(object sender, SelectionChangedEventArgs e)
