@@ -169,7 +169,7 @@ namespace openAIApps
                 imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
             }
         }
-        
+
         private async Task HandleVideoJobAsync(VideoClient.ResponseVideo jobResponse, int sessionId, int assistantMsgId)
         {
             // Update the UI listbox

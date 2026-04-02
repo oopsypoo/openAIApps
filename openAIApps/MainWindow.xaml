@@ -4,6 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         xmlns:local="clr-namespace:openAIApps"
         mc:Ignorable="d"
         Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
@@ -45,6 +46,10 @@
 
         <Style x:Key="SliderGPTOptions" TargetType="Slider">
             <Setter Property="SmallChange" Value="0.1" />
+        </Style>
+        <Style x:Key="smallText" TargetType="Expander">
+            <Setter Property="FontSize" Value="7" />
+            <Setter Property="Foreground" Value="DarkGray" />
         </Style>
 
         <Style TargetType="GroupBox">
@@ -749,44 +754,40 @@
 
                             <!-- RESPONSE SECTION -->
                             <DockPanel Grid.Row="2" LastChildFill="True" Margin="0">
-                                <Label DockPanel.Dock="Top"
-                           Margin="0,0,0,2"
-                           Content="OpenAi response" />
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,2" LastChildFill="False">
+                                    <Label DockPanel.Dock="Left"
+                                           Margin="0"
+                                           VerticalAlignment="Center"
+                                           Content="OpenAi response" />
 
-                                <RichTextBox x:Name="rtbResponsesResponse"
-                                 Margin="0"
-                                 VerticalAlignment="Stretch"
-                                 HorizontalAlignment="Stretch"
-                                 IsReadOnly="True"
-                                 IsDocumentEnabled="True"
-                                 VerticalScrollBarVisibility="Visible"
-                                 HorizontalScrollBarVisibility="Auto"
-                                 FontSize="12"
-                                 BorderBrush="DarkGray"
-                                 BorderThickness="1"
-                                 PreviewKeyDown="rtbResponsesResponse_PreviewKeyDown"
-                                 Background="White">
-                                    <RichTextBox.ContextMenu>
-                                        <ContextMenu Opened="ResponsesRichTextContextMenu_Opened">
-                                            <MenuItem x:Name="miResponsesCopySelection"
-                                          Header="Copy selection"
-                                          Click="miResponsesCopySelection_Click"/>
-                                            <MenuItem x:Name="miResponsesCopyAll"
-                                          Header="Copy all"
-                                          Click="miResponsesCopyAll_Click"/>
-                                            <MenuItem x:Name="miResponsesCopyMarkdown"
-                                          Header="Copy as Markdown"
-                                          Click="miResponsesCopyMarkdown_Click"/>
-                                            <Separator/>
-                                            <MenuItem x:Name="miResponsesCopyCurrentBlock"
-                                          Header="Copy current block"
-                                          Click="miResponsesCopyCurrentBlock_Click"/>
-                                            <MenuItem x:Name="miResponsesCopyCurrentCodeBlock"
-                                          Header="Copy current code block"
-                                          Click="miResponsesCopyCurrentCodeBlock_Click"/>
-                                        </ContextMenu>
-                                    </RichTextBox.ContextMenu>
-                                </RichTextBox>
+                                    <Expander x:Name="expResponsesTheme"
+                                              DockPanel.Dock="Right"
+                                              Style="{StaticResource smallText}"
+                                              Header="Highlighting-theme" 
+                                              Margin="8,0,0,0"
+                                              VerticalAlignment="Center"
+                                              ExpandDirection="Down">
+                                        <Border Padding="6"
+                                                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+                                                BorderBrush="DarkGray"
+                                                BorderThickness="1">
+                                            <ComboBox x:Name="cmbResponsesMarkdownTheme"
+                                                      Width="180"
+                                                      DisplayMemberPath="DisplayName"
+                                                      SelectionChanged="cmbResponsesMarkdownTheme_SelectionChanged"/>
+                                        </Border>
+                                    </Expander>
+                                </DockPanel>
+
+                                <Border Margin="0"
+                                        BorderBrush="DarkGray"
+                                        BorderThickness="1"
+                                        Background="White">
+                                    <wv2:WebView2 x:Name="wvResponsesResponse"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Stretch"
+                                                  DefaultBackgroundColor="White" />
+                                </Border>
                             </DockPanel>
                         </Grid>
                     </GroupBox>
@@ -1214,30 +1215,30 @@
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <Border Margin="0,0,0,6"
-            Padding="6"
-            BorderBrush="#E0E0E0"
-            BorderThickness="1"
-            Background="White">
+                                                                Padding="6"
+                                                                BorderBrush="#E0E0E0"
+                                                                BorderThickness="1"
+                                                                Background="White">
                                                             <StackPanel>
                                                                 <TextBlock FontWeight="SemiBold"
-                       Text="{Binding ToolName, Mode=OneWay}" />
+                                                                           Text="{Binding ToolName, Mode=OneWay}" />
 
                                                                 <TextBlock Margin="0,2,0,0"
-                       FontSize="11"
-                       Foreground="DimGray"
-                       Text="{Binding TimestampText, Mode=OneWay}" />
+                                                                           FontSize="11"
+                                                                           Foreground="DimGray"
+                                                                           Text="{Binding TimestampText, Mode=OneWay}" />
 
                                                                 <TextBlock Margin="0,4,0,0"
-                       FontSize="11"
-                       Foreground="DarkSlateBlue"
-                       TextWrapping="Wrap"
-                       Text="{Binding ResultSummary, Mode=OneWay}" />
+                                                                           FontSize="11"
+                                                                           Foreground="DarkSlateBlue"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding ResultSummary, Mode=OneWay}" />
 
                                                                 <TextBlock Margin="0,4,0,0"
-                       FontSize="11"
-                       Foreground="DimGray"
-                       TextWrapping="Wrap"
-                       Text="{Binding ArgumentsJson, Mode=OneWay}" />
+                                                                           FontSize="11"
+                                                                           Foreground="DimGray"
+                                                                           TextWrapping="Wrap"
+                                                                           Text="{Binding ArgumentsJson, Mode=OneWay}" />
 
                                                                 <TextBlock Margin="0,4,0,0"
                        FontSize="11"

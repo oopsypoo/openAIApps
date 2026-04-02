@@ -12,6 +12,7 @@ namespace openAIApps
         public string SoundsFolder { get; set; } = "snds";
         public string ImagesFolder { get; set; } = "images";
         public string VideosFolder { get; set; } = "videos";
+        public string ResponsesMarkdownTheme { get; set; } = "github.min.css";
 
         private static readonly string SettingsPath = Path.Combine(
     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,

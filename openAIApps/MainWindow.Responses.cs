@@ -1,4 +1,6 @@
-﻿using Microsoft.Win32;
+﻿using Markdig;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Win32;
 using openAIApps.Data;
 using openAIApps.Native;
 using openAIApps.Services;
@@ -9,14 +11,11 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-
 /*
  * Code for Responses-tab-controls
 */
@@ -29,7 +28,7 @@ namespace openAIApps
         private List<string> _activeModelsForResponses = new();
         private AvailableModels? _availableModelsWindow;
         private bool _isApplyingResponsesSettings;
-
+        private bool _bindingMarkdownThemeOptions;
 
         private string ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
@@ -318,7 +317,7 @@ namespace openAIApps
         {
             if (sessionId <= 0)
                 return;
-            
+
             PendingResponseAttachments.Clear();
             _appStatus.Set("Update attachment panel...");
             UpdatePendingAttachmentsPanel();
@@ -356,12 +355,12 @@ namespace openAIApps
             {
                 if (string.Equals(selected.Role, "assistant", StringComparison.OrdinalIgnoreCase))
                 {
-                    ResponsesState.ResponseText = selected.Content;
+                    await RenderResponsesMarkdownAsync(selected.Content);
                     ApplyDeveloperToolCallLogJson(selected.ToolCallLogJson);
                 }
                 else
                 {
-                    ResponsesState.ResponseText = string.Empty;
+                    await RenderResponsesMarkdownAsync(string.Empty);
                     ClearDeveloperToolCallLogs();
                 }
                 _appStatus.Set("Showing Image gallery ");
@@ -369,7 +368,7 @@ namespace openAIApps
             }
             else
             {
-                ResponsesState.ResponseText = string.Empty;
+                await RenderResponsesMarkdownAsync(string.Empty);
                 ClearResponsePreviewImages();
                 HideResponsesImagePreview();
                 DeveloperToolCallLogs.Clear();
@@ -377,12 +376,11 @@ namespace openAIApps
             }
         }
 
-        private void ResetResponsesUi(bool clearPrompt = true)
+        private async Task ResetResponsesUi(bool clearPrompt = true)
         {
             CurrentChatMessages.Clear();
             ResponsesState.SelectedTurn = null;
-            ResponsesState.ResponseText = string.Empty;
-
+            
             if (clearPrompt)
                 ResponsesState.PromptText = string.Empty;
 
@@ -392,7 +390,7 @@ namespace openAIApps
             ClearDeveloperToolCallLogs();
             HideResponsesImagePreview();
             ResetDeveloperToolsState();
-
+            await RenderResponsesMarkdownAsync(string.Empty);
             if (_responsesClient != null)
                 _responsesClient.ClearConversation();
         }
@@ -499,7 +497,7 @@ namespace openAIApps
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Could not open {caption}:\n{ex.Message}",
+                System.Windows.MessageBox.Show($"Could not open {caption}:\n{ex.Message}",
                     "Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
@@ -554,7 +552,7 @@ namespace openAIApps
 
             ResponsesState.IsRequestInProgress = true;
             using (_appStatus.Operation("Preparing request..."))
-            { 
+            {
                 try
                 {
                     string model = ResponsesState.SelectedModel;
@@ -716,7 +714,7 @@ namespace openAIApps
             RefreshLogsTab();
         }
 
-        private void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void lstResponsesTurns_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_responsesClient == null || _isApplyingResponsesSettings)
                 return;
@@ -729,13 +727,13 @@ namespace openAIApps
             if (string.Equals(selectedMsg.Role, "user", StringComparison.OrdinalIgnoreCase))
             {
                 ResponsesState.PromptText = selectedMsg.Content;
-                ResponsesState.ResponseText = string.Empty;
+                await RenderResponsesMarkdownAsync(string.Empty);
                 ShowResponsesImageGallery(selectedMsg);
                 ClearDeveloperToolCallLogs();
             }
             else if (string.Equals(selectedMsg.Role, "assistant", StringComparison.OrdinalIgnoreCase))
             {
-                ResponsesState.ResponseText = selectedMsg.Content;
+                await RenderResponsesMarkdownAsync(selectedMsg.Content);
                 ShowResponsesImageGallery(selectedMsg);
                 ApplyDeveloperToolCallLogJson(selectedMsg.ToolCallLogJson);
             }
@@ -899,8 +897,8 @@ namespace openAIApps
                 !string.IsNullOrWhiteSpace(message.ImageToolSettingsJson) ||
                 !string.IsNullOrWhiteSpace(message.DeveloperToolSettingsJson);
         }
-        
-        
+
+
         //see use-case in ApplyResponsesSettingsFromHistory. It explains why it still is not used
         /// <summary>
         /// Ensures that the specified model is present in the responses model selection list. If the model does not
@@ -967,7 +965,7 @@ namespace openAIApps
                 ResponsesState.ImageGenSize = string.IsNullOrWhiteSpace(settingsMessage.ImageSize)
                     ? "auto"
                     : settingsMessage.ImageSize;
-                
+
                 ResponsesState.ImageGenOutputFormat = "jpeg";
                 ResponsesState.ImageGenBackground = "auto";
                 ResponsesState.ImageGenInputFidelity = "high";
@@ -1057,7 +1055,7 @@ namespace openAIApps
             if (_responsesClient.ActiveTools.Count == 0)
                 _responsesClient.ActiveTools.Add(ResponseToolKeys.Text);
         }
-        
+
         private void ValidateResponsesState()
         {
             string model = ResponsesState.SelectedModel;
@@ -1332,569 +1330,7 @@ namespace openAIApps
             if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenInputFidelity))
                 ResponsesState.ImageGenInputFidelity = "high";
         }
-        private void UpdateResponsesResponseDocument(string text)
-        {
-            if (rtbResponsesResponse == null)
-                return;
 
-            rtbResponsesResponse.Document = BuildResponseDocument(text ?? string.Empty);
-        }
-
-        private FlowDocument BuildResponseDocument(string text)
-        {
-            var doc = new FlowDocument
-            {
-                PagePadding = new Thickness(10),
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 13,
-                TextAlignment = TextAlignment.Left
-            };
-
-            if (string.IsNullOrWhiteSpace(text))
-                return doc;
-
-            var parts = SplitIntoCodeAndTextBlocks(text);
-
-            foreach (var part in parts)
-            {
-                if (part.IsCode)
-                {
-                    if (!string.IsNullOrWhiteSpace(part.Language))
-                    {
-                        doc.Blocks.Add(new Paragraph(new Run(part.Language))
-                        {
-                            Margin = new Thickness(0, 8, 0, 2),
-                            FontSize = 11,
-                            Foreground = Brushes.DimGray,
-                            FontStyle = FontStyles.Italic
-                        });
-                    }
-
-                    var para = new Paragraph
-                    {
-                        Margin = new Thickness(0, 2, 0, 10),
-                        Padding = new Thickness(10),
-                        Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(210, 210, 210)),
-                        BorderThickness = new Thickness(1),
-                        FontFamily = new FontFamily("Consolas")
-                    };
-
-                    para.Inlines.Add(new Run(part.Content));
-                    doc.Blocks.Add(para);
-                }
-                else
-                {
-                    AddMarkdownBlocks(doc, part.Content);
-                }
-            }
-
-            return doc;
-        }
-        private sealed class ResponseDocumentPart
-        {
-            public bool IsCode { get; set; }
-            public string Content { get; set; } = string.Empty;
-            public string Language { get; set; } = string.Empty;
-        }
-
-        private List<ResponseDocumentPart> SplitIntoCodeAndTextBlocks(string text)
-        {
-            var result = new List<ResponseDocumentPart>();
-
-            if (string.IsNullOrEmpty(text))
-                return result;
-
-            string pattern = @"```(?<lang>[\w#+-]*)\s*\r?\n(?<code>[\s\S]*?)```";
-            var matches = Regex.Matches(text, pattern);
-
-            int currentIndex = 0;
-
-            foreach (Match match in matches)
-            {
-                if (match.Index > currentIndex)
-                {
-                    string plain = text.Substring(currentIndex, match.Index - currentIndex);
-                    if (!string.IsNullOrWhiteSpace(plain))
-                    {
-                        result.Add(new ResponseDocumentPart
-                        {
-                            IsCode = false,
-                            Content = plain.Trim()
-                        });
-                    }
-                }
-
-                result.Add(new ResponseDocumentPart
-                {
-                    IsCode = true,
-                    Language = match.Groups["lang"].Value?.Trim() ?? string.Empty,
-                    Content = match.Groups["code"].Value.TrimEnd()
-                });
-
-                currentIndex = match.Index + match.Length;
-            }
-
-            if (currentIndex < text.Length)
-            {
-                string tail = text.Substring(currentIndex);
-                if (!string.IsNullOrWhiteSpace(tail))
-                {
-                    result.Add(new ResponseDocumentPart
-                    {
-                        IsCode = false,
-                        Content = tail.Trim()
-                    });
-                }
-            }
-
-            if (result.Count == 0)
-            {
-                result.Add(new ResponseDocumentPart
-                {
-                    IsCode = false,
-                    Content = text
-                });
-            }
-
-            return result;
-        }
-        private void AddMarkdownBlocks(FlowDocument doc, string text)
-        {
-            string[] lines = (text ?? string.Empty)
-                .Replace("\r\n", "\n")
-                .Split('\n');
-
-            int i = 0;
-
-            while (i < lines.Length)
-            {
-                string line = lines[i];
-
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    i++;
-                    continue;
-                }
-
-                Match headingMatch = Regex.Match(line, @"^(#{1,6})\s+(.*)$");
-                if (headingMatch.Success)
-                {
-                    int level = headingMatch.Groups[1].Value.Length;
-                    string headingText = headingMatch.Groups[2].Value.Trim();
-                    doc.Blocks.Add(CreateHeadingParagraph(headingText, level));
-                    i++;
-                    continue;
-                }
-
-                if (Regex.IsMatch(line, @"^\s*>\s+"))
-                {
-                    var quoteLines = new List<string>();
-
-                    while (i < lines.Length && Regex.IsMatch(lines[i], @"^\s*>\s+"))
-                    {
-                        quoteLines.Add(Regex.Replace(lines[i], @"^\s*>\s+", "").Trim());
-                        i++;
-                    }
-
-                    doc.Blocks.Add(CreateBlockQuoteParagraph(string.Join(" ", quoteLines)));
-                    continue;
-                }
-
-                if (Regex.IsMatch(line, @"^\s*[-*]\s+"))
-                {
-                    var items = new List<string>();
-
-                    while (i < lines.Length && Regex.IsMatch(lines[i], @"^\s*[-*]\s+"))
-                    {
-                        items.Add(Regex.Replace(lines[i], @"^\s*[-*]\s+", "").Trim());
-                        i++;
-                    }
-
-                    doc.Blocks.Add(CreateMarkdownList(items, ordered: false));
-                    continue;
-                }
-
-                if (Regex.IsMatch(line, @"^\s*\d+\.\s+"))
-                {
-                    var items = new List<string>();
-
-                    while (i < lines.Length && Regex.IsMatch(lines[i], @"^\s*\d+\.\s+"))
-                    {
-                        items.Add(Regex.Replace(lines[i], @"^\s*\d+\.\s+", "").Trim());
-                        i++;
-                    }
-
-                    doc.Blocks.Add(CreateMarkdownList(items, ordered: true));
-                    continue;
-                }
-
-                var paragraphLines = new List<string>();
-
-                while (i < lines.Length &&
-                       !string.IsNullOrWhiteSpace(lines[i]) &&
-                       !Regex.IsMatch(lines[i], @"^(#{1,6})\s+") &&
-                       !Regex.IsMatch(lines[i], @"^\s*>\s+") &&
-                       !Regex.IsMatch(lines[i], @"^\s*[-*]\s+") &&
-                       !Regex.IsMatch(lines[i], @"^\s*\d+\.\s+"))
-                {
-                    paragraphLines.Add(lines[i].Trim());
-                    i++;
-                }
-
-                string paragraphText = string.Join(" ", paragraphLines).Trim();
-                if (!string.IsNullOrWhiteSpace(paragraphText))
-                {
-                    doc.Blocks.Add(CreateNormalParagraph(paragraphText));
-                }
-            }
-        }
-
-        private Paragraph CreateHeadingParagraph(string text, int level)
-        {
-            double size = level switch
-            {
-                1 => 24,
-                2 => 20,
-                3 => 17,
-                4 => 15,
-                _ => 14
-            };
-
-            var para = new Paragraph
-            {
-                Margin = new Thickness(0, 10, 0, 6),
-                FontSize = size,
-                FontWeight = FontWeights.Bold
-            };
-
-            AddInlineMarkdown(para, text);
-            return para;
-        }
-
-        private Paragraph CreateNormalParagraph(string text)
-        {
-            var para = new Paragraph
-            {
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-
-            AddInlineMarkdown(para, text);
-            return para;
-        }
-
-        private Paragraph CreateBlockQuoteParagraph(string text)
-        {
-            var para = new Paragraph
-            {
-                Margin = new Thickness(8, 4, 0, 8),
-                Padding = new Thickness(8, 4, 4, 4),
-                BorderBrush = Brushes.LightGray,
-                BorderThickness = new Thickness(3, 0, 0, 0),
-                Foreground = Brushes.DimGray,
-                FontStyle = FontStyles.Italic
-            };
-
-            AddInlineMarkdown(para, text);
-            return para;
-        }
-
-        private System.Windows.Documents.List CreateMarkdownList(IEnumerable<string> items, bool ordered)
-        {
-            var list = new System.Windows.Documents.List
-            {
-                Margin = new Thickness(20, 0, 0, 8),
-                MarkerStyle = ordered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc
-            };
-
-            foreach (string item in items)
-            {
-                var para = new Paragraph
-                {
-                    Margin = new Thickness(0)
-                };
-
-                AddInlineMarkdown(para, item);
-
-                list.ListItems.Add(new ListItem(para));
-            }
-
-            return list;
-        }
-
-        private void AddInlineMarkdown(Paragraph paragraph, string text)
-        {
-            if (paragraph == null)
-                return;
-
-            text ??= string.Empty;
-
-            int i = 0;
-
-            while (i < text.Length)
-            {
-                // Bold: **text**
-                if (i + 1 < text.Length && text[i] == '*' && text[i + 1] == '*')
-                {
-                    int end = text.IndexOf("**", i + 2, StringComparison.Ordinal);
-                    if (end >= 0)
-                    {
-                        string boldText = text.Substring(i + 2, end - (i + 2));
-                        paragraph.Inlines.Add(new Bold(new Run(boldText)));
-                        i = end + 2;
-                        continue;
-                    }
-                }
-
-                // Inline code: `text`
-                if (text[i] == '`')
-                {
-                    int end = text.IndexOf('`', i + 1);
-                    if (end >= 0)
-                    {
-                        string codeText = text.Substring(i + 1, end - (i + 1));
-                        var run = new Run(codeText)
-                        {
-                            FontFamily = new FontFamily("Consolas"),
-                            Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
-                            Foreground = Brushes.DarkSlateBlue
-                        };
-                        paragraph.Inlines.Add(run);
-                        i = end + 1;
-                        continue;
-                    }
-                }
-
-                // Link: [label](target)
-                if (text[i] == '[')
-                {
-                    int labelEnd = FindMatchingBracket(text, i, '[', ']');
-                    if (labelEnd > i + 1 && labelEnd + 1 < text.Length && text[labelEnd + 1] == '(')
-                    {
-                        int urlStart = labelEnd + 2;
-                        int urlEnd = FindMatchingParen(text, urlStart);
-
-                        if (urlEnd > urlStart)
-                        {
-                            string label = text.Substring(i + 1, labelEnd - i - 1);
-                            string target = text.Substring(urlStart, urlEnd - urlStart).Trim();
-
-                            // Remove optional surrounding angle brackets: [x](<url>)
-                            if (target.Length >= 2 && target[0] == '<' && target[^1] == '>')
-                            {
-                                target = target.Substring(1, target.Length - 2).Trim();
-                            }
-
-                            if (Uri.TryCreate(target, UriKind.Absolute, out Uri validUri))
-                            {
-                                var link = new Hyperlink(new Run(label))
-                                {
-                                    NavigateUri = validUri,
-                                    ToolTip = "Ctrl+Click to open link"
-                                };
-
-                                link.Click += (_, __) =>
-                                {
-                                    if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
-                                    {
-                                        _appStatus.Set("Hold Ctrl whilodie clicking to open links.");
-                                        return;
-                                    }
-
-                                    try
-                                    {
-                                        Process.Start(new ProcessStartInfo
-                                        {
-                                            FileName = validUri.ToString(),
-                                            UseShellExecute = true
-                                        });
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        MessageBox.Show($"Unable to open link: {ex.Message}");
-                                    }
-                                };
-
-                                paragraph.Inlines.Add(link);
-                            }
-                            else
-                            {
-                                // Invalid or relative target: preserve as plain text
-                                paragraph.Inlines.Add(new Run($"[{label}]({target})"));
-                            }
-
-                            i = urlEnd + 1;
-                            continue;
-                        }
-                    }
-                }
-
-                // Fallback: plain text until the next possible markdown token
-                int next = FindNextMarkdownToken(text, i);
-                string plain = next > i ? text.Substring(i, next - i) : text[i].ToString();
-                paragraph.Inlines.Add(new Run(plain));
-                i += plain.Length;
-            }
-        }
-        private static int FindNextMarkdownToken(string text, int startIndex)
-        {
-            int nextBold = text.IndexOf("**", startIndex, StringComparison.Ordinal);
-            int nextCode = text.IndexOf('`', startIndex);
-            int nextLink = text.IndexOf('[', startIndex);
-
-            int next = int.MaxValue;
-
-            if (nextBold >= 0 && nextBold < next) next = nextBold;
-            if (nextCode >= 0 && nextCode < next) next = nextCode;
-            if (nextLink >= 0 && nextLink < next) next = nextLink;
-
-            return next == int.MaxValue ? text.Length : next;
-        }
-
-        private static int FindMatchingBracket(string text, int startIndex, char openChar, char closeChar)
-        {
-            int depth = 0;
-
-            for (int i = startIndex; i < text.Length; i++)
-            {
-                if (text[i] == openChar)
-                    depth++;
-                else if (text[i] == closeChar)
-                {
-                    depth--;
-                    if (depth == 0)
-                        return i;
-                }
-            }
-
-            return -1;
-        }
-
-        private static int FindMatchingParen(string text, int startIndex)
-        {
-            int depth = 0;
-
-            for (int i = startIndex; i < text.Length; i++)
-            {
-                if (text[i] == '(')
-                    depth++;
-                else if (text[i] == ')')
-                {
-                    if (depth == 0)
-                        return i;
-
-                    depth--;
-                }
-            }
-
-            return -1;
-        }
-        private IEnumerable<string> SplitPlainTextIntoParagraphs(string text)
-        {
-            return (text ?? string.Empty)
-                .Replace("\r\n", "\n")
-                .Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => p.Trim())
-                .Where(p => !string.IsNullOrWhiteSpace(p));
-        }
-        private void ResponsesRichTextContextMenu_Opened(object sender, RoutedEventArgs e)
-        {
-            string selectedText = new TextRange(
-                rtbResponsesResponse.Selection.Start,
-                rtbResponsesResponse.Selection.End).Text;
-
-            miResponsesCopySelection.IsEnabled = !string.IsNullOrWhiteSpace(selectedText);
-            miResponsesCopyAll.IsEnabled = rtbResponsesResponse.Document != null;
-            miResponsesCopyMarkdown.IsEnabled = !string.IsNullOrWhiteSpace(ResponsesState.ResponseText);
-
-            Paragraph currentParagraph = GetCurrentParagraphFromRichTextBox(rtbResponsesResponse);
-            bool hasCurrentBlock = currentParagraph != null;
-            bool isCodeBlock = hasCurrentBlock && IsCodeParagraph(currentParagraph);
-
-            miResponsesCopyCurrentBlock.IsEnabled = hasCurrentBlock;
-            miResponsesCopyCurrentCodeBlock.IsEnabled = isCodeBlock;
-        }
-
-        private void miResponsesCopySelection_Click(object sender, RoutedEventArgs e)
-        {
-            string selectedText = new TextRange(
-                rtbResponsesResponse.Selection.Start,
-                rtbResponsesResponse.Selection.End).Text?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(selectedText))
-                Clipboard.SetText(selectedText);
-        }
-
-        private void miResponsesCopyAll_Click(object sender, RoutedEventArgs e)
-        {
-            string allText = new TextRange(
-                rtbResponsesResponse.Document.ContentStart,
-                rtbResponsesResponse.Document.ContentEnd).Text?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(allText))
-                Clipboard.SetText(allText);
-        }
-
-        private void miResponsesCopyCurrentBlock_Click(object sender, RoutedEventArgs e)
-        {
-            Paragraph paragraph = GetCurrentParagraphFromRichTextBox(rtbResponsesResponse);
-            if (paragraph == null)
-                return;
-
-            string text = new TextRange(paragraph.ContentStart, paragraph.ContentEnd).Text?.Trim();
-            if (!string.IsNullOrWhiteSpace(text))
-                Clipboard.SetText(text);
-        }
-
-        private void miResponsesCopyCurrentCodeBlock_Click(object sender, RoutedEventArgs e)
-        {
-            Paragraph paragraph = GetCurrentParagraphFromRichTextBox(rtbResponsesResponse);
-            if (paragraph == null || !IsCodeParagraph(paragraph))
-                return;
-
-            string text = new TextRange(paragraph.ContentStart, paragraph.ContentEnd).Text?.Trim();
-            if (!string.IsNullOrWhiteSpace(text))
-                Clipboard.SetText(text);
-        }
-        private Paragraph GetCurrentParagraphFromRichTextBox(RichTextBox richTextBox)
-        {
-            if (richTextBox?.CaretPosition == null)
-                return null;
-
-            DependencyObject current = richTextBox.CaretPosition.Parent;
-
-            while (current != null)
-            {
-                if (current is Paragraph paragraph)
-                    return paragraph;
-
-                current = LogicalTreeHelper.GetParent(current);
-            }
-
-            return null;
-        }
-
-        private bool IsCodeParagraph(Paragraph paragraph)
-        {
-            if (paragraph == null)
-                return false;
-
-            string fontFamily = paragraph.FontFamily?.Source ?? string.Empty;
-
-            bool looksLikeCodeFont =
-                fontFamily.IndexOf("Consolas", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                fontFamily.IndexOf("Courier", StringComparison.OrdinalIgnoreCase) >= 0;
-
-            bool hasCodeBackground = paragraph.Background != null;
-
-            return looksLikeCodeFont || hasCodeBackground;
-        }
-        private void miResponsesCopyMarkdown_Click(object sender, RoutedEventArgs e)
-        {
-            string markdown = ResponsesState.ResponseText?.Trim();
-            if (!string.IsNullOrWhiteSpace(markdown))
-                Clipboard.SetText(markdown);
-        }
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             if (parent == null)
@@ -1916,82 +1352,7 @@ namespace openAIApps
 
             return null;
         }
-        private ScrollViewer GetResponsesRichTextScrollViewer()
-        {
-            return FindVisualChild<ScrollViewer>(rtbResponsesResponse);
-        }
-        private void rtbResponsesResponse_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (rtbResponsesResponse == null)
-                return;
 
-            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.A)
-            {
-                rtbResponsesResponse.SelectAll();
-                e.Handled = true;
-                return;
-            }
-
-            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.C)
-            {
-                string selectedText = new TextRange(
-                    rtbResponsesResponse.Selection.Start,
-                    rtbResponsesResponse.Selection.End).Text?.Trim();
-
-                if (!string.IsNullOrWhiteSpace(selectedText))
-                {
-                    Clipboard.SetText(selectedText);
-                }
-                else
-                {
-                    string allText = new TextRange(
-                        rtbResponsesResponse.Document.ContentStart,
-                        rtbResponsesResponse.Document.ContentEnd).Text?.Trim();
-
-                    if (!string.IsNullOrWhiteSpace(allText))
-                        Clipboard.SetText(allText);
-                }
-
-                e.Handled = true;
-                return;
-            }
-
-            ScrollViewer scrollViewer = GetResponsesRichTextScrollViewer();
-            if (scrollViewer == null)
-                return;
-
-            switch (e.Key)
-            {
-                case Key.Down:
-                    scrollViewer.LineDown();
-                    e.Handled = true;
-                    break;
-
-                case Key.Up:
-                    scrollViewer.LineUp();
-                    e.Handled = true;
-                    break;
-
-                case Key.PageDown:
-                    scrollViewer.PageDown();
-                    e.Handled = true;
-                    break;
-
-                case Key.PageUp:
-                    scrollViewer.PageUp();
-                    e.Handled = true;
-                    break;
-                case Key.Home:
-                    scrollViewer.ScrollToHome();
-                    e.Handled = true;
-                    break;
-
-                case Key.End:
-                    scrollViewer.ScrollToEnd();
-                    e.Handled = true;
-                    break;
-            }
-        }
         private void btnResponsesAttachFiles_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFileDialog
@@ -2177,5 +1538,264 @@ namespace openAIApps
                 // tolerate older rows / malformed JSON
             }
         }
+        /// <summary>
+        /// Represents a selectable Markdown theme option with associated display and file information.
+        /// </summary>
+        /// <remarks>This class is typically used to provide theme choices in a Markdown rendering or
+        /// editing context. Instances are immutable and intended for use as value objects in UI or configuration
+        /// scenarios.</remarks>
+        private sealed class MarkdownThemeOption
+        {
+            public string FileName { get; init; } = string.Empty;
+            public string DisplayName { get; init; } = string.Empty;
+            public string RelativeHref { get; init; } = string.Empty;
+
+            public override string ToString() => DisplayName;
+        }
+        private bool _responsesWebViewInitialized;
+        private bool _responsesViewerPageLoaded;
+        private List<MarkdownThemeOption> _markdownThemeOptions = new();
+        private MarkdownThemeOption? _selectedMarkdownTheme;
+        private string GetMarkdownViewerAssetsOutputPath()
+        {
+            return Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "Assets",
+                "MarkdownViewer");
+        }
+
+        private List<MarkdownThemeOption> LoadMarkdownThemeOptions()
+        {
+            string stylesPath = System.IO.Path.Combine(GetMarkdownViewerAssetsOutputPath(), "styles");
+
+            if (!Directory.Exists(stylesPath))
+                return new List<MarkdownThemeOption>();
+
+            var files = Directory.GetFiles(stylesPath, "*.min.css", SearchOption.TopDirectoryOnly);
+
+            return files
+                .Select(path =>
+                {
+                    string fileName = Path.GetFileName(path);
+
+                    return new MarkdownThemeOption
+                    {
+                        FileName = fileName,
+                        DisplayName = FormatMarkdownThemeDisplayName(fileName),
+                        RelativeHref = "styles/" + fileName
+                    };
+                })
+                .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+
+        private string FormatMarkdownThemeDisplayName(string fileName)
+        {
+            string name = Path.GetFileNameWithoutExtension(fileName);
+
+            if (name.EndsWith(".min", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring(0, name.Length - 4);
+
+            name = name.Replace("-", " ");
+
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name);
+        }
+
+        private MarkdownThemeOption? GetDefaultMarkdownThemeOption(List<MarkdownThemeOption> options)
+        {
+            var github = options.FirstOrDefault(t =>
+                t.FileName.Equals("github.min.css", StringComparison.OrdinalIgnoreCase));
+
+            return github ?? options.FirstOrDefault();
+        }
+        /// Markdown pipeline for rendering response text (used for copy as markdown)
+        private readonly MarkdownPipeline _responsesMarkdownPipeline =
+                                        new MarkdownPipelineBuilder()
+                                            .UseAdvancedExtensions()
+                                            .Build();
+
+        private async Task EnsureResponsesWebViewInitializedAsync()
+        {
+            if (_responsesWebViewInitialized)
+                return;
+
+            await wvResponsesResponse.EnsureCoreWebView2Async();
+
+            string assetsPath = GetMarkdownViewerAssetsOutputPath();
+
+            wvResponsesResponse.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                "markdownviewer.local",
+                assetsPath,
+                Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+            wvResponsesResponse.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+            wvResponsesResponse.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            wvResponsesResponse.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            wvResponsesResponse.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
+            wvResponsesResponse.CoreWebView2.Settings.IsZoomControlEnabled = true;
+
+            wvResponsesResponse.CoreWebView2.NavigationStarting += ResponsesWebView_NavigationStarting;
+            wvResponsesResponse.CoreWebView2.WebMessageReceived += ResponsesWebView_WebMessageReceived;
+
+            _responsesWebViewInitialized = true;
+
+            _markdownThemeOptions = LoadMarkdownThemeOptions();
+            BindMarkdownThemeOptions();
+
+            await EnsureResponsesViewerPageLoadedAsync();
+        }
+        private string ConvertMarkdownToHtmlBody(string markdown)
+        {
+            markdown ??= string.Empty;
+            return Markdig.Markdown.ToHtml(markdown, _responsesMarkdownPipeline);
+        }
+
+        private void BindMarkdownThemeOptions()
+        {
+            _settings ??= AppSettings.LoadSettings();
+
+            _bindingMarkdownThemeOptions = true;
+            try
+            {
+                cmbResponsesMarkdownTheme.ItemsSource = _markdownThemeOptions;
+
+                string savedTheme = _settings.ResponsesMarkdownTheme;
+
+                _selectedMarkdownTheme =
+                    _markdownThemeOptions.FirstOrDefault(t =>
+                        t.FileName.Equals(savedTheme, StringComparison.OrdinalIgnoreCase))
+                    ?? GetDefaultMarkdownThemeOption(_markdownThemeOptions);
+
+                if (_selectedMarkdownTheme != null)
+                    cmbResponsesMarkdownTheme.SelectedItem = _selectedMarkdownTheme;
+            }
+            finally
+            {
+                _bindingMarkdownThemeOptions = false;
+            }
+        }
+        private async Task EnsureResponsesViewerPageLoadedAsync()
+        {
+            if (_responsesViewerPageLoaded)
+                return;
+
+            var tcs = new TaskCompletionSource<bool>();
+
+            void Handler(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
+            {
+                wvResponsesResponse.NavigationCompleted -= Handler;
+                tcs.TrySetResult(true);
+            }
+
+            wvResponsesResponse.NavigationCompleted += Handler;
+            wvResponsesResponse.CoreWebView2.Navigate("https://markdownviewer.local/template.html");
+
+            await tcs.Task;
+            _responsesViewerPageLoaded = true;
+        }
+        private void ResponsesWebView_NavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(e.Uri))
+                return;
+
+            if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out Uri uri))
+                return;
+
+            if (uri.Host.Equals("markdownviewer.local", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            bool isExternalLink =
+                uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                uri.Scheme.Equals("mailto", StringComparison.OrdinalIgnoreCase);
+
+            if (!isExternalLink)
+                return;
+
+            e.Cancel = true;
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = uri.AbsoluteUri,
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+            }
+        }
+        private void ResponsesWebView_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            try
+            {
+                string message = e.TryGetWebMessageAsString();
+                if (string.IsNullOrWhiteSpace(message))
+                    return;
+
+                const string prefix = "copy-code:";
+                if (!message.StartsWith(prefix, StringComparison.Ordinal))
+                    return;
+
+                string code = message.Substring(prefix.Length).TrimEnd();
+
+                if (string.IsNullOrEmpty(code))
+                    return;
+
+                Clipboard.SetText(code);
+            }
+            catch
+            {
+                // Optional: log or show status message
+            }
+        }
+
+        private async Task RenderResponsesMarkdownAsync(string markdown)
+        {
+            await EnsureResponsesWebViewInitializedAsync();
+            await EnsureResponsesViewerPageLoadedAsync();
+
+            string htmlBody = ConvertMarkdownToHtmlBody(markdown);
+            string jsArgument = System.Text.Json.JsonSerializer.Serialize(htmlBody);
+
+            await wvResponsesResponse.ExecuteScriptAsync(
+                $"window.markdownViewer.setContent({jsArgument});");
+
+            await ApplySelectedMarkdownThemeAsync();
+        }
+        private async Task ApplySelectedMarkdownThemeAsync()
+        {
+            if (_selectedMarkdownTheme == null)
+                return;
+
+            string hrefArgument = System.Text.Json.JsonSerializer.Serialize(_selectedMarkdownTheme.RelativeHref);
+
+            await wvResponsesResponse.ExecuteScriptAsync(
+                $"window.markdownViewer.setHighlightTheme({hrefArgument});");
+
+            await wvResponsesResponse.ExecuteScriptAsync(
+                "window.markdownViewer.refreshHighlighting();");
+        }
+        private async void cmbResponsesMarkdownTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_bindingMarkdownThemeOptions)
+                return;
+
+            if (cmbResponsesMarkdownTheme.SelectedItem is not MarkdownThemeOption selected)
+                return;
+
+            _selectedMarkdownTheme = selected;
+
+            _settings ??= AppSettings.LoadSettings();
+            _settings.ResponsesMarkdownTheme = selected.FileName;
+            AppSettings.SaveSettings(_settings);
+
+            if (!_responsesViewerPageLoaded)
+                return;
+
+            await ApplySelectedMarkdownThemeAsync();
+        }
+
     }
 }

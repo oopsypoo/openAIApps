@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -36,15 +35,15 @@ namespace openAIApps
         private string savepath_videos;
 
         public event Action<List<string>>? ModelsApplied;
-        
+
         public static HttpResponseMessage GlobalhttpResponse = new HttpResponseMessage();
 
-        
+
         private string _responsesImagePath = string.Empty;
         private string _videoReferencePath = string.Empty;
         private string _responsesPreviewImagePath = string.Empty;
         public ObservableCollection<MediaFile> ResponsePreviewImages { get; } = new();
-        
+
         private Responses _responsesClient;
 
         private readonly HistoryService _historyService;
@@ -156,7 +155,7 @@ namespace openAIApps
 
             _mediaStorageService?.SetImagesFolder(savepath_images);
         }
-        
+
         private async void LoadInitialLogs()
         {
             var sessions = await _historyService.GetAllSessionsAsync();
@@ -179,14 +178,15 @@ namespace openAIApps
 
             return matchesType && matchesText;
         }
-        
+
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             InitStatusAnimation();
             await InitResponsesControlsAsync();
-            UpdateResponsesResponseDocument(ResponsesState.ResponseText);
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
             LoadInitialLogs();
+            await EnsureResponsesWebViewInitializedAsync();
+            await EnsureResponsesViewerPageLoadedAsync();
         }
         private void LogsState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
@@ -199,12 +199,6 @@ namespace openAIApps
 
         private void ResponsesState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ResponsesPanelState.ResponseText))
-            {
-                UpdateResponsesResponseDocument(ResponsesState.ResponseText);
-                return;
-            }
-
             if (_responsesClient == null || _isApplyingResponsesSettings)
                 return;
 
@@ -552,6 +546,6 @@ namespace openAIApps
                 tb.Focus();
             }
         }
-        
+
     }
 }

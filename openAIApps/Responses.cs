@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Object = System.Object;
 
 
 namespace openAIApps
@@ -93,7 +94,40 @@ namespace openAIApps
         }
         private string BuildInstructions(DeveloperToolsOptions developerToolsOptions)
         {
-            var baseInstructions = "You are a helpful assistant. Return all answers as GitHub-style Markdown. Use headings, bullet lists, and fenced code blocks.";
+            var baseInstructions = @"Return all final answers as clean, well-formed GitHub-style Markdown.
+                                Use Markdown features fully when they improve clarity, including:
+                                -headings
+                                - short paragraphs
+                                - bullet lists
+                                - numbered lists
+                                - nested lists
+                                - task lists
+                                - tables
+                                - blockquotes
+                                - inline code
+                                - fenced code blocks with language tags
+                                - links
+                                - horizontal rules
+
+                                Formatting rules:
+                                -Use headings to organize longer answers.
+                                - Use bullet lists and numbered lists where appropriate.
+                                - Use nested lists when structure benefits from it.
+                                - Use fenced code blocks with the correct language tag whenever you provide code.
+                                - When providing C#, XAML, JSON, XML, PowerShell, bash, SQL, or JavaScript examples, always use fenced code blocks with the correct language tag.
+                                -Use inline code for identifiers, class names, method names, file names, commands, property names, enum values, and config keys.
+                                - Use tables when they clearly improve readability.
+                                - Use blockquotes for notes, warnings, and important remarks.
+                                - Keep Markdown valid, clean, and well-formed.
+                                - Do not wrap the entire answer in a single code block.
+                                - Do not use raw HTML unless explicitly requested.
+                                - Prefer readable structure over dense prose.
+                                For technical answers, prefer this structure when useful:
+                                1. short summary
+                                2. step-by-step instructions
+                                3. code examples
+                                4. notes or caveats
+                                """;
 
             if (developerToolsOptions == null || !developerToolsOptions.Enabled)
                 return baseInstructions;
@@ -261,7 +295,7 @@ namespace openAIApps
 
             return request;
         }
-        
+
         public async Task<ResponsesResult> GetChatCompletionWithLocalToolsAsync(
         List<object> openAIContext,
         DeveloperToolsOptions developerToolsOptions,
@@ -728,7 +762,7 @@ namespace openAIApps
             [JsonPropertyName("store")]
             public bool Store { get; set; } = false;
             [JsonPropertyName("instructions")]
-            public string Instructions { get; set; } = "You are a helpful assistant. Return all answers as GitHub-style Markdown. Use headings, bullet lists, and fenced code blocks ";
+            public string Instructions { get; set; } = "Return all final answers as clean, well-formed GitHub-style Markdown.\r\n\r\nUse Markdown features fully when they improve clarity, including:\r\n- headings\r\n- short paragraphs\r\n- bullet lists\r\n- numbered lists\r\n- nested lists\r\n- task lists\r\n- tables\r\n- blockquotes\r\n- inline code\r\n- fenced code blocks with language tags\r\n- links\r\n- horizontal rules\r\n\r\nFormatting rules:\r\n- Use headings to organize longer answers.\r\n- Use bullet lists and numbered lists where appropriate.\r\n- Use nested lists when structure benefits from it.\r\n- Use fenced code blocks with the correct language tag whenever you provide code.\r\n- Use inline code for identifiers, class names, method names, file names, commands, property names, enum values, and config keys.\r\n- Use tables when they clearly improve readability.\r\n- Use blockquotes for notes, warnings, and important remarks.\r\n- Keep Markdown valid, clean, and well-formed.\r\n- Do not wrap the entire answer in a single code block.\r\n- Do not use raw HTML unless explicitly requested.\r\n- Prefer readable structure over dense prose.";
 
             [JsonPropertyName("previous_response_id")]
             public string PreviousResponseId { get; set; }

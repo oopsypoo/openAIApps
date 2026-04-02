@@ -15,14 +15,7 @@ namespace openAIApps
             get => _promptText;
             set => SetProperty(ref _promptText, value ?? string.Empty);
         }
-
-        private string _responseText = string.Empty;
-        public string ResponseText
-        {
-            get => _responseText;
-            set => SetProperty(ref _responseText, value ?? string.Empty);
-        }
-
+        
         private ChatMessage _selectedTurn;
         public ChatMessage SelectedTurn
         {

@@ -2,10 +2,9 @@
 using openAIApps.Data;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using openAIApps;
-using System.IO;
 
 namespace openAIApps.Services
 {
@@ -46,7 +45,7 @@ namespace openAIApps.Services
                     string imageToolSettingsJson = null,
                     string developerToolSettingsJson = null,
                     string toolCallLogJson = null)
-                    
+
         {
             await using var context = CreateDbContext();
 

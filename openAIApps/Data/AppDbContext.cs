@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System;
-using System.Diagnostics.Metrics;
 using System.IO;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace openAIApps.Data
 {
