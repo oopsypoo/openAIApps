@@ -438,7 +438,7 @@ namespace openAIApps
                 RefreshLogsTab();
             }
         }
-        private void ClearDeletedSessionFromUi(ChatSession session)
+        private async void ClearDeletedSessionFromUi(ChatSession session)
         {
             if (session == null)
                 return;
@@ -447,7 +447,7 @@ namespace openAIApps
                 _activeResponsesSessionId == session.Id)
             {
                 _activeResponsesSessionId = null;
-                ResetResponsesUi(clearPrompt: true);
+                await ResetResponsesUi(clearPrompt: true);
             }
 
             if (session.Endpoint == EndpointType.Video &&

@@ -2,7 +2,12 @@ window.markdownViewer = (function () {
     function setHighlightTheme(href) {
         const link = document.getElementById("highlight-theme");
         if (!link) return;
+        link.href = href;
+    }
 
+    function setPageTheme(href) {
+        const link = document.getElementById("page-theme");
+        if (!link) return;
         link.href = href;
     }
 
@@ -12,21 +17,22 @@ window.markdownViewer = (function () {
 
         root.innerHTML = html || "";
 
-        applyHighlighting();
-        addCopyButtons();
+        applyHighlighting(root);
+        addCopyButtons(root);
     }
 
-    function applyHighlighting() {
-        if (!window.hljs) return;
+    function applyHighlighting(root) {
+        if (!window.hljs || !root) return;
 
-        document.querySelectorAll("pre > code").forEach(function (codeBlock) {
-            codeBlock.removeAttribute("data-highlighted");
+        root.querySelectorAll("pre > code:not([data-highlighted])").forEach(function (codeBlock) {
             hljs.highlightElement(codeBlock);
         });
     }
 
-    function addCopyButtons() {
-        const codeBlocks = document.querySelectorAll("pre > code");
+    function addCopyButtons(root) {
+        if (!root) return;
+
+        const codeBlocks = root.querySelectorAll("pre > code");
 
         codeBlocks.forEach(function (codeBlock) {
             const pre = codeBlock.parentElement;
@@ -48,7 +54,7 @@ window.markdownViewer = (function () {
             button.textContent = "Copy";
 
             button.addEventListener("click", function () {
-                const codeText = (codeBlock.innerText || codeBlock.textContent || "").trimEnd();
+                const codeText = codeBlock.textContent || "";
 
                 if (window.chrome && window.chrome.webview) {
                     window.chrome.webview.postMessage("copy-code:" + codeText);
@@ -71,14 +77,12 @@ window.markdownViewer = (function () {
         const root = document.getElementById("markdown-root");
         if (!root) return;
 
-        root.querySelectorAll("pre > code").forEach(function (codeBlock) {
-            codeBlock.removeAttribute("data-highlighted");
-            hljs.highlightElement(codeBlock);
-        });
+        applyHighlighting(root);
     }
 
     return {
         setContent: setContent,
+        setPageTheme: setPageTheme,
         setHighlightTheme: setHighlightTheme,
         refreshHighlighting: refreshHighlighting
     };

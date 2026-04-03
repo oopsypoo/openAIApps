@@ -76,19 +76,28 @@
     <Resource Include="sign4.jpg" />
   </ItemGroup>
 	<ItemGroup>
+		<None Update="Assets\MarkdownViewer\page-themes\github-light-page.css">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="Assets\MarkdownViewer\template.html">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<None Update="Assets\MarkdownViewer\markdown.css">
+		<None Update="Assets\MarkdownViewer\highlight.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<None Update="Assets\MarkdownViewer\highlight.min.js">
+		<None Update="Assets\MarkdownViewer\markdown-base.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="Assets\MarkdownViewer\markdown-viewer.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="Assets\MarkdownViewer\styles\*.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="Assets\MarkdownViewer\page-themes\github-*-page.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="Assets\MarkdownViewer\viewer-codeblock-fixes.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

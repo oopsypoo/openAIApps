@@ -777,6 +777,23 @@
                                                       SelectionChanged="cmbResponsesMarkdownTheme_SelectionChanged"/>
                                         </Border>
                                     </Expander>
+                                    <Expander x:Name="expResponsePageTheme" 
+                                              DockPanel.Dock="Right"
+                                              Style="{StaticResource smallText}"
+                                              Header="Page-theme" 
+                                              Margin="8,0,0,0"
+                                              VerticalAlignment="Center"
+                                              ExpandDirection="Down">
+                                        <Border Padding="6"
+                                                Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+                                                BorderBrush="DarkGray"
+                                                BorderThickness="1">
+                                            <ComboBox x:Name="cmbResponsesPageTheme"
+                                                      Width="180"
+                                                      DisplayMemberPath="DisplayName"
+                                                      SelectionChanged="cmbResponsesPageTheme_SelectionChanged" />
+                                        </Border>
+                                    </Expander>
                                 </DockPanel>
 
                                 <Border Margin="0"

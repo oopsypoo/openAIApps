@@ -288,7 +288,7 @@ namespace openAIApps
             }
         }
 
-        private string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
+        private string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.xaml,.js,.css,.html";
         public string DeveloperAllowedExtensionsCsv
         {
             get => _developerAllowedExtensionsCsv;

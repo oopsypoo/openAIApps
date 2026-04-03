@@ -28,7 +28,15 @@ namespace openAIApps
         private List<string> _activeModelsForResponses = new();
         private AvailableModels? _availableModelsWindow;
         private bool _isApplyingResponsesSettings;
+        private bool _responsesWebViewInitialized;
+        private bool _responsesViewerPageLoaded;
+
         private bool _bindingMarkdownThemeOptions;
+        private bool _bindingPageThemeOptions;
+        private List<MarkdownThemeOption> _markdownThemeOptions = new();
+        private MarkdownThemeOption? _selectedMarkdownTheme;
+        private List<PageThemeOption> _pageThemeOptions = new();
+        private PageThemeOption? _selectedPageTheme;
 
         private string ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
@@ -165,7 +173,7 @@ namespace openAIApps
             ResponsesState.DeveloperToolReadProjectFile = true;
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
-            ResponsesState.DeveloperAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
+            ResponsesState.DeveloperAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.css,.js,.html";
             ApplyResponsesStateToClient();
         }
         private ChatMessage GetSelectedResponseMessage()
@@ -407,7 +415,7 @@ namespace openAIApps
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
             ResponsesState.DeveloperAllowedExtensionsCsv =
-                ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
+                ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.css,.js,.html";
         }
         private void UpdatePendingAttachmentsPanel()
         {
@@ -684,10 +692,10 @@ namespace openAIApps
             }
         }
 
-        private void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
+        private async void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
         {
             _activeResponsesSessionId = null;
-            ResetResponsesUi(clearPrompt: true);
+            await ResetResponsesUi(clearPrompt: true);
 
             _appStatus.Set("New session started. History will be saved once you send a message.");
         }
@@ -710,7 +718,7 @@ namespace openAIApps
             await _sessionCleanupService.DeleteSessionAsync(_activeResponsesSessionId.Value);
 
             _activeResponsesSessionId = null;
-            ResetResponsesUi(clearPrompt: true);
+            await ResetResponsesUi(clearPrompt: true);
             RefreshLogsTab();
         }
 
@@ -1191,7 +1199,7 @@ namespace openAIApps
                 ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
 
                 AllowedExtensionsCsv = string.IsNullOrWhiteSpace(ResponsesState.DeveloperAllowedExtensionsCsv)
-                    ? ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets"
+                    ? ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.js,.css,.html"
                     : ResponsesState.DeveloperAllowedExtensionsCsv
             };
 
@@ -1552,10 +1560,14 @@ namespace openAIApps
 
             public override string ToString() => DisplayName;
         }
-        private bool _responsesWebViewInitialized;
-        private bool _responsesViewerPageLoaded;
-        private List<MarkdownThemeOption> _markdownThemeOptions = new();
-        private MarkdownThemeOption? _selectedMarkdownTheme;
+        private sealed class PageThemeOption
+        {
+            public string FileName { get; init; } = string.Empty;
+            public string DisplayName { get; init; } = string.Empty;
+            public string RelativeHref { get; init; } = string.Empty;
+
+            public override string ToString() => DisplayName;
+        }
         private string GetMarkdownViewerAssetsOutputPath()
         {
             return Path.Combine(
@@ -1629,11 +1641,12 @@ namespace openAIApps
                 Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
 
             wvResponsesResponse.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-            wvResponsesResponse.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            wvResponsesResponse.CoreWebView2.Settings.AreDevToolsEnabled = true;
             wvResponsesResponse.CoreWebView2.Settings.IsStatusBarEnabled = false;
             wvResponsesResponse.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = true;
             wvResponsesResponse.CoreWebView2.Settings.IsZoomControlEnabled = true;
-
+            wvResponsesResponse.CoreWebView2.Settings.IsBuiltInErrorPageEnabled = true;
+            
             wvResponsesResponse.CoreWebView2.NavigationStarting += ResponsesWebView_NavigationStarting;
             wvResponsesResponse.CoreWebView2.WebMessageReceived += ResponsesWebView_WebMessageReceived;
 
@@ -1641,6 +1654,9 @@ namespace openAIApps
 
             _markdownThemeOptions = LoadMarkdownThemeOptions();
             BindMarkdownThemeOptions();
+
+            _pageThemeOptions = LoadPageThemeOptions();
+            BindPageThemeOptions();
 
             await EnsureResponsesViewerPageLoadedAsync();
         }
@@ -1762,7 +1778,18 @@ namespace openAIApps
             await wvResponsesResponse.ExecuteScriptAsync(
                 $"window.markdownViewer.setContent({jsArgument});");
 
+            await ApplySelectedPageThemeAsync();
             await ApplySelectedMarkdownThemeAsync();
+        }
+        private async Task ApplySelectedPageThemeAsync()
+        {
+            if (_selectedPageTheme == null)
+                return;
+
+            string hrefArgument = JsonSerializer.Serialize(_selectedPageTheme.RelativeHref);
+
+            await wvResponsesResponse.ExecuteScriptAsync(
+                $"window.markdownViewer.setPageTheme({hrefArgument});");
         }
         private async Task ApplySelectedMarkdownThemeAsync()
         {
@@ -1774,8 +1801,8 @@ namespace openAIApps
             await wvResponsesResponse.ExecuteScriptAsync(
                 $"window.markdownViewer.setHighlightTheme({hrefArgument});");
 
-            await wvResponsesResponse.ExecuteScriptAsync(
-                "window.markdownViewer.refreshHighlighting();");
+            /*await wvResponsesResponse.ExecuteScriptAsync(
+                "window.markdownViewer.refreshHighlighting();");*/
         }
         private async void cmbResponsesMarkdownTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -1796,6 +1823,93 @@ namespace openAIApps
 
             await ApplySelectedMarkdownThemeAsync();
         }
+        private async void cmbResponsesPageTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_bindingPageThemeOptions)
+                return;
 
+            if (cmbResponsesPageTheme.SelectedItem is not PageThemeOption selected)
+                return;
+
+            _selectedPageTheme = selected;
+
+            _settings ??= AppSettings.LoadSettings();
+            _settings.ResponsesPageTheme = selected.FileName;
+            AppSettings.SaveSettings(_settings);
+
+            if (!_responsesViewerPageLoaded)
+                return;
+
+            await ApplySelectedPageThemeAsync();
+        }
+        private List<PageThemeOption> LoadPageThemeOptions()
+        {
+            string themesPath = Path.Combine(GetMarkdownViewerAssetsOutputPath(), "page-themes");
+
+            if (!Directory.Exists(themesPath))
+                return new List<PageThemeOption>();
+
+            var files = Directory.GetFiles(themesPath, "*.css", SearchOption.TopDirectoryOnly);
+
+            return files
+                .Select(path =>
+                {
+                    string fileName = Path.GetFileName(path);
+
+                    return new PageThemeOption
+                    {
+                        FileName = fileName,
+                        DisplayName = FormatThemeDisplayName(fileName),
+                        RelativeHref = "page-themes/" + fileName
+                    };
+                })
+                .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+
+        private string FormatThemeDisplayName(string fileName)
+        {
+            string name = Path.GetFileNameWithoutExtension(fileName);
+
+            if (name.EndsWith(".min", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring(0, name.Length - 4);
+
+            name = name.Replace("-", " ");
+            name = name.Replace("_", " ");
+
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name);
+        }
+
+        private PageThemeOption? GetDefaultPageThemeOption(List<PageThemeOption> options)
+        {
+            var preferred = options.FirstOrDefault(t =>
+                t.FileName.Equals("github-light-page.css", StringComparison.OrdinalIgnoreCase));
+
+            return preferred ?? options.FirstOrDefault();
+        }
+        private void BindPageThemeOptions()
+        {
+            _settings ??= AppSettings.LoadSettings();
+
+            _bindingPageThemeOptions = true;
+            try
+            {
+                cmbResponsesPageTheme.ItemsSource = _pageThemeOptions;
+
+                string savedTheme = _settings.ResponsesPageTheme;
+
+                _selectedPageTheme =
+                    _pageThemeOptions.FirstOrDefault(t =>
+                        t.FileName.Equals(savedTheme, StringComparison.OrdinalIgnoreCase))
+                    ?? GetDefaultPageThemeOption(_pageThemeOptions);
+
+                if (_selectedPageTheme != null)
+                    cmbResponsesPageTheme.SelectedItem = _selectedPageTheme;
+            }
+            finally
+            {
+                _bindingPageThemeOptions = false;
+            }
+        }
     }
 }
