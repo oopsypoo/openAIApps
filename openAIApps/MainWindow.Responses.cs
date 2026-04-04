@@ -37,7 +37,7 @@ namespace openAIApps
         private MarkdownThemeOption? _selectedMarkdownTheme;
         private List<PageThemeOption> _pageThemeOptions = new();
         private PageThemeOption? _selectedPageTheme;
-
+        
         private string ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
             var list = models
@@ -173,7 +173,7 @@ namespace openAIApps
             ResponsesState.DeveloperToolReadProjectFile = true;
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
-            ResponsesState.DeveloperAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.css,.js,.html";
+            ResponsesState.DeveloperAllowedExtensionsCsv = ResponsesPanelState.GetDefaultAllowedExtensionsCsv();
             ApplyResponsesStateToClient();
         }
         private ChatMessage GetSelectedResponseMessage()
@@ -415,7 +415,7 @@ namespace openAIApps
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
             ResponsesState.DeveloperAllowedExtensionsCsv =
-                ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.css,.js,.html";
+                ResponsesPanelState.GetDefaultAllowedExtensionsCsv();
         }
         private void UpdatePendingAttachmentsPanel()
         {
@@ -1139,7 +1139,8 @@ namespace openAIApps
 
             [JsonPropertyName("allowed_extensions_csv")]
             public string AllowedExtensionsCsv { get; set; } =
-                ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets";
+                ResponsesPanelState.GetDefaultAllowedExtensionsCsv();
+            
         }
         private string BuildImageToolSettingsJson()
         {
@@ -1199,7 +1200,7 @@ namespace openAIApps
                 ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
 
                 AllowedExtensionsCsv = string.IsNullOrWhiteSpace(ResponsesState.DeveloperAllowedExtensionsCsv)
-                    ? ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.js,.css,.html"
+                    ? ResponsesPanelState.GetDefaultAllowedExtensionsCsv()
                     : ResponsesState.DeveloperAllowedExtensionsCsv
             };
 
@@ -1269,7 +1270,7 @@ namespace openAIApps
                 ResponsesState.DeveloperShowToolLogs = snapshot.ShowToolLogs;
                 ResponsesState.DeveloperAllowedExtensionsCsv =
                     string.IsNullOrWhiteSpace(snapshot.AllowedExtensionsCsv)
-                        ? ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets"
+                        ? ResponsesPanelState.GetDefaultAllowedExtensionsCsv()
                         : snapshot.AllowedExtensionsCsv;
             }
             catch
@@ -1372,7 +1373,7 @@ namespace openAIApps
                 Filter =
                     "Common Files|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp;*.pdf;*.txt;*.md;*.csv;*.json;*.xml;*.cs;*.docx;*.xlsx|" +
                     "Image Files|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|" +
-                    "Document Files|*.pdf;*.txt;*.md;*.csv;*.json;*.xml;*.docx;*.xlsx;*.cs|" +
+                    "Document Files|*.pdf;*.txt;*.md;*.csv;*.json;*.xml;*.docx;*.xlsx;*.cs;*.css;*.js;*.html|" +
                     "All Files|*.*"
             };
 

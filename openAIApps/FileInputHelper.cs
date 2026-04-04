@@ -10,6 +10,7 @@ namespace openAIApps
             new(StringComparer.OrdinalIgnoreCase)
             {
                 [".txt"] = "text/plain",
+                [".css"] = "text/plain",
                 [".md"] = "text/markdown",
                 [".csv"] = "text/csv",
                 [".json"] = "application/json",

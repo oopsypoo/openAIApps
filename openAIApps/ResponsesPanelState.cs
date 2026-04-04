@@ -287,8 +287,17 @@ namespace openAIApps
                 OnPropertyChanged(nameof(DeveloperToolRunDiagnostics));
             }
         }
+        //Set static, because of availability.It's called upon many times. Use GetDefaultAllowedExtensionsCsv()
+        private static string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.xaml,.js,.css,.html";
+        /// <summary>
+        /// Returns a comma-separated list of the default allowed file extensions for developers.
+        /// </summary>
+        /// <returns>A string containing the default allowed file extensions, separated by commas.</returns>
+        public static string GetDefaultAllowedExtensionsCsv()
+        {
+            return _developerAllowedExtensionsCsv;
+        }
 
-        private string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.xaml,.js,.css,.html";
         public string DeveloperAllowedExtensionsCsv
         {
             get => _developerAllowedExtensionsCsv;
