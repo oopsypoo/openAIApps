@@ -688,7 +688,7 @@ namespace openAIApps
         {
             using (_appStatus.Operation("Refreshing Current chat UI..."))
             {
-                await LoadResponsesSessionAsync(sessionId);
+                await LoadResponsesSessionAsync(sessionId, restoreLastUserPrompt: false);
             }
         }
 
@@ -705,20 +705,32 @@ namespace openAIApps
             if (_activeResponsesSessionId == null)
                 return;
 
+            if (ResponsesState.SelectedTurn is not ChatMessage selectedTurn)
+                return;
+
             var confirm = MessageBox.Show(
-                "Delete this conversation from history?",
+                "Delete the currently selected turn?",
                 "Confirm",
-                MessageBoxButton.YesNo);
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
 
             if (confirm != MessageBoxResult.Yes)
                 return;
 
-            _appStatus.Set("Deleting session...: " + _activeResponsesSessionId.Value);
+            _appStatus.Set("Deleting current turn...");
 
-            await _sessionCleanupService.DeleteSessionAsync(_activeResponsesSessionId.Value);
+            bool sessionDeleted = await _sessionCleanupService.DeleteTurnAsync(selectedTurn.Id);
 
-            _activeResponsesSessionId = null;
-            await ResetResponsesUi(clearPrompt: true);
+            if (sessionDeleted)
+            {
+                _activeResponsesSessionId = null;
+                await ResetResponsesUi(clearPrompt: true);
+            }
+            else
+            {
+                await RefreshCurrentChatUI(_activeResponsesSessionId.Value);
+            }
+
             RefreshLogsTab();
         }
 

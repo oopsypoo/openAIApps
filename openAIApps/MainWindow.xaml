@@ -1200,7 +1200,7 @@
                                         IsEnabled="{Binding ResponsesState.AreRequestEditingControlsEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
                                         Margin="0,8,0,0"
                                         Padding="5,2"
-                                        Content="Delete Conversation"
+                                        Content="Remove Current Turn"
                                         Click="btnResponsesDeleteChat_Click"/>
                                 <Expander Grid.Row="9"
                                           Margin="0,8,0,0"

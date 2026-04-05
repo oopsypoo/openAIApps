@@ -282,5 +282,47 @@ namespace openAIApps.Services
                 .AsNoTracking()
                 .ToListAsync();
         }
+        public async Task<List<string>> GetMediaPathsForMessageAsync(int messageId)
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Media
+                .Where(m => m.ChatMessageId == messageId)
+                .Select(m => m.LocalPath)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<ChatMessage?> GetMessageAsync(int messageId)
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Messages
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == messageId);
+        }
+
+        public async Task<int> GetMessageCountForSessionAsync(int sessionId)
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Messages
+                .CountAsync(m => m.ChatSessionId == sessionId);
+        }
+
+        public async Task DeleteMessageAsync(int messageId)
+        {
+            await using var context = CreateDbContext();
+
+            var message = await context.Messages
+                .Include(m => m.MediaFiles)
+                .FirstOrDefaultAsync(m => m.Id == messageId);
+
+            if (message == null)
+                return;
+
+            context.Messages.Remove(message);
+            await context.SaveChangesAsync();
+        }
     }
 }
