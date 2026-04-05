@@ -108,6 +108,17 @@ namespace openAIApps.Services
                 .AsNoTracking()
                 .ToListAsync();
         }
+        public async Task<List<ChatSession>> GetAllSessionsForLogsAsync()
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Sessions
+                .Include(s => s.Messages)
+                    .ThenInclude(m => m.MediaFiles)
+                .OrderByDescending(s => s.LastUsedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
 
         public async Task<List<string>> GetMediaPathsForSessionAsync(int sessionId)
         {

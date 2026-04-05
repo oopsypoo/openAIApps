@@ -1283,7 +1283,10 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Orientation="Horizontal" Margin="10,5">
-                        <TextBlock Text="Filter by Type: " VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock Text="Filter by Type: "
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,5,0"/>
+
                         <ComboBox x:Name="cbLogTypeFilter"
                                   Width="120"
                                   SelectedValuePath="Tag"
@@ -1293,26 +1296,58 @@
                             <ComboBoxItem Content="Video" Tag="Video"/>
                         </ComboBox>
 
-                        <Label Content="Search Logs:" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <Label Content="Search Logs:"
+                               VerticalAlignment="Center"
+                               Margin="10,0,0,0"/>
+
                         <TextBox x:Name="txtLogSearch"
                                  Width="300"
                                  Margin="10,0"
                                  Text="{Binding LogsState.SearchText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <Menu Margin="10,0,0,0"
+                              VerticalAlignment="Center">
+                            <MenuItem Header="Columns">
+                                <MenuItem Header="Turns"
+                                          IsCheckable="True"
+                                          IsChecked="{Binding LogsState.ShowTurns, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                <MenuItem Header="Media"
+                                          IsCheckable="True"
+                                          IsChecked="{Binding LogsState.ShowMedia, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                <MenuItem Header="Tools"
+                                          IsCheckable="True"
+                                          IsChecked="{Binding LogsState.ShowTools, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                <MenuItem Header="Model"
+                                          IsCheckable="True"
+                                          IsChecked="{Binding LogsState.ShowModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                            </MenuItem>
+                        </Menu>
+
+                        <Menu Margin="10,0,0,0"
+                              VerticalAlignment="Center">
+                            <MenuItem Header="Export">
+                                <MenuItem Header="Markdown (.md)"
+                                          Click="OnExportLogMarkdownClick"/>
+                                <MenuItem Header="Text (.txt)"
+                                          Click="OnExportLogTextClick"/>
+                            </MenuItem>
+                        </Menu>
                     </StackPanel>
 
                     <DataGrid x:Name="dgUnifiedLogs"
-                                  ItemsSource="{Binding LogView, RelativeSource={RelativeSource AncestorType=Window}}"
-                                  Grid.Row="1"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Single"
-                                  SelectionUnit="FullRow"
-                                  IsSynchronizedWithCurrentItem="True"
-                                  EnableRowVirtualization="True"
-                                  EnableColumnVirtualization="True"
-                                  VirtualizingPanel.IsVirtualizing="True"
-                                  VirtualizingPanel.VirtualizationMode="Recycling"
-                                  MouseDoubleClick="OnLogEntryDoubleClick">
+                              ItemsSource="{Binding LogView, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding LogsState.SelectedLogRow, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                              Grid.Row="1"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              SelectionUnit="FullRow"
+                              IsSynchronizedWithCurrentItem="True"
+                              EnableRowVirtualization="True"
+                              EnableColumnVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              MouseDoubleClick="OnLogEntryDoubleClick">
 
                         <DataGrid.Resources>
                             <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#0078D7"/>
@@ -1334,9 +1369,38 @@
                         </DataGrid.RowStyle>
 
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Date" Binding="{Binding LastUsedAt, StringFormat={}{0:dd.MM HH:mm}}" Width="110"/>
-                            <DataGridTextColumn Header="Type" Binding="{Binding Endpoint}" Width="90"/>
-                            <DataGridTextColumn Header="Last Prompt" Binding="{Binding Title}" Width="*"/>
+                            <DataGridTextColumn Header="Date"
+                                                Binding="{Binding LastUsedAt, StringFormat={}{0:dd.MM HH:mm}}"
+                                                Width="110"/>
+
+                            <DataGridTextColumn Header="Type"
+                                                Binding="{Binding Endpoint}"
+                                                Width="90"/>
+
+                            <DataGridTextColumn x:Name="colLogTurns"
+                                                Header="Turns"
+                                                Binding="{Binding Turns}"
+                                                Width="65"/>
+
+                            <DataGridTextColumn x:Name="colLogMedia"
+                                                Header="Media"
+                                                Binding="{Binding Media}"
+                                                Width="100"/>
+
+                            <DataGridTextColumn x:Name="colLogTools"
+                                                Header="Tools"
+                                                Binding="{Binding Tools}"
+                                                Width="160"/>
+
+                            <DataGridTextColumn x:Name="colLogModel"
+                                                Header="Model"
+                                                Binding="{Binding Model}"
+                                                Width="140"/>
+
+                            <DataGridTextColumn Header="Last Prompt"
+                                                Binding="{Binding Title}"
+                                                Width="*"/>
+
                             <DataGridTemplateColumn Width="50" Header="Del" IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

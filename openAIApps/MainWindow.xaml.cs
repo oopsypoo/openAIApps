@@ -1,4 +1,6 @@
-﻿using openAIApps.Data;
+﻿using Microsoft.Win32;
+using System.Text;
+using openAIApps.Data;
 using openAIApps.Services;
 using System;
 using System.Collections.Generic;
@@ -51,9 +53,11 @@ namespace openAIApps
         private readonly SessionCleanupService _sessionCleanupService;
         // Responses tab source collection
         public ObservableCollection<ChatMessage> CurrentChatMessages { get; } = new();
+        
 
         // Logs tab source collection
-        public ObservableCollection<ChatSession> Sessions { get; } = new();
+        //public ObservableCollection<ChatSession> Sessions { get; } = new();
+        public ObservableCollection<LogRowViewModel> LogRows { get; } = new();
         // Video tab source collection
         private VideoClient _videoClient;
         public ObservableCollection<VideoListItem> _videoHistory = new();
@@ -158,20 +162,21 @@ namespace openAIApps
 
         private async void LoadInitialLogs()
         {
-            var sessions = await _historyService.GetAllSessionsAsync();
-            ReplaceSessions(sessions);
+            var sessions = await _historyService.GetAllSessionsForLogsAsync();
+            var rows = sessions.Select(BuildLogRow).ToList();
+            ReplaceLogRows(rows);
         }
 
         private bool FilterPredicate(object obj)
         {
-            if (obj is not ChatSession session)
+            if (obj is not LogRowViewModel row)
                 return false;
 
             bool matchesType =
                 LogsState.TypeFilter == "All" ||
-                string.Equals(session.Endpoint.ToString(), LogsState.TypeFilter, StringComparison.OrdinalIgnoreCase);
+                string.Equals(row.Endpoint.ToString(), LogsState.TypeFilter, StringComparison.OrdinalIgnoreCase);
 
-            string title = session.Title ?? string.Empty;
+            string title = row.Title ?? string.Empty;
             bool matchesText =
                 string.IsNullOrWhiteSpace(LogsState.SearchText) ||
                 title.IndexOf(LogsState.SearchText, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -184,6 +189,7 @@ namespace openAIApps
             InitStatusAnimation();
             await InitResponsesControlsAsync();
             MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+            ApplyLogColumnVisibility();
             LoadInitialLogs();
             await EnsureResponsesWebViewInitializedAsync();
             await EnsureResponsesViewerPageLoadedAsync();
@@ -194,6 +200,15 @@ namespace openAIApps
                 e.PropertyName == nameof(LogsPanelState.TypeFilter))
             {
                 ApplyFilters();
+                return;
+            }
+
+            if (e.PropertyName == nameof(LogsPanelState.ShowTurns) ||
+                e.PropertyName == nameof(LogsPanelState.ShowMedia) ||
+                e.PropertyName == nameof(LogsPanelState.ShowTools) ||
+                e.PropertyName == nameof(LogsPanelState.ShowModel))
+            {
+                ApplyLogColumnVisibility();
             }
         }
 
@@ -236,7 +251,7 @@ namespace openAIApps
             _mediaStorageService = new MediaStorageService();
             _sessionCleanupService = new SessionCleanupService(_historyService, _mediaStorageService);
 
-            LogView = CollectionViewSource.GetDefaultView(Sessions);
+            LogView = CollectionViewSource.GetDefaultView(LogRows);
             LogView.Filter = FilterPredicate;
 
             LogsState.PropertyChanged += LogsState_PropertyChanged;
@@ -378,19 +393,103 @@ namespace openAIApps
             }
         }
 
-        private void ReplaceSessions(IEnumerable<ChatSession> sessions)
+        private void ReplaceLogRows(IEnumerable<LogRowViewModel> rows)
         {
-            Sessions.Clear();
+            LogRows.Clear();
 
-            if (sessions != null)
+            if (rows != null)
             {
-                foreach (var session in sessions)
+                foreach (var row in rows)
                 {
-                    Sessions.Add(session);
+                    LogRows.Add(row);
                 }
             }
 
             LogView?.Refresh();
+        }
+
+        private static LogRowViewModel BuildLogRow(ChatSession session)
+        {
+            var messages = session.Messages ?? new List<ChatMessage>();
+
+            int turns = messages.Count;
+
+            var mediaFiles = messages
+                .Where(m => m.MediaFiles != null)
+                .SelectMany(m => m.MediaFiles)
+                .ToList();
+
+            string media = BuildMediaSummary(mediaFiles);
+            string tools = BuildDistinctSummary(messages.Select(m => m.ActiveTools));
+            string model = BuildDistinctSummary(messages.Select(m => m.ModelUsed));
+
+            return new LogRowViewModel
+            {
+                SessionId = session.Id,
+                Endpoint = session.Endpoint,
+                Title = session.Title ?? string.Empty,
+                CreatedAt = session.CreatedAt,
+                LastUsedAt = session.LastUsedAt,
+                Turns = turns,
+                Media = media,
+                Tools = tools,
+                Model = model,
+                Session = session
+            };
+        }
+
+        private static string BuildMediaSummary(IEnumerable<MediaFile> mediaFiles)
+        {
+            var files = mediaFiles?.ToList() ?? new List<MediaFile>();
+            if (files.Count == 0)
+                return "—";
+
+            bool hasImage = files.Any(f =>
+                !string.IsNullOrWhiteSpace(f.MediaType) &&
+                f.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase));
+
+            bool hasVideo = files.Any(f =>
+                !string.IsNullOrWhiteSpace(f.MediaType) &&
+                f.MediaType.StartsWith("video/", StringComparison.OrdinalIgnoreCase));
+
+            string label = hasImage && hasVideo
+                ? "Mixed"
+                : hasImage
+                    ? "Image"
+                    : hasVideo
+                        ? "Video"
+                        : "Media";
+
+            return $"{label} ({files.Count})";
+        }
+
+        private static string BuildDistinctSummary(IEnumerable<string> values)
+        {
+            var items = values
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .SelectMany(v => v.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                .Select(v => v.Trim())
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(v => v)
+                .ToList();
+
+            return items.Count == 0 ? "—" : string.Join(", ", items);
+        }
+
+        private void ApplyLogColumnVisibility()
+        {
+            if (colLogTurns != null)
+                colLogTurns.Visibility = LogsState.ShowTurns ? Visibility.Visible : Visibility.Collapsed;
+
+            if (colLogMedia != null)
+                colLogMedia.Visibility = LogsState.ShowMedia ? Visibility.Visible : Visibility.Collapsed;
+
+            if (colLogTools != null)
+                colLogTools.Visibility = LogsState.ShowTools ? Visibility.Visible : Visibility.Collapsed;
+
+            if (colLogModel != null)
+                colLogModel.Visibility = LogsState.ShowModel ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void RefreshLogsTab()
@@ -398,15 +497,16 @@ namespace openAIApps
             if (_historyService == null)
                 return;
 
-            var sessions = await _historyService.GetAllSessionsAsync();
+            var sessions = await _historyService.GetAllSessionsForLogsAsync();
+            var rows = sessions.Select(BuildLogRow).ToList();
 
             if (!Dispatcher.CheckAccess())
             {
-                await Dispatcher.InvokeAsync(() => ReplaceSessions(sessions));
+                await Dispatcher.InvokeAsync(() => ReplaceLogRows(rows));
             }
             else
             {
-                ReplaceSessions(sessions);
+                ReplaceLogRows(rows);
             }
         }
 
@@ -415,13 +515,14 @@ namespace openAIApps
             if (e.OriginalSource is not DependencyObject source)
                 return;
 
-            // Ignore double-clicks on the delete button
             if (FindVisualParent<Button>(source) != null)
                 return;
 
             var row = FindVisualParent<DataGridRow>(source);
-            if (row?.Item is not ChatSession selectedSession)
+            if (row?.Item is not LogRowViewModel selectedRow || selectedRow.Session == null)
                 return;
+
+            var selectedSession = selectedRow.Session;
 
             e.Handled = true;
             await OpenSessionFromLogsAsync(selectedSession);
@@ -459,7 +560,8 @@ namespace openAIApps
         private async void OnDeleteSessionClick(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
-            var session = (button?.CommandParameter ?? button?.DataContext) as ChatSession;
+            var row = (button?.CommandParameter ?? button?.DataContext) as LogRowViewModel;
+            var session = row?.Session;
 
             if (session == null)
                 return;
@@ -526,6 +628,207 @@ namespace openAIApps
                 _activeResponsesSessionId = selectedSession.Id;
                 await LoadResponsesSessionAsync(selectedSession.Id);
             }
+        }
+        private async void OnExportLogMarkdownClick(object sender, RoutedEventArgs e)
+        {
+            await ExportSelectedLogAsync("md");
+        }
+
+        private async void OnExportLogTextClick(object sender, RoutedEventArgs e)
+        {
+            await ExportSelectedLogAsync("txt");
+        }
+
+        private async Task ExportSelectedLogAsync(string format)
+        {
+            var selectedRow = LogsState.SelectedLogRow;
+            if (selectedRow?.Session == null)
+            {
+                MessageBox.Show(
+                    "Select a log row first.",
+                    "Export",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var session = selectedRow.Session;
+            var history = await _historyService.GetFullSessionHistoryAsync(session.Id);
+
+            string extension = string.Equals(format, "txt", StringComparison.OrdinalIgnoreCase)
+                ? "txt"
+                : "md";
+
+            var dialog = new SaveFileDialog
+            {
+                Title = "Export session",
+                Filter = extension == "md"
+                    ? "Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*"
+                    : "Text files (*.txt)|*.txt|Markdown files (*.md)|*.md|All files (*.*)|*.*",
+                DefaultExt = "." + extension,
+                FileName = BuildSafeExportFileName(session, extension)
+            };
+
+            if (dialog.ShowDialog(this) != true)
+                return;
+
+            string content = extension == "txt"
+                ? BuildSessionExportText(session, history)
+                : BuildSessionExportMarkdown(session, history);
+
+            await File.WriteAllTextAsync(dialog.FileName, content, Encoding.UTF8);
+            _appStatus.Set($"Exported '{session.Title}' to {dialog.FileName}");
+        }
+
+        private static string BuildSafeExportFileName(ChatSession session, string extension)
+        {
+            string title = string.IsNullOrWhiteSpace(session.Title)
+                ? $"session-{session.Id}"
+                : session.Title;
+
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                title = title.Replace(c, '_');
+            }
+
+            if (title.Length > 80)
+                title = title[..80];
+
+            return $"{title}.{extension}";
+        }
+
+        private static string BuildSessionExportMarkdown(ChatSession session, IReadOnlyList<ChatMessage> history)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("# Session Export");
+            sb.AppendLine();
+            sb.AppendLine($"- Session ID: {session.Id}");
+            sb.AppendLine($"- Title: {session.Title}");
+            sb.AppendLine($"- Endpoint: {session.Endpoint}");
+            sb.AppendLine($"- Created: {session.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"- Last Used: {session.LastUsedAt:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"- Messages: {history.Count}");
+            sb.AppendLine();
+
+            var mediaFiles = history
+                .Where(m => m.MediaFiles != null)
+                .SelectMany(m => m.MediaFiles)
+                .ToList();
+
+            sb.AppendLine($"- Media: {BuildMediaSummary(mediaFiles)}");
+            sb.AppendLine($"- Tools: {BuildDistinctSummary(history.Select(m => m.ActiveTools))}");
+            sb.AppendLine($"- Model: {BuildDistinctSummary(history.Select(m => m.ModelUsed))}");
+            sb.AppendLine();
+            sb.AppendLine("---");
+            sb.AppendLine();
+            sb.AppendLine("## Messages");
+            sb.AppendLine();
+
+            foreach (var message in history)
+            {
+                sb.AppendLine($"### [{message.Timestamp:yyyy-MM-dd HH:mm:ss}] {message.Role}");
+                sb.AppendLine();
+
+                if (!string.IsNullOrWhiteSpace(message.Content))
+                {
+                    sb.AppendLine(message.Content);
+                    sb.AppendLine();
+                }
+
+                if (!string.IsNullOrWhiteSpace(message.ModelUsed))
+                    sb.AppendLine($"- Model: {message.ModelUsed}");
+
+                if (!string.IsNullOrWhiteSpace(message.ActiveTools))
+                    sb.AppendLine($"- Tools: {message.ActiveTools}");
+
+                if (!string.IsNullOrWhiteSpace(message.ReasoningLevel))
+                    sb.AppendLine($"- Reasoning: {message.ReasoningLevel}");
+
+                if (!string.IsNullOrWhiteSpace(message.SearchContextSize))
+                    sb.AppendLine($"- Search Context Size: {message.SearchContextSize}");
+
+                if (!string.IsNullOrWhiteSpace(message.ImageSize))
+                    sb.AppendLine($"- Image Size: {message.ImageSize}");
+
+                if (!string.IsNullOrWhiteSpace(message.ImageQuality))
+                    sb.AppendLine($"- Image Quality: {message.ImageQuality}");
+
+                if (!string.IsNullOrWhiteSpace(message.VideoLength))
+                    sb.AppendLine($"- Video Length: {message.VideoLength}");
+
+                if (!string.IsNullOrWhiteSpace(message.VideoSize))
+                    sb.AppendLine($"- Video Size: {message.VideoSize}");
+
+                if (!string.IsNullOrWhiteSpace(message.RemoteId))
+                    sb.AppendLine($"- Remote ID: {message.RemoteId}");
+
+                if (!string.IsNullOrWhiteSpace(message.SourceRemoteId))
+                    sb.AppendLine($"- Source Remote ID: {message.SourceRemoteId}");
+
+                if (message.MediaFiles != null && message.MediaFiles.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("#### Media");
+                    foreach (var media in message.MediaFiles)
+                    {
+                        sb.AppendLine($"- {media.FileName} ({media.MediaType})");
+                        if (!string.IsNullOrWhiteSpace(media.LocalPath))
+                            sb.AppendLine($"  - Path: `{media.LocalPath}`");
+                    }
+                }
+
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
+        private static string BuildSessionExportText(ChatSession session, IReadOnlyList<ChatMessage> history)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("SESSION EXPORT");
+            sb.AppendLine("==============");
+            sb.AppendLine($"Session ID: {session.Id}");
+            sb.AppendLine($"Title: {session.Title}");
+            sb.AppendLine($"Endpoint: {session.Endpoint}");
+            sb.AppendLine($"Created: {session.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"Last Used: {session.LastUsedAt:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"Messages: {history.Count}");
+            sb.AppendLine($"Media: {BuildMediaSummary(history.Where(m => m.MediaFiles != null).SelectMany(m => m.MediaFiles))}");
+            sb.AppendLine($"Tools: {BuildDistinctSummary(history.Select(m => m.ActiveTools))}");
+            sb.AppendLine($"Model: {BuildDistinctSummary(history.Select(m => m.ModelUsed))}");
+            sb.AppendLine();
+            sb.AppendLine("MESSAGES");
+            sb.AppendLine("--------");
+
+            foreach (var message in history)
+            {
+                sb.AppendLine($"[{message.Timestamp:yyyy-MM-dd HH:mm:ss}] {message.Role}");
+                sb.AppendLine(message.Content ?? string.Empty);
+
+                if (!string.IsNullOrWhiteSpace(message.ModelUsed))
+                    sb.AppendLine($"Model: {message.ModelUsed}");
+
+                if (!string.IsNullOrWhiteSpace(message.ActiveTools))
+                    sb.AppendLine($"Tools: {message.ActiveTools}");
+
+                if (message.MediaFiles != null && message.MediaFiles.Count > 0)
+                {
+                    sb.AppendLine("Media:");
+                    foreach (var media in message.MediaFiles)
+                    {
+                        sb.AppendLine($" - {media.FileName} ({media.MediaType})");
+                        if (!string.IsNullOrWhiteSpace(media.LocalPath))
+                            sb.AppendLine($"   Path: {media.LocalPath}");
+                    }
+                }
+
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
         }
         private void SelectAllTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
