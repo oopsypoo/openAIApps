@@ -69,8 +69,31 @@
             <Setter Property="Margin" Value="0,6,0,0" />
             <Setter Property="TabIndex" Value="2" />
             <Setter Property="Content" Value="Send Request" />
-            <Setter Property="MinWidth" Value="120" />
-            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="Width" Value="120" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="Background" Value="LightGreen" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="20">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                      VerticalAlignment="Center"
+                                      Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="LimeGreen" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="DeleteButtonStyle" TargetType="Button">
@@ -611,12 +634,15 @@
                                     </Grid>
 
                                     <!-- Send button -->
+                                    <!-- HorizontalAlignment="Stretch" -->
+                                    <!-- Remove the stretch. Even if it looks 
+                                    good there are chances that you will hit 
+                                    'send' when resizing with gridSplitter -->
                                     <Button DockPanel.Dock="Bottom"
                                     x:Name="btnResponsesSendRequest"
                                     Style="{StaticResource SendRequest}"
-                                    HorizontalAlignment="Stretch"
                                     Click="btnResponsesSendRequestClick"/>
-
+                                    
                                     <!-- Attachments -->
                                     <Border DockPanel.Dock="Bottom"
                                         x:Name="borderResponsesAttachments"
