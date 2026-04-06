@@ -15,6 +15,7 @@ namespace openAIApps
         public string Media { get; init; } = "—";
         public string Tools { get; init; } = "—";
         public string Model { get; init; } = "—";
+        public string Dev { get; init; } = "No";
 
         public ChatSession Session { get; init; } = null!;
     }

@@ -1000,7 +1000,7 @@ namespace openAIApps
 
             NormalizeResponsesToolsState();
             ApplyResponsesStateToClient();
-            ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
+            //ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
         }
         private void NormalizeResponsesToolsState()
         {
@@ -1257,6 +1257,10 @@ namespace openAIApps
         }
         private void ApplyDeveloperToolSettingsFromJson(string json)
         {
+            // Always reset first so opening a session without developer-tool settings
+            // does not inherit stale UI state from the previously opened session.
+            ResetDeveloperToolsState();
+
             if (string.IsNullOrWhiteSpace(json))
                 return;
 

@@ -44,6 +44,12 @@
             get => _showModel;
             set => SetProperty(ref _showModel, value);
         }
+        private bool _showDev = true;
+        public bool ShowDev
+        {
+            get => _showDev;
+            set => SetProperty(ref _showDev, value);
+        }
 
         private LogRowViewModel? _selectedLogRow;
         public LogRowViewModel? SelectedLogRow

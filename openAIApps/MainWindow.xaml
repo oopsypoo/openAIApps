@@ -1320,6 +1320,9 @@
                                 <MenuItem Header="Model"
                                           IsCheckable="True"
                                           IsChecked="{Binding LogsState.ShowModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                <MenuItem Header="Dev"
+                                          IsCheckable="True"
+                                          IsChecked="{Binding LogsState.ShowDev, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                             </MenuItem>
                         </Menu>
 
@@ -1330,6 +1333,8 @@
                                           Click="OnExportLogMarkdownClick"/>
                                 <MenuItem Header="Text (.txt)"
                                           Click="OnExportLogTextClick"/>
+                                <MenuItem Header="HTML (.html)"
+                                          Click="OnExportLogHtmlClick"/>
                             </MenuItem>
                         </Menu>
                     </StackPanel>
@@ -1391,13 +1396,17 @@
                                                 Header="Tools"
                                                 Binding="{Binding Tools}"
                                                 Width="160"/>
+                            <DataGridTextColumn x:Name="colLogDev"
+                                                Header="Dev"
+                                                Binding="{Binding Dev}"
+                                                Width="55"/>
 
                             <DataGridTextColumn x:Name="colLogModel"
                                                 Header="Model"
                                                 Binding="{Binding Model}"
                                                 Width="140"/>
 
-                            <DataGridTextColumn Header="Last Prompt"
+                            <DataGridTextColumn Header="Title"
                                                 Binding="{Binding Title}"
                                                 Width="*"/>
 

@@ -1,5 +1,4 @@
 ﻿using Microsoft.Win32;
-using System.Text;
 using openAIApps.Data;
 using openAIApps.Services;
 using System;
@@ -9,6 +8,8 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,7 +17,6 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-
 using static openAIApps.VideoClient;
 
 namespace openAIApps
@@ -206,7 +206,8 @@ namespace openAIApps
             if (e.PropertyName == nameof(LogsPanelState.ShowTurns) ||
                 e.PropertyName == nameof(LogsPanelState.ShowMedia) ||
                 e.PropertyName == nameof(LogsPanelState.ShowTools) ||
-                e.PropertyName == nameof(LogsPanelState.ShowModel))
+                e.PropertyName == nameof(LogsPanelState.ShowModel) ||
+                e.PropertyName == nameof(LogsPanelState.ShowDev))
             {
                 ApplyLogColumnVisibility();
             }
@@ -422,6 +423,7 @@ namespace openAIApps
             string media = BuildMediaSummary(mediaFiles);
             string tools = BuildDistinctSummary(messages.Select(m => m.ActiveTools));
             string model = BuildDistinctSummary(messages.Select(m => m.ModelUsed));
+            string dev = BuildDevSummary(messages);
 
             return new LogRowViewModel
             {
@@ -433,6 +435,7 @@ namespace openAIApps
                 Turns = turns,
                 Media = media,
                 Tools = tools,
+                Dev = dev,
                 Model = model,
                 Session = session
             };
@@ -490,6 +493,8 @@ namespace openAIApps
 
             if (colLogModel != null)
                 colLogModel.Visibility = LogsState.ShowModel ? Visibility.Visible : Visibility.Collapsed;
+            if (colLogDev != null)
+                colLogDev.Visibility = LogsState.ShowDev ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void RefreshLogsTab()
@@ -563,7 +568,7 @@ namespace openAIApps
             var row = (button?.CommandParameter ?? button?.DataContext) as LogRowViewModel;
             var session = row?.Session;
 
-            if (session == null)
+            if (session == null || row == null)
                 return;
 
             var confirm = MessageBox.Show(
@@ -577,7 +582,14 @@ namespace openAIApps
 
             await _sessionCleanupService.DeleteSessionAsync(session.Id);
             ClearDeletedSessionFromUi(session);
-            RefreshLogsTab();
+            // remove from UI
+            LogRows.Remove(row);
+            LogView?.Refresh();
+
+            if (ReferenceEquals(LogsState.SelectedLogRow, row))
+                LogsState.SelectedLogRow = null;
+
+            _appStatus.Set($"Deleted session '{session.Title}'");
         }
 
         private void ApplyFilters()
@@ -638,7 +650,10 @@ namespace openAIApps
         {
             await ExportSelectedLogAsync("txt");
         }
-
+        private async void OnExportLogHtmlClick(object sender, RoutedEventArgs e)
+        {
+            await ExportSelectedLogAsync("html");
+        }
         private async Task ExportSelectedLogAsync(string format)
         {
             var selectedRow = LogsState.SelectedLogRow;
@@ -655,16 +670,20 @@ namespace openAIApps
             var session = selectedRow.Session;
             var history = await _historyService.GetFullSessionHistoryAsync(session.Id);
 
-            string extension = string.Equals(format, "txt", StringComparison.OrdinalIgnoreCase)
-                ? "txt"
-                : "md";
+            string extension =
+                string.Equals(format, "txt", StringComparison.OrdinalIgnoreCase) ? "txt" :
+                string.Equals(format, "html", StringComparison.OrdinalIgnoreCase) ? "html" :
+                "md";
 
             var dialog = new SaveFileDialog
             {
                 Title = "Export session",
-                Filter = extension == "md"
-                    ? "Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*"
-                    : "Text files (*.txt)|*.txt|Markdown files (*.md)|*.md|All files (*.*)|*.*",
+                Filter = extension switch
+                {
+                    "html" => "HTML files (*.html)|*.html|Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                    "txt" => "Text files (*.txt)|*.txt|Markdown files (*.md)|*.md|HTML files (*.html)|*.html|All files (*.*)|*.*",
+                    _ => "Markdown files (*.md)|*.md|Text files (*.txt)|*.txt|HTML files (*.html)|*.html|All files (*.*)|*.*"
+                },
                 DefaultExt = "." + extension,
                 FileName = BuildSafeExportFileName(session, extension)
             };
@@ -672,9 +691,12 @@ namespace openAIApps
             if (dialog.ShowDialog(this) != true)
                 return;
 
-            string content = extension == "txt"
-                ? BuildSessionExportText(session, history)
-                : BuildSessionExportMarkdown(session, history);
+            string content = extension switch
+            {
+                "txt" => BuildSessionExportText(session, history),
+                "html" => await BuildSessionExportHtmlAsync(session, history),
+                _ => BuildSessionExportMarkdown(session, history)
+            };
 
             await File.WriteAllTextAsync(dialog.FileName, content, Encoding.UTF8);
             _appStatus.Set($"Exported '{session.Title}' to {dialog.FileName}");
@@ -703,13 +725,14 @@ namespace openAIApps
 
             sb.AppendLine("# Session Export");
             sb.AppendLine();
+            sb.AppendLine("## Summary");
+            sb.AppendLine();
             sb.AppendLine($"- Session ID: {session.Id}");
-            sb.AppendLine($"- Title: {session.Title}");
+            sb.AppendLine($"- Title: {EscapeMarkdownInline(session.Title)}");
             sb.AppendLine($"- Endpoint: {session.Endpoint}");
             sb.AppendLine($"- Created: {session.CreatedAt:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"- Last Used: {session.LastUsedAt:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"- Messages: {history.Count}");
-            sb.AppendLine();
 
             var mediaFiles = history
                 .Where(m => m.MediaFiles != null)
@@ -717,8 +740,9 @@ namespace openAIApps
                 .ToList();
 
             sb.AppendLine($"- Media: {BuildMediaSummary(mediaFiles)}");
-            sb.AppendLine($"- Tools: {BuildDistinctSummary(history.Select(m => m.ActiveTools))}");
-            sb.AppendLine($"- Model: {BuildDistinctSummary(history.Select(m => m.ModelUsed))}");
+            sb.AppendLine($"- Tools: {EscapeMarkdownInline(BuildDistinctSummary(history.Select(m => m.ActiveTools)))}");
+            sb.AppendLine($"- Model: {EscapeMarkdownInline(BuildDistinctSummary(history.Select(m => m.ModelUsed)))}");
+            sb.AppendLine($"- Developer Tools: {(SessionUsesDeveloperTools(history) ? "Yes" : "No")}");
             sb.AppendLine();
             sb.AppendLine("---");
             sb.AppendLine();
@@ -727,7 +751,7 @@ namespace openAIApps
 
             foreach (var message in history)
             {
-                sb.AppendLine($"### [{message.Timestamp:yyyy-MM-dd HH:mm:ss}] {message.Role}");
+                sb.AppendLine($"### [{message.Timestamp:yyyy-MM-dd HH:mm:ss}] {EscapeMarkdownInline(message.Role)}");
                 sb.AppendLine();
 
                 if (!string.IsNullOrWhiteSpace(message.Content))
@@ -736,48 +760,49 @@ namespace openAIApps
                     sb.AppendLine();
                 }
 
-                if (!string.IsNullOrWhiteSpace(message.ModelUsed))
-                    sb.AppendLine($"- Model: {message.ModelUsed}");
+                sb.AppendLine("#### Metadata");
+                sb.AppendLine();
 
-                if (!string.IsNullOrWhiteSpace(message.ActiveTools))
-                    sb.AppendLine($"- Tools: {message.ActiveTools}");
+                AppendMarkdownBullet(sb, "Model", message.ModelUsed);
+                AppendMarkdownBullet(sb, "Tools", message.ActiveTools);
+                sb.AppendLine($"- Developer Tools: {(HasDeveloperTools(message) ? "Yes" : "No")}");
+                AppendMarkdownBullet(sb, "Reasoning", message.ReasoningLevel);
+                AppendMarkdownBullet(sb, "Search Context Size", message.SearchContextSize);
+                AppendMarkdownBullet(sb, "Image Size", message.ImageSize);
+                AppendMarkdownBullet(sb, "Image Quality", message.ImageQuality);
+                AppendMarkdownBullet(sb, "Video Length", message.VideoLength);
+                AppendMarkdownBullet(sb, "Video Size", message.VideoSize);
+                AppendMarkdownBullet(sb, "Remote ID", message.RemoteId);
+                AppendMarkdownBullet(sb, "Source Remote ID", message.SourceRemoteId);
 
-                if (!string.IsNullOrWhiteSpace(message.ReasoningLevel))
-                    sb.AppendLine($"- Reasoning: {message.ReasoningLevel}");
-
-                if (!string.IsNullOrWhiteSpace(message.SearchContextSize))
-                    sb.AppendLine($"- Search Context Size: {message.SearchContextSize}");
-
-                if (!string.IsNullOrWhiteSpace(message.ImageSize))
-                    sb.AppendLine($"- Image Size: {message.ImageSize}");
-
-                if (!string.IsNullOrWhiteSpace(message.ImageQuality))
-                    sb.AppendLine($"- Image Quality: {message.ImageQuality}");
-
-                if (!string.IsNullOrWhiteSpace(message.VideoLength))
-                    sb.AppendLine($"- Video Length: {message.VideoLength}");
-
-                if (!string.IsNullOrWhiteSpace(message.VideoSize))
-                    sb.AppendLine($"- Video Size: {message.VideoSize}");
-
-                if (!string.IsNullOrWhiteSpace(message.RemoteId))
-                    sb.AppendLine($"- Remote ID: {message.RemoteId}");
-
-                if (!string.IsNullOrWhiteSpace(message.SourceRemoteId))
-                    sb.AppendLine($"- Source Remote ID: {message.SourceRemoteId}");
+                sb.AppendLine($"- Remix: {(message.IsRemix ? "true" : "false")}");
+                sb.AppendLine();
 
                 if (message.MediaFiles != null && message.MediaFiles.Count > 0)
                 {
-                    sb.AppendLine();
                     sb.AppendLine("#### Media");
+                    sb.AppendLine();
+
                     foreach (var media in message.MediaFiles)
                     {
-                        sb.AppendLine($"- {media.FileName} ({media.MediaType})");
-                        if (!string.IsNullOrWhiteSpace(media.LocalPath))
-                            sb.AppendLine($"  - Path: `{media.LocalPath}`");
+                        sb.AppendLine($"- File: {EscapeMarkdownInline(media.FileName)}");
+                        AppendMarkdownIndentedBullet(sb, "Media Type", media.MediaType);
+                        AppendMarkdownIndentedBullet(sb, "Path", $"`{media.LocalPath}`");
+                        AppendMarkdownIndentedBullet(sb, "Is Image", media.IsImage ? "true" : "false");
                     }
+
+                    sb.AppendLine();
                 }
 
+                sb.AppendLine("#### Debug");
+                sb.AppendLine();
+
+                AppendMarkdownCodeBlockIfAny(sb, "RawJson", "json", message.RawJson);
+                AppendMarkdownCodeBlockIfAny(sb, "DeveloperToolSettingsJson", "json", message.DeveloperToolSettingsJson);
+                AppendMarkdownCodeBlockIfAny(sb, "ImageToolSettingsJson", "json", message.ImageToolSettingsJson);
+                AppendMarkdownCodeBlockIfAny(sb, "ToolCallLogJson", "json", message.ToolCallLogJson);
+
+                sb.AppendLine("---");
                 sb.AppendLine();
             }
 
@@ -799,6 +824,7 @@ namespace openAIApps
             sb.AppendLine($"Media: {BuildMediaSummary(history.Where(m => m.MediaFiles != null).SelectMany(m => m.MediaFiles))}");
             sb.AppendLine($"Tools: {BuildDistinctSummary(history.Select(m => m.ActiveTools))}");
             sb.AppendLine($"Model: {BuildDistinctSummary(history.Select(m => m.ModelUsed))}");
+            sb.AppendLine($"Developer Tools: {(SessionUsesDeveloperTools(history) ? "Yes" : "No")}");
             sb.AppendLine();
             sb.AppendLine("MESSAGES");
             sb.AppendLine("--------");
@@ -806,29 +832,193 @@ namespace openAIApps
             foreach (var message in history)
             {
                 sb.AppendLine($"[{message.Timestamp:yyyy-MM-dd HH:mm:ss}] {message.Role}");
-                sb.AppendLine(message.Content ?? string.Empty);
+                sb.AppendLine();
 
-                if (!string.IsNullOrWhiteSpace(message.ModelUsed))
-                    sb.AppendLine($"Model: {message.ModelUsed}");
+                if (!string.IsNullOrWhiteSpace(message.Content))
+                {
+                    sb.AppendLine(message.Content);
+                    sb.AppendLine();
+                }
 
-                if (!string.IsNullOrWhiteSpace(message.ActiveTools))
-                    sb.AppendLine($"Tools: {message.ActiveTools}");
+                sb.AppendLine("Metadata:");
+                AppendTextLineIfAny(sb, "  Model", message.ModelUsed);
+                AppendTextLineIfAny(sb, "  Tools", message.ActiveTools);
+                sb.AppendLine($"  Developer Tools: {(HasDeveloperTools(message) ? "true" : "false")}");
+                AppendTextLineIfAny(sb, "  Reasoning", message.ReasoningLevel);
+                AppendTextLineIfAny(sb, "  Search Context Size", message.SearchContextSize);
+                AppendTextLineIfAny(sb, "  Image Size", message.ImageSize);
+                AppendTextLineIfAny(sb, "  Image Quality", message.ImageQuality);
+                AppendTextLineIfAny(sb, "  Video Length", message.VideoLength);
+                AppendTextLineIfAny(sb, "  Video Size", message.VideoSize);
+                AppendTextLineIfAny(sb, "  Remote ID", message.RemoteId);
+                AppendTextLineIfAny(sb, "  Source Remote ID", message.SourceRemoteId);
+                sb.AppendLine($"  Remix: {(message.IsRemix ? "true" : "false")}");
+                sb.AppendLine();
 
                 if (message.MediaFiles != null && message.MediaFiles.Count > 0)
                 {
                     sb.AppendLine("Media:");
                     foreach (var media in message.MediaFiles)
                     {
-                        sb.AppendLine($" - {media.FileName} ({media.MediaType})");
-                        if (!string.IsNullOrWhiteSpace(media.LocalPath))
-                            sb.AppendLine($"   Path: {media.LocalPath}");
+                        sb.AppendLine($"  - File: {media.FileName}");
+                        AppendTextLineIfAny(sb, "    Media Type", media.MediaType);
+                        AppendTextLineIfAny(sb, "    Path", media.LocalPath);
+                        sb.AppendLine($"    Is Image: {(media.IsImage ? "true" : "false")}");
                     }
+                    sb.AppendLine();
                 }
 
+                sb.AppendLine("Debug:");
+                AppendTextBlockIfAny(sb, "RawJson", message.RawJson);
+                AppendTextBlockIfAny(sb, "DeveloperToolSettingsJson", message.DeveloperToolSettingsJson);
+                AppendTextBlockIfAny(sb, "ImageToolSettingsJson", message.ImageToolSettingsJson);
+                AppendTextBlockIfAny(sb, "ToolCallLogJson", message.ToolCallLogJson);
+
+                sb.AppendLine("------------------------------------------------------------");
                 sb.AppendLine();
             }
 
             return sb.ToString();
+        }
+        private static void AppendMarkdownBullet(StringBuilder sb, string label, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                sb.AppendLine($"- {label}: {EscapeMarkdownInline(value)}");
+        }
+
+        private static void AppendMarkdownIndentedBullet(StringBuilder sb, string label, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                sb.AppendLine($"  - {label}: {value}");
+        }
+
+        private static void AppendMarkdownCodeBlockIfAny(StringBuilder sb, string label, string language, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            sb.AppendLine($"##### {label}");
+            sb.AppendLine();
+            sb.AppendLine($"```{language}");
+            sb.AppendLine(value);
+            sb.AppendLine("```");
+            sb.AppendLine();
+        }
+        private async Task<string> BuildSessionExportHtmlAsync(ChatSession session, IReadOnlyList<ChatMessage> history)
+        {
+            string markdown = BuildSessionExportMarkdown(session, history);
+
+            string bodyHtml = ConvertMarkdownToHtml(markdown);
+            string css = await TryLoadMarkdownViewerCssAsync();
+
+            return $"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="utf-8" />
+                        <title>{System.Net.WebUtility.HtmlEncode(session.Title ?? $"Session {session.Id}")}</title>
+                        <style>
+                    {css}
+                        </style>
+                    </head>
+                    <body>
+                        <main class="markdown-body">
+                    {bodyHtml}
+                        </main>
+                    </body>
+                    </html>
+                    """;
+        }
+        private async Task<string> TryLoadMarkdownViewerCssAsync()
+        {
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string cssPath = Path.Combine(baseDir, "Assets", "MarkdownViewer", "markdown.css");
+
+                if (File.Exists(cssPath))
+                    return await File.ReadAllTextAsync(cssPath);
+
+                return """
+                        body {
+                            font-family: Segoe UI, Arial, sans-serif;
+                            margin: 24px;
+                            background: #ffffff;
+                            color: #222222;
+                        }
+                        .markdown-body {
+                            max-width: 1100px;
+                            margin: 0 auto;
+                        }
+                        pre {
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
+                            background: #f6f8fa;
+                            padding: 12px;
+                            border-radius: 6px;
+                        }
+                        code {
+                            font-family: Consolas, monospace;
+                        }
+                        """;
+            }
+            catch
+            {
+                return """
+                        body {
+                            font-family: Segoe UI, Arial, sans-serif;
+                            margin: 24px;
+                        }
+                        pre {
+                            white-space: pre-wrap;
+                        }
+                        """;
+            }
+        }
+        private static string ConvertMarkdownToHtml(string markdown)
+        {
+            // TODO:
+            // Replace this with the same markdown pipeline used by your MarkdownViewer assets/page,
+            // for example Markdig if already referenced in the project.
+
+            string encoded = System.Net.WebUtility.HtmlEncode(markdown);
+            return $"<pre>{encoded}</pre>";
+        }
+        private static void AppendTextLineIfAny(StringBuilder sb, string label, string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                sb.AppendLine($"{label}: {value}");
+        }
+
+        private static void AppendTextBlockIfAny(StringBuilder sb, string label, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            sb.AppendLine($"{label}:");
+            sb.AppendLine(value);
+            sb.AppendLine();
+        }
+
+        private static string EscapeMarkdownInline(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("`", "\\`")
+                .Replace("*", "\\*")
+                .Replace("_", "\\_");
+        }
+        private static bool HasDeveloperTools(ChatMessage message)
+        {
+            return IsDeveloperToolsEnabled(message.DeveloperToolSettingsJson);
+        }
+
+        private static bool SessionUsesDeveloperTools(IEnumerable<ChatMessage> history)
+        {
+            return history.Any(m => IsDeveloperToolsEnabled(m.DeveloperToolSettingsJson));
         }
         private void SelectAllTextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
@@ -849,6 +1039,28 @@ namespace openAIApps
                 tb.Focus();
             }
         }
+        private static string BuildDevSummary(IEnumerable<ChatMessage> messages)
+        {
+            return messages.Any(m => IsDeveloperToolsEnabled(m.DeveloperToolSettingsJson))
+                ? "Yes"
+                : "No";
+        }
+        // This method checks if the developer tools were enabled for a given message by
+        // inspecting the DeveloperToolSettingsJson property.
+        private static bool IsDeveloperToolsEnabled(string? developerToolSettingsJson)
+        {// If the JSON is null or whitespace, we can assume developer tools were not enabled.
+            if (string.IsNullOrWhiteSpace(developerToolSettingsJson))
+                return false;
 
+            try
+            {// Attempt to deserialize the JSON into a DeveloperToolSettingsSnapshot object.
+                var snapshot = JsonSerializer.Deserialize<DeveloperToolSettingsSnapshot>(developerToolSettingsJson);
+                return snapshot?.Enabled == true;
+            }
+            catch
+            {// If deserialization fails for any reason, we will assume developer tools were not enabled.
+                return false;
+            }
+        }
     }
 }
