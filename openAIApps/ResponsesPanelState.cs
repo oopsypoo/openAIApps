@@ -325,6 +325,29 @@ namespace openAIApps
             }
         }
         public bool AreRequestEditingControlsEnabled => !IsRequestInProgress;
+        private bool _developerToolWriteProjectFile;
+        public bool DeveloperToolWriteProjectFile
+        {
+            get => _developerToolWriteProjectFile;
+            set
+            {
+                if (_developerToolWriteProjectFile == value) return;
+                _developerToolWriteProjectFile = value;
+                OnPropertyChanged(nameof(DeveloperToolWriteProjectFile));
+            }
+        }
+
+        private bool _developerToolReplaceInProjectFile;
+        public bool DeveloperToolReplaceInProjectFile
+        {
+            get => _developerToolReplaceInProjectFile;
+            set
+            {
+                if (_developerToolReplaceInProjectFile == value) return;
+                _developerToolReplaceInProjectFile = value;
+                OnPropertyChanged(nameof(DeveloperToolReplaceInProjectFile));
+            }
+        }
     }
 
 }

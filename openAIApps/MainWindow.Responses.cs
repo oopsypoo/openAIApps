@@ -414,6 +414,8 @@ namespace openAIApps
             ResponsesState.DeveloperToolReadProjectFile = true;
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
+            ResponsesState.DeveloperToolWriteProjectFile = false;
+            ResponsesState.DeveloperToolReplaceInProjectFile = false;
             ResponsesState.DeveloperAllowedExtensionsCsv =
                 ResponsesPanelState.GetDefaultAllowedExtensionsCsv();
         }
@@ -1000,7 +1002,7 @@ namespace openAIApps
 
             NormalizeResponsesToolsState();
             ApplyResponsesStateToClient();
-            //ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
+            ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
         }
         private void NormalizeResponsesToolsState()
         {
@@ -1139,6 +1141,12 @@ namespace openAIApps
 
             [JsonPropertyName("run_diagnostics")]
             public bool RunDiagnostics { get; set; }
+            
+            [JsonPropertyName("write_project_file")]
+            public bool WriteProjectFile { get; set; }
+
+            [JsonPropertyName("replace_in_project_file")]
+            public bool ReplaceInProjectFile { get; set; }
 
             [JsonPropertyName("read_only_only")]
             public bool ReadOnlyOnly { get; set; } = true;
@@ -1206,6 +1214,8 @@ namespace openAIApps
                 ReadProjectFile = ResponsesState.DeveloperToolReadProjectFile,
                 ListProjectFiles = ResponsesState.DeveloperToolListProjectFiles,
                 RunDiagnostics = ResponsesState.DeveloperToolRunDiagnostics,
+                WriteProjectFile = ResponsesState.DeveloperToolWriteProjectFile,
+                ReplaceInProjectFile = ResponsesState.DeveloperToolReplaceInProjectFile,
 
                 ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
                 RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
@@ -1280,6 +1290,8 @@ namespace openAIApps
                 ResponsesState.DeveloperToolReadProjectFile = snapshot.ReadProjectFile;
                 ResponsesState.DeveloperToolListProjectFiles = snapshot.ListProjectFiles;
                 ResponsesState.DeveloperToolRunDiagnostics = snapshot.RunDiagnostics;
+                ResponsesState.DeveloperToolWriteProjectFile = snapshot.WriteProjectFile;
+                ResponsesState.DeveloperToolReplaceInProjectFile = snapshot.ReplaceInProjectFile;
 
                 ResponsesState.DeveloperAllowReadOnlyOnly = snapshot.ReadOnlyOnly;
                 ResponsesState.DeveloperRequireConfirmation = snapshot.RequireConfirmation;
@@ -1477,22 +1489,48 @@ namespace openAIApps
                 ListProjectFilesEnabled = ResponsesState.DeveloperToolListProjectFiles,
                 RunDiagnosticsEnabled = ResponsesState.DeveloperToolRunDiagnostics,
 
+                WriteProjectFileEnabled = ResponsesState.DeveloperToolWriteProjectFile,
+                ReplaceInProjectFileEnabled = ResponsesState.DeveloperToolReplaceInProjectFile,
+
                 AllowedExtensions = extensions,
                 MaxReadLines = 300,
                 MaxSearchResults = 100,
-                MaxFileBytes = 512 * 1024
+                MaxFileBytes = 512 * 1024,
+                MaxWriteFileBytes = 512 * 1024
             };
         }
         private Task<bool> ConfirmDeveloperToolCallAsync(string toolName, string argumentsJson)
         {
-            if (!ResponsesState.DeveloperRequireConfirmation)
+            bool isWriteTool =
+                string.Equals(toolName, "write_project_file", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(toolName, "replace_in_project_file", StringComparison.OrdinalIgnoreCase);
+
+            if (!isWriteTool && !ResponsesState.DeveloperRequireConfirmation)
                 return Task.FromResult(true);
 
+            string message;
+
+            if (isWriteTool)
+            {
+                message =
+                    $"Allow write-capable local tool call?\n\n" +
+                    $"Tool: {toolName}\n\n" +
+                    $"This operation may create or modify files inside the configured repository.\n\n" +
+                    $"Arguments:\n{argumentsJson}";
+            }
+            else
+            {
+                message =
+                    $"Allow local tool call?\n\n" +
+                    $"Tool: {toolName}\n\n" +
+                    $"Arguments:\n{argumentsJson}";
+            }
+
             var result = MessageBox.Show(
-                $"Allow local tool call?\n\nTool: {toolName}\n\nArguments:\n{argumentsJson}",
-                "Confirm local developer tool call",
+                message,
+                isWriteTool ? "Confirm write-capable developer tool call" : "Confirm local developer tool call",
                 MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                isWriteTool ? MessageBoxImage.Warning : MessageBoxImage.Question);
 
             return Task.FromResult(result == MessageBoxResult.Yes);
         }

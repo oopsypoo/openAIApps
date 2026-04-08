@@ -16,10 +16,14 @@
         public bool ListProjectFilesEnabled { get; set; } = false;
         public bool RunDiagnosticsEnabled { get; set; } = false;
 
+        public bool WriteProjectFileEnabled { get; set; } = false;
+        public bool ReplaceInProjectFileEnabled { get; set; } = false;
+
         public string[] AllowedExtensions { get; set; } = new string[0];
 
         public int MaxReadLines { get; set; } = 300;
         public int MaxSearchResults { get; set; } = 100;
         public int MaxFileBytes { get; set; } = 512 * 1024;
+        public int MaxWriteFileBytes { get; set; } = 512 * 1024;
     }
 }

@@ -38,12 +38,25 @@ namespace openAIApps.Services
                     GetString(root, "glob"),
                     GetInt(root, "max_results")),
 
+                "write_project_file" => _fileService.WriteProjectFile(
+                    GetString(root, "path"),
+                    GetString(root, "content"),
+                    GetBool(root, "create_if_missing"),
+                    GetBool(root, "overwrite_existing")),
+
+                "replace_in_project_file" => _fileService.ReplaceInProjectFile(
+                    GetString(root, "path"),
+                    GetString(root, "find"),
+                    GetString(root, "replace"),
+                    GetBool(root, "replace_all"),
+                    GetInt(root, "expected_match_count")),
+
                 _ => JsonSerializer.Serialize(new
                 {
                     ok = false,
                     error = $"Unknown tool: {toolName}"
                 })
-            };
+            }; 
 
             return Task.FromResult(result);
         }

@@ -5,12 +5,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        xmlns:converters="clr-namespace:openAIApps.Converters"
         xmlns:local="clr-namespace:openAIApps"
         mc:Ignorable="d"
         Title="OpenAiApps" Height="768" Width="1080" Icon="/oai_small.png" >
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
 
         <Style x:Key="StatusBarStyle" TargetType="StatusBar">
             <Setter Property="Height" Value="22" />
@@ -1120,8 +1122,10 @@
                                                     <ComboBoxItem Content="Custom" Tag="custom"/>
                                                 </ComboBox>
 
-                                                <TextBlock Grid.Row="4" Margin="0,8,0,2" Text="Available functions" FontWeight="SemiBold"/>
-
+                                                <TextBlock Grid.Row="4"
+                                                           Margin="0,8,0,4"
+                                                           FontWeight="SemiBold"
+                                                           Text="Available functions" />
                                                 <StackPanel Grid.Row="5">
                                                     <CheckBox Content="Search project text"
                                                               IsChecked="{Binding ResponsesState.DeveloperToolSearchProjectText, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
@@ -1131,21 +1135,27 @@
                                                               IsChecked="{Binding ResponsesState.DeveloperToolListProjectFiles, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
                                                     <CheckBox Content="Run diagnostics"
                                                               IsChecked="{Binding ResponsesState.DeveloperToolRunDiagnostics, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+
+                                                    <CheckBox Content="Write project file"
+                                                              IsChecked="{Binding ResponsesState.DeveloperToolWriteProjectFile, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                              IsEnabled="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBooleanConverter}}"/>
+
+                                                    <CheckBox Content="Replace in project file"
+                                                              IsChecked="{Binding ResponsesState.DeveloperToolReplaceInProjectFile, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                              IsEnabled="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBooleanConverter}}"/>
                                                 </StackPanel>
 
-                                                <TextBlock Grid.Row="6" Margin="0,8,0,2" Text="Advanced options" FontWeight="SemiBold"/>
-
+                                                <TextBlock Grid.Row="6"
+                                                           Margin="0,8,0,4"
+                                                           FontWeight="SemiBold"
+                                                           Text="Advanced options" />
                                                 <StackPanel Grid.Row="7">
                                                     <CheckBox Content="Allow read-only only"
-                                                              ToolTip="Restricts local developer tools to non-modifying operations such as search, read, and file listing."
-                                                              IsChecked="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                              IsChecked="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                                                     <CheckBox Content="Require confirmation before local calls"
-                                                              IsChecked="{Binding ResponsesState.DeveloperRequireConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                              IsChecked="{Binding ResponsesState.DeveloperRequireConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                                                     <CheckBox Content="Show tool call logs"
-                                                              IsChecked="{Binding ResponsesState.DeveloperShowToolLogs, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
-
-                                                    <TextBlock Margin="0,8,0,2" Text="Allowed file types" FontWeight="SemiBold"/>
-                                                    <TextBox Text="{Binding ResponsesState.DeveloperAllowedExtensionsCsv, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                              IsChecked="{Binding ResponsesState.DeveloperShowToolLogs, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                                                 </StackPanel>
                                             </Grid>
                                         </Grid>

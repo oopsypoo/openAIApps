@@ -136,12 +136,21 @@ namespace openAIApps
                 ? string.Join(", ", developerToolsOptions.AllowedExtensions)
                 : "(application-defined)";
 
+            string toolModeInstructions = developerToolsOptions.ReadOnlyOnly
+                ? @"You have access to read-only local developer tools."
+                : @"You have access to local developer tools that may include both read and write capabilities.
+                    Before using any write-capable tool, you must first inspect the relevant files, present a concise change plan, identify which files will be changed or created, and wait for explicit user approval.
+                    Never perform any write or file creation until the user has explicitly approved the proposed changes.
+                    Prefer targeted edits over full-file rewrites when practical.
+                    Minimize the number of files changed.
+                    Do not claim to modify files directly unless a write-capable tool succeeds.";
+
             return
                     $@"{baseInstructions}
 
                         You are assisting inside a local C# / WPF project workspace.
 
-                        You have access to read-only local developer tools.
+                        {toolModeInstructions}
                         The repository root is fixed by the application and cannot be changed.
                         Allowed file types are: {allowedExtensions}
 
@@ -152,7 +161,9 @@ namespace openAIApps
                         - Use list_project_files only when needed.
                         - Treat tool results as the source of truth.
                         - Do not assume access outside the configured repository root.
-                        - Do not claim to modify files directly.";
+                        - Only write files inside the configured repository root.
+                        - Writable file types follow the same allowed extensions as readable file types.
+                        - If approval is ambiguous, ask for clarification.";
         }
         private object[] GetLocalFunctionTools(DeveloperToolsOptions developerToolsOptions)
         {
@@ -261,6 +272,90 @@ namespace openAIApps
                                 maximum = 500
                             }
                         },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.WriteProjectFileEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "write_project_file",
+                    description = "Write a text file inside the configured repository root using a relative path. Can create a new file or overwrite an existing allowed text file. Write-capable.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            path = new
+                            {
+                                type = "string",
+                                description = "Relative file path inside the repository root."
+                            },
+                            content = new
+                            {
+                                type = "string",
+                                description = "Full text content to write."
+                            },
+                            create_if_missing = new
+                            {
+                                type = "boolean",
+                                description = "Whether the file may be created if it does not exist."
+                            },
+                            overwrite_existing = new
+                            {
+                                type = "boolean",
+                                description = "Whether an existing file may be overwritten."
+                            }
+                        },
+                        required = new[] { "path", "content" },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.ReplaceInProjectFileEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "replace_in_project_file",
+                    description = "Replace exact text in an existing allowed text file inside the configured repository root. Write-capable.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            path = new
+                            {
+                                type = "string",
+                                description = "Relative file path inside the repository root."
+                            },
+                            find = new
+                            {
+                                type = "string",
+                                description = "Exact text to find."
+                            },
+                            replace = new
+                            {
+                                type = "string",
+                                description = "Replacement text."
+                            },
+                            replace_all = new
+                            {
+                                type = "boolean",
+                                description = "Whether all matches should be replaced."
+                            },
+                            expected_match_count = new
+                            {
+                                type = "integer",
+                                minimum = 0,
+                                description = "Optional expected number of matches before replacement."
+                            }
+                        },
+                        required = new[] { "path", "find", "replace" },
                         additionalProperties = false
                     }
                 });
