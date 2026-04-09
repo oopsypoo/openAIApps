@@ -1,4 +1,4 @@
-﻿using openAIApps.Data;
+using openAIApps.Data;
 using System;
 
 namespace openAIApps
@@ -346,6 +346,54 @@ namespace openAIApps
                 if (_developerToolReplaceInProjectFile == value) return;
                 _developerToolReplaceInProjectFile = value;
                 OnPropertyChanged(nameof(DeveloperToolReplaceInProjectFile));
+            }
+        }
+
+        private bool _developerPendingReviewVisible;
+        public bool DeveloperPendingReviewVisible
+        {
+            get => _developerPendingReviewVisible;
+            set
+            {
+                if (_developerPendingReviewVisible == value) return;
+                _developerPendingReviewVisible = value;
+                OnPropertyChanged(nameof(DeveloperPendingReviewVisible));
+            }
+        }
+
+        private string _developerPendingReviewTitle = string.Empty;
+        public string DeveloperPendingReviewTitle
+        {
+            get => _developerPendingReviewTitle;
+            set
+            {
+                if (_developerPendingReviewTitle == value) return;
+                _developerPendingReviewTitle = value ?? string.Empty;
+                OnPropertyChanged(nameof(DeveloperPendingReviewTitle));
+            }
+        }
+
+        private string _developerPendingReviewToolName = string.Empty;
+        public string DeveloperPendingReviewToolName
+        {
+            get => _developerPendingReviewToolName;
+            set
+            {
+                if (_developerPendingReviewToolName == value) return;
+                _developerPendingReviewToolName = value ?? string.Empty;
+                OnPropertyChanged(nameof(DeveloperPendingReviewToolName));
+            }
+        }
+
+        private string _developerPendingReviewSummary = string.Empty;
+        public string DeveloperPendingReviewSummary
+        {
+            get => _developerPendingReviewSummary;
+            set
+            {
+                if (_developerPendingReviewSummary == value) return;
+                _developerPendingReviewSummary = value ?? string.Empty;
+                OnPropertyChanged(nameof(DeveloperPendingReviewSummary));
             }
         }
     }

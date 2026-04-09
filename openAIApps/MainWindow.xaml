@@ -824,15 +824,109 @@
                                     </Expander>
                                 </DockPanel>
 
-                                <Border Margin="0"
-                                        BorderBrush="DarkGray"
-                                        BorderThickness="1"
-                                        Background="White">
-                                    <wv2:WebView2 x:Name="wvResponsesResponse"
-                                                  HorizontalAlignment="Stretch"
-                                                  VerticalAlignment="Stretch"
-                                                  DefaultBackgroundColor="White" />
-                                </Border>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <Border Grid.Row="0"
+                                            Margin="0"
+                                            BorderBrush="DarkGray"
+                                            BorderThickness="1"
+                                            Background="White">
+                                        <wv2:WebView2 x:Name="wvResponsesResponse"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      DefaultBackgroundColor="White" />
+                                    </Border>
+
+                                    <Border Grid.Row="1"
+        Margin="0,8,0,0"
+        Padding="0"
+        Background="#FFFDF7"
+        BorderBrush="#E5C76B"
+        BorderThickness="1"
+        CornerRadius="6">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ResponsesState.DeveloperPendingReviewVisible, RelativeSource={RelativeSource AncestorType=Window}}"
+                             Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Border Grid.Column="0"
+                Background="#D6A400"
+                CornerRadius="6,0,0,6" />
+
+                                            <StackPanel Grid.Column="1"
+                    Margin="12,10,12,10">
+                                                <TextBlock Text="Pending file change review"
+                       FontWeight="SemiBold"
+                       FontSize="14"
+                       Foreground="#6C5200"
+                       Margin="0,0,0,6" />
+
+                                                <Border Background="#FFF7D6"
+                    BorderBrush="#F0D98A"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8"
+                    Margin="0,0,0,8">
+                                                    <StackPanel>
+                                                        <TextBlock Margin="0,0,0,4">
+                        <Run Text="Tool: "
+                             FontWeight="SemiBold" />
+                        <Run Text="{Binding ResponsesState.DeveloperPendingReviewToolName, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </TextBlock>
+
+                                                        <TextBlock Text="{Binding ResponsesState.DeveloperPendingReviewTitle, RelativeSource={RelativeSource AncestorType=Window}}"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,4" />
+
+                                                        <TextBlock Text="{Binding ResponsesState.DeveloperPendingReviewSummary, RelativeSource={RelativeSource AncestorType=Window}}"
+                               TextWrapping="Wrap"
+                               Foreground="#333333" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <TextBlock Text="Review the proposed changes above before approving."
+                       Foreground="#7A6A2A"
+                       FontStyle="Italic"
+                       Margin="0,0,0,10" />
+
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Button Content="Approve changes"
+                        Width="140"
+                        Height="32"
+                        Margin="0,0,8,0"
+                        FontWeight="SemiBold"
+                        Background="#DFF2E1"
+                        BorderBrush="#8FBE95"
+                        Click="ApprovePendingToolReview_Click" />
+
+                                                    <Button Content="Reject"
+                        Width="100"
+                        Height="32"
+                        Background="#F6E3E3"
+                        BorderBrush="#D2A4A4"
+                        Click="RejectPendingToolReview_Click" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
                             </DockPanel>
                         </Grid>
                     </GroupBox>

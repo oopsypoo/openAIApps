@@ -1,4 +1,4 @@
-﻿using Markdig;
+using Markdig;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Win32;
 using openAIApps.Data;
@@ -37,6 +37,8 @@ namespace openAIApps
         private MarkdownThemeOption? _selectedMarkdownTheme;
         private List<PageThemeOption> _pageThemeOptions = new();
         private PageThemeOption? _selectedPageTheme;
+        private PendingToolReview? _pendingToolReview;
+        private TaskCompletionSource<bool>? _pendingToolReviewTcs;
         
         private string ApplyModelsToResponsesCombo(IEnumerable<string> models, string preferredModel = "gpt-4o")
         {
@@ -416,6 +418,10 @@ namespace openAIApps
             ResponsesState.DeveloperToolRunDiagnostics = false;
             ResponsesState.DeveloperToolWriteProjectFile = false;
             ResponsesState.DeveloperToolReplaceInProjectFile = false;
+            ResponsesState.DeveloperPendingReviewVisible = false;
+            ResponsesState.DeveloperPendingReviewTitle = string.Empty;
+            ResponsesState.DeveloperPendingReviewToolName = string.Empty;
+            ResponsesState.DeveloperPendingReviewSummary = string.Empty;
             ResponsesState.DeveloperAllowedExtensionsCsv =
                 ResponsesPanelState.GetDefaultAllowedExtensionsCsv();
         }
@@ -1499,40 +1505,344 @@ namespace openAIApps
                 MaxWriteFileBytes = 512 * 1024
             };
         }
-        private Task<bool> ConfirmDeveloperToolCallAsync(string toolName, string argumentsJson)
+        private async Task<bool> ConfirmDeveloperToolCallAsync(string toolName, string argumentsJson)
         {
             bool isWriteTool =
                 string.Equals(toolName, "write_project_file", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(toolName, "replace_in_project_file", StringComparison.OrdinalIgnoreCase);
 
-            if (!isWriteTool && !ResponsesState.DeveloperRequireConfirmation)
-                return Task.FromResult(true);
-
-            string message;
-
             if (isWriteTool)
-            {
-                message =
-                    $"Allow write-capable local tool call?\n\n" +
-                    $"Tool: {toolName}\n\n" +
-                    $"This operation may create or modify files inside the configured repository.\n\n" +
-                    $"Arguments:\n{argumentsJson}";
-            }
-            else
-            {
-                message =
-                    $"Allow local tool call?\n\n" +
-                    $"Tool: {toolName}\n\n" +
-                    $"Arguments:\n{argumentsJson}";
-            }
+                return await ShowPendingToolReviewAsync(toolName, argumentsJson);
+
+            if (!ResponsesState.DeveloperRequireConfirmation)
+                return true;
+
+            string message =
+                $"Allow local tool call?\n\n" +
+                $"Tool: {toolName}\n\n" +
+                $"Arguments:\n{argumentsJson}";
 
             var result = MessageBox.Show(
                 message,
-                isWriteTool ? "Confirm write-capable developer tool call" : "Confirm local developer tool call",
+                "Confirm local developer tool call",
                 MessageBoxButton.YesNo,
-                isWriteTool ? MessageBoxImage.Warning : MessageBoxImage.Question);
+                MessageBoxImage.Question);
 
-            return Task.FromResult(result == MessageBoxResult.Yes);
+            return result == MessageBoxResult.Yes;
+        }
+
+        private async Task<bool> ShowPendingToolReviewAsync(string toolName, string argumentsJson)
+        {
+            var review = await BuildPendingToolReviewAsync(toolName, argumentsJson);
+            _pendingToolReview = review;
+
+            ResponsesState.DeveloperPendingReviewTitle = review.Title;
+            ResponsesState.DeveloperPendingReviewToolName = review.ToolName;
+            ResponsesState.DeveloperPendingReviewSummary = review.Summary;
+            ResponsesState.DeveloperPendingReviewVisible = true;
+
+            _pendingToolReviewTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            await RenderResponsesMarkdownAsync(review.MarkdownPreview);
+
+            return await _pendingToolReviewTcs.Task;
+        }
+
+        private Task<PendingToolReview> BuildPendingToolReviewAsync(string toolName, string argumentsJson)
+        {
+            using JsonDocument doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson);
+            JsonElement root = doc.RootElement;
+
+            PendingToolReview review = toolName switch
+            {
+                "write_project_file" => BuildWriteProjectFileReview(root, argumentsJson),
+                "replace_in_project_file" => BuildReplaceInProjectFileReview(root, argumentsJson),
+                _ => new PendingToolReview
+                {
+                    ToolName = toolName ?? string.Empty,
+                    ArgumentsJson = argumentsJson ?? string.Empty,
+                    IsWriteTool = true,
+                    Title = "Pending write review",
+                    Summary = "Unknown write-capable tool.",
+                    MarkdownPreview = "# Pending write review\n\nUnknown write-capable tool."
+                }
+            };
+
+            return Task.FromResult(review);
+        }
+
+        private PendingToolReview BuildWriteProjectFileReview(JsonElement root, string argumentsJson)
+        {
+            string path = GetRequiredString(root, "path");
+            string newContent = GetOptionalString(root, "content") ?? string.Empty;
+            string fullPath = ResolveToolReviewFullPath(path);
+            bool fileExists = File.Exists(fullPath);
+            string oldContent = fileExists ? File.ReadAllText(fullPath) : string.Empty;
+            string language = GetCodeFenceLanguageFromPath(path);
+
+            bool isCreate = !fileExists;
+            bool isOverwrite = fileExists;
+
+            string summary = isCreate
+                ? $"Create 1 file: {path}"
+                : $"Overwrite 1 existing file: {path}";
+
+            string markdown = isCreate
+                ? $"""
+# Pending write review
+
+The assistant wants to create a file inside the current repository.
+
+## File
+`{path}`
+
+- **Tool:** `write_project_file`
+- **Operation:** create file
+
+## Proposed content
+
+```{language}
+{newContent}
+```
+"""
+                : $"""
+# Pending write review
+
+The assistant wants to overwrite an existing file.
+
+## File
+`{path}`
+
+- **Tool:** `write_project_file`
+- **Operation:** overwrite file
+
+## Current content
+
+```{language}
+{oldContent}
+```
+
+## New content
+
+```{language}
+{newContent}
+```
+""";
+
+            return new PendingToolReview
+            {
+                ToolName = "write_project_file",
+                ArgumentsJson = argumentsJson ?? string.Empty,
+                IsWriteTool = true,
+                Title = "Pending write review",
+                Summary = summary,
+                MarkdownPreview = markdown,
+                Changes =
+                {
+                    new PendingFileChange
+                    {
+                        Path = path,
+                        Operation = isCreate ? "create" : "overwrite",
+                        FileExists = fileExists,
+                        IsCreate = isCreate,
+                        IsOverwrite = isOverwrite,
+                        OldContent = oldContent,
+                        NewContent = newContent
+                    }
+                }
+            };
+        }
+
+        private PendingToolReview BuildReplaceInProjectFileReview(JsonElement root, string argumentsJson)
+        {
+            string path = GetRequiredString(root, "path");
+            string find = GetRequiredString(root, "find");
+            string replace = GetOptionalString(root, "replace") ?? string.Empty;
+            bool replaceAll = GetOptionalBool(root, "replace_all") == true;
+            int? expectedMatchCount = GetOptionalInt(root, "expected_match_count");
+
+            string fullPath = ResolveToolReviewFullPath(path);
+            string oldContent = File.Exists(fullPath) ? File.ReadAllText(fullPath) : string.Empty;
+            string newContent = replaceAll
+                ? oldContent.Replace(find, replace)
+                : ReplaceFirst(oldContent, find, replace);
+
+            string language = GetCodeFenceLanguageFromPath(path);
+
+            string expectedMatchesText = expectedMatchCount.HasValue
+                ? expectedMatchCount.Value.ToString()
+                : "(not specified)";
+
+            string markdown = $"""
+# Pending write review
+
+The assistant wants to replace text in an existing file.
+
+## File
+`{path}`
+
+- **Tool:** `replace_in_project_file`
+- **Operation:** replace text
+- **Replace all:** `{replaceAll}`
+- **Expected matches:** `{expectedMatchesText}`
+
+## Find
+
+```{language}
+{find}
+```
+
+## Replace with
+
+```{language}
+{replace}
+```
+
+## Current content
+
+```{language}
+{oldContent}
+```
+
+## Resulting content
+
+```{language}
+{newContent}
+```
+""";
+
+            return new PendingToolReview
+            {
+                ToolName = "replace_in_project_file",
+                ArgumentsJson = argumentsJson ?? string.Empty,
+                IsWriteTool = true,
+                Title = "Pending write review",
+                Summary = $"Modify 1 existing file: {path}",
+                MarkdownPreview = markdown,
+                Changes =
+                {
+                    new PendingFileChange
+                    {
+                        Path = path,
+                        Operation = "replace",
+                        FileExists = File.Exists(fullPath),
+                        IsCreate = false,
+                        IsOverwrite = true,
+                        OldContent = oldContent,
+                        NewContent = newContent
+                    }
+                }
+            };
+        }
+
+        private string ResolveToolReviewFullPath(string relativePath)
+        {
+            string repositoryRoot = ResponsesState.DeveloperRepositoryRoot ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(repositoryRoot))
+                throw new InvalidOperationException("Developer repository root is not configured.");
+
+            if (Path.IsPathRooted(relativePath))
+                throw new InvalidOperationException("Tool review path must be relative.");
+
+            string fullRepositoryRoot = Path.GetFullPath(repositoryRoot);
+            string combined = Path.GetFullPath(Path.Combine(fullRepositoryRoot, relativePath));
+
+            if (!combined.StartsWith(fullRepositoryRoot, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Tool review path escapes repository root.");
+
+            return combined;
+        }
+
+        private static string GetRequiredString(JsonElement root, string propertyName)
+        {
+            if (!root.TryGetProperty(propertyName, out JsonElement value) || value.ValueKind != JsonValueKind.String)
+                throw new InvalidOperationException($"Missing required string property '{propertyName}'.");
+
+            return value.GetString() ?? string.Empty;
+        }
+
+        private static string? GetOptionalString(JsonElement root, string propertyName)
+        {
+            if (!root.TryGetProperty(propertyName, out JsonElement value))
+                return null;
+
+            return value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        }
+
+        private static bool? GetOptionalBool(JsonElement root, string propertyName)
+        {
+            if (!root.TryGetProperty(propertyName, out JsonElement value))
+                return null;
+
+            return value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False
+                ? value.GetBoolean()
+                : null;
+        }
+
+        private static int? GetOptionalInt(JsonElement root, string propertyName)
+        {
+            if (!root.TryGetProperty(propertyName, out JsonElement value))
+                return null;
+
+            return value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int intValue)
+                ? intValue
+                : null;
+        }
+
+        private static string ReplaceFirst(string input, string find, string replace)
+        {
+            if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(find))
+                return input ?? string.Empty;
+
+            int index = input.IndexOf(find, StringComparison.Ordinal);
+            if (index < 0)
+                return input;
+
+            return input.Remove(index, find.Length).Insert(index, replace ?? string.Empty);
+        }
+
+        private static string GetCodeFenceLanguageFromPath(string path)
+        {
+            string extension = Path.GetExtension(path) ?? string.Empty;
+
+            return extension.ToLowerInvariant() switch
+            {
+                ".cs" => "csharp",
+                ".xaml" => "xml",
+                ".xml" => "xml",
+                ".json" => "json",
+                ".js" => "javascript",
+                ".css" => "css",
+                ".html" => "html",
+                ".md" => "markdown",
+                ".sql" => "sql",
+                ".ps1" => "powershell",
+                _ => string.Empty
+            };
+        }
+
+        private void ApprovePendingToolReview_Click(object sender, RoutedEventArgs e)
+        {
+            ResponsesState.DeveloperPendingReviewVisible = false;
+            ResponsesState.DeveloperPendingReviewTitle = string.Empty;
+            ResponsesState.DeveloperPendingReviewToolName = string.Empty;
+            ResponsesState.DeveloperPendingReviewSummary = string.Empty;
+
+            _pendingToolReviewTcs?.TrySetResult(true);
+            _pendingToolReviewTcs = null;
+            _pendingToolReview = null;
+        }
+
+        private void RejectPendingToolReview_Click(object sender, RoutedEventArgs e)
+        {
+            ResponsesState.DeveloperPendingReviewVisible = false;
+            ResponsesState.DeveloperPendingReviewTitle = string.Empty;
+            ResponsesState.DeveloperPendingReviewToolName = string.Empty;
+            ResponsesState.DeveloperPendingReviewSummary = string.Empty;
+
+            _pendingToolReviewTcs?.TrySetResult(false);
+            _pendingToolReviewTcs = null;
+            _pendingToolReview = null;
         }
 
         private Task LogDeveloperToolCallAsync(string toolName, string argumentsJson, string resultJson)
