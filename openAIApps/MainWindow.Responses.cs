@@ -2145,6 +2145,8 @@ The assistant wants to replace text in an existing file.
 
             await ApplySelectedPageThemeAsync();
             await ApplySelectedMarkdownThemeAsync();
+            // Scroll to top after rendering new content
+            await wvResponsesResponse.CoreWebView2.ExecuteScriptAsync("window.scrollTo(0, 0);");
         }
         private async Task ApplySelectedPageThemeAsync()
         {
