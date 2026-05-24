@@ -74,7 +74,7 @@ namespace openAIApps.Services
                 SourceRemoteId = sourceRemoteId ?? string.Empty,
                 Timestamp = DateTime.UtcNow,
                 ImageToolSettingsJson = imageToolSettingsJson ?? string.Empty,
-                DeveloperToolSettingsJson = developerToolSettingsJson,
+                DeveloperToolSettingsJson = developerToolSettingsJson ?? string.Empty,
                 ToolCallLogJson = toolCallLogJson ?? string.Empty
             };
 
