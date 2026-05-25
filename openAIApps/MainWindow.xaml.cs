@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using openAIApps.Data;
 using openAIApps.Services;
 using System;
@@ -29,6 +29,7 @@ namespace openAIApps
     public partial class MainWindow : Window
     {
         readonly string OpenAPIKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        readonly string LtxApiKey = Environment.GetEnvironmentVariable("LTX_API_KEY");
 
         private AppSettings _settings;
         private string savepath_logs;
@@ -60,6 +61,7 @@ namespace openAIApps
         public ObservableCollection<LogRowViewModel> LogRows { get; } = new();
         // Video tab source collection
         private VideoClient _videoClient;
+        private LtxVideoProvider? _ltxVideoProvider;
         public ObservableCollection<VideoListItem> _videoHistory = new();
         public ObservableCollection<VideoListItem> VideoHistory => _videoHistory;
         public ObservableCollection<ChatMessage> CurrentVideoMessages { get; } = new();
@@ -266,6 +268,10 @@ namespace openAIApps
         {
             EnsureSavePaths();
             _videoClient = new VideoClient(apiKey: OpenAPIKey);
+            if (!string.IsNullOrWhiteSpace(LtxApiKey))
+            {
+                _ltxVideoProvider = new LtxVideoProvider(LtxApiKey);
+            }
             InitVideoState();
             InitVideoList();
             // set it here to avoid whisper from trying to use it before it's set

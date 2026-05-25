@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using openAIApps.Data;
 using System;
 using System.Collections.Generic;
@@ -44,7 +44,12 @@ namespace openAIApps.Services
                     string sourceRemoteId = null,
                     string imageToolSettingsJson = null,
                     string developerToolSettingsJson = null,
-                    string toolCallLogJson = null)
+                    string toolCallLogJson = null,
+                    string videoProvider = null,
+                    string videoOperation = null,
+                    string videoFps = null,
+                    string videoCameraMotion = null,
+                    bool videoGenerateAudio = false)
 
         {
             await using var context = CreateDbContext();
@@ -67,8 +72,13 @@ namespace openAIApps.Services
                 ImageSize = imgSize ?? string.Empty,
                 ImageQuality = imgQual ?? string.Empty,
                 SearchContextSize = searchSize ?? string.Empty,
+                VideoProvider = videoProvider ?? string.Empty,
+                VideoOperation = videoOperation ?? string.Empty,
                 VideoLength = videoLength ?? string.Empty,
                 VideoSize = videoSize ?? string.Empty,
+                VideoFps = videoFps ?? string.Empty,
+                VideoCameraMotion = videoCameraMotion ?? string.Empty,
+                VideoGenerateAudio = videoGenerateAudio,
                 IsRemix = isRemix,
                 RemoteId = remoteId ?? string.Empty,
                 SourceRemoteId = sourceRemoteId ?? string.Empty,
@@ -220,6 +230,36 @@ namespace openAIApps.Services
                 role,
                 content = message.Content ?? string.Empty
             };
+        }
+
+        public async Task UpdateMessageContentAndRawJsonAsync(int messageId, string content, string rawJson)
+        {
+            await using var context = CreateDbContext();
+
+            var message = await context.Messages.FirstOrDefaultAsync(m => m.Id == messageId);
+            if (message == null)
+                return;
+
+            message.Content = content ?? string.Empty;
+            message.RawJson = rawJson ?? string.Empty;
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<List<ChatMessage>> GetVideoLibraryMessagesAsync()
+        {
+            await using var context = CreateDbContext();
+
+            return await context.Messages
+                .Include(m => m.MediaFiles)
+                .Include(m => m.ChatSession)
+                .Where(m =>
+                    m.ChatSession.Endpoint == EndpointType.Video &&
+                    m.Role == "assistant" &&
+                    !string.IsNullOrWhiteSpace(m.RemoteId))
+                .OrderByDescending(m => m.Timestamp)
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task DeleteSessionAsync(int sessionId)

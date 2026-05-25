@@ -1,4 +1,4 @@
-﻿<Window x:Class="openAIApps.MainWindow"
+<Window x:Class="openAIApps.MainWindow"
         x:Name="openAIApps"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -370,12 +370,22 @@
                                                 <TextBlock FontSize="10"
                                        Foreground="DimGray"
                                        TextWrapping="Wrap">
-                                <Run Text="Model: "/>
+                                <Run Text="Provider: "/>
+                                <Run Text="{Binding VideoProvider}"/>
+                                <Run Text=" | Operation: "/>
+                                <Run Text="{Binding VideoOperation}"/>
+                                <Run Text=" | Model: "/>
                                 <Run Text="{Binding ModelUsed}"/>
                                 <Run Text=" | Length: "/>
                                 <Run Text="{Binding VideoLength}"/>
                                 <Run Text=" | Size: "/>
                                 <Run Text="{Binding VideoSize}"/>
+                                <Run Text=" | FPS: "/>
+                                <Run Text="{Binding VideoFps}"/>
+                                <Run Text=" | Camera: "/>
+                                <Run Text="{Binding VideoCameraMotion}"/>
+                                <Run Text=" | Audio: "/>
+                                <Run Text="{Binding VideoGenerateAudio}"/>
                                 <Run Text=" | RemoteId: "/>
                                 <Run Text="{Binding RemoteId}"/>
                                 <Run Text=" | Source: "/>
@@ -399,7 +409,7 @@
                                 </Grid.RowDefinitions>
 
                                 <Label Grid.Row="0"
-                   Content="OpenAi response"
+                   Content="Video response"
                    Margin="0,0,0,2"/>
 
                                 <TextBox Grid.Row="1"
@@ -441,48 +451,86 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <Label Grid.Row="0" Content="Model" />
+                                <Label Grid.Row="0" Content="Provider" />
                                 <ComboBox Grid.Row="1"
+                              x:Name="cmbVideoProvider"
+                              IsEditable="False"
+                              ItemsSource="{Binding VideoState.AvailableProviders, RelativeSource={RelativeSource AncestorType=Window}}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ProviderType"
+                              SelectedValue="{Binding VideoState.SelectedProvider, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                              SelectionChanged="cmbVideoProvider_SelectionChanged" />
+
+                                <Label Grid.Row="2" Content="Model" Margin="0,5,0,2" />
+                                <ComboBox Grid.Row="3"
                               x:Name="cmbVideoModel"
                               IsEditable="False"
-                              IsReadOnly="True"
-                              SelectedValuePath="Content"
-                              SelectedValue="{Binding VideoState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                    <ComboBoxItem IsSelected="True" Content="sora-2" />
-                                    <ComboBoxItem Content="sora-2-pro" />
-                                </ComboBox>
+                              ItemsSource="{Binding VideoState.AvailableModels, RelativeSource={RelativeSource AncestorType=Window}}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="Id"
+                              SelectedValue="{Binding VideoState.SelectedModel, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                              SelectionChanged="cmbVideoModel_SelectionChanged" />
 
-                                <Label Grid.Row="2" Content="Video Length" Margin="0,5,0,2"/>
-                                <ComboBox Grid.Row="3"
-                              x:Name="cmbVideoLength"
-                              SelectedValuePath="Content"
-                              SelectedValue="{Binding VideoState.SelectedLength, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                    <ComboBoxItem IsSelected="True" Content="4" />
-                                    <ComboBoxItem Content="8" />
-                                    <ComboBoxItem Content="12" />
-                                </ComboBox>
-
-                                <Label Grid.Row="4" Content="Video Size" Margin="0,5,0,2"/>
+                                <Label Grid.Row="4" Content="Video Length" Margin="0,5,0,2"/>
                                 <ComboBox Grid.Row="5"
-                              x:Name="cmbVideoSize"
-                              SelectedValuePath="Content"
-                              SelectedValue="{Binding VideoState.SelectedSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}">
-                                    <ComboBoxItem IsSelected="True" Content="720x1280" />
-                                    <ComboBoxItem Content="1280x720" />
-                                    <ComboBoxItem Content="1024x1792" />
-                                    <ComboBoxItem Content="1792x1024" />
-                                </ComboBox>
+                              x:Name="cmbVideoLength"
+                              ItemsSource="{Binding VideoState.AvailableLengths, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding VideoState.SelectedLength, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
 
-                                <Label Grid.Row="6" Content="Input Reference - select an image" Margin="0,5,0,2"/>
-                                <Button Grid.Row="7"
+                                <Label Grid.Row="6" Content="Video Size" Margin="0,5,0,2"/>
+                                <ComboBox Grid.Row="7"
+                              x:Name="cmbVideoSize"
+                              ItemsSource="{Binding VideoState.AvailableSizes, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding VideoState.SelectedSize, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+
+                                <Label Grid.Row="8"
+                                       Content="FPS"
+                                       Margin="0,5,0,2"
+                                       Visibility="{Binding VideoState.SupportsFps, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <ComboBox Grid.Row="9"
+                              x:Name="cmbVideoFps"
+                              ItemsSource="{Binding VideoState.AvailableFpsValues, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding VideoState.SelectedFps, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                              Visibility="{Binding VideoState.SupportsFps, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                <Label Grid.Row="10"
+                                       Content="Camera motion"
+                                       Margin="0,5,0,2"
+                                       Visibility="{Binding VideoState.SupportsCameraMotion, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <ComboBox Grid.Row="11"
+                              x:Name="cmbVideoCameraMotion"
+                              ItemsSource="{Binding VideoState.AvailableCameraMotions, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding VideoState.SelectedCameraMotion, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                              Visibility="{Binding VideoState.SupportsCameraMotion, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                <CheckBox Grid.Row="12"
+                                          x:Name="cbVideoGenerateAudio"
+                                          Content="Generate audio"
+                                          Margin="0,8,0,0"
+                                          IsChecked="{Binding VideoState.GenerateAudio, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                          Visibility="{Binding VideoState.SupportsGenerateAudio, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                <Label Grid.Row="13"
+                                       Content="Input Reference - select an image"
+                                       Margin="0,5,0,2"
+                                       Visibility="{Binding VideoState.SupportsReferenceImage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <Button Grid.Row="14"
                             x:Name="btnOpenVReference"
                             Content="Choose Image"
                             Padding="5,2"
-                            Click="btnOpenVReference_Click"/>
+                            Click="btnOpenVReference_Click"
+                            Visibility="{Binding VideoState.SupportsReferenceImage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                <Border Grid.Row="8"
+                                <Border Grid.Row="15"
                             Margin="0,6,0,0"
                             Padding="6"
                             BorderBrush="DarkGray"
@@ -494,15 +542,16 @@
                                Source="/no_pic.png" />
                                 </Border>
 
-                                <Button Grid.Row="9"
+                                <Button Grid.Row="16"
                             x:Name="btmRemoveImage"
                             Margin="0,6,0,0"
                             Padding="5,2"
                             Content="Remove reference pic"
-                            Click="btmRemoveImage_Click" />
+                            Click="btmRemoveImage_Click"
+                            Visibility="{Binding VideoState.SupportsReferenceImage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-                                <Label Grid.Row="10" Content="Video history" Margin="0,5,0,2"/>
-                                <ListBox Grid.Row="11"
+                                <Label Grid.Row="17" Content="Video history" Margin="0,5,0,2"/>
+                                <ListBox Grid.Row="18"
                              x:Name="lstVideoFiles"
                              MinHeight="120"
                              MaxHeight="220"
@@ -533,11 +582,12 @@
                                     </ListBox.ItemContainerStyle>
                                 </ListBox>
 
-                                <StackPanel Grid.Row="12" Margin="0,10,0,0">
+                                <StackPanel Grid.Row="19" Margin="0,10,0,0">
                                     <CheckBox x:Name="cbVideoRemix"
                                   Content="Remix selected video"
                                   Margin="0,0,0,8"
-                                  IsChecked="{Binding VideoState.IsRemix, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                  IsChecked="{Binding VideoState.IsRemix, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                  Visibility="{Binding VideoState.SupportsRemix, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                                     <Button x:Name="btnDownloadVideo"
                                 Margin="0,0,0,2"

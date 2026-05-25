@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.IO;
 
@@ -80,6 +80,37 @@ namespace openAIApps.Data
             {
                 db.Database.ExecuteSqlRaw(
                     "ALTER TABLE Messages ADD COLUMN SourceRemoteId TEXT NOT NULL DEFAULT '';");
+            }
+
+            if (!ColumnExists(db, "Messages", "VideoProvider"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN VideoProvider TEXT NOT NULL DEFAULT '';"
+                );
+            }
+            if (!ColumnExists(db, "Messages", "VideoOperation"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN VideoOperation TEXT NOT NULL DEFAULT '';"
+                );
+            }
+            if (!ColumnExists(db, "Messages", "VideoFps"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN VideoFps TEXT NOT NULL DEFAULT '';"
+                );
+            }
+            if (!ColumnExists(db, "Messages", "VideoCameraMotion"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN VideoCameraMotion TEXT NOT NULL DEFAULT '';"
+                );
+            }
+            if (!ColumnExists(db, "Messages", "VideoGenerateAudio"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    "ALTER TABLE Messages ADD COLUMN VideoGenerateAudio INTEGER NOT NULL DEFAULT 0;"
+                );
             }
 
             // Ensure indexes exist even if DB was created before the model had them

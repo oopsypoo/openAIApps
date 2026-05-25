@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -69,8 +69,13 @@ namespace openAIApps.Data
         public string ImageQuality { get; set; } = string.Empty;
 
         // --- Video DNA ---
+        public string VideoProvider { get; set; } = string.Empty;
+        public string VideoOperation { get; set; } = string.Empty;
         public string VideoLength { get; set; } = string.Empty;
         public string VideoSize { get; set; } = string.Empty;
+        public string VideoFps { get; set; } = string.Empty;
+        public string VideoCameraMotion { get; set; } = string.Empty;
+        public bool VideoGenerateAudio { get; set; }
         public bool IsRemix { get; set; }
         public string RemoteId { get; set; } = string.Empty;
         public string SourceRemoteId { get; set; } = string.Empty;

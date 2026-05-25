@@ -1,6 +1,8 @@
-﻿using openAIApps.Data;
+using openAIApps.Data;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -17,17 +19,188 @@ namespace openAIApps
     public partial class MainWindow
     {
         private bool _isLoadingVideoSession;
+        private bool _isRefreshingVideoOptions;
+        private bool _videoStateEventsSubscribed;
         private void InitVideoState()
         {
-            VideoState.PromptText = string.Empty;
-            VideoState.ResponseText = string.Empty;
-            VideoState.SelectedModel = "sora-2";
-            VideoState.SelectedLength = "4";
-            VideoState.SelectedSize = "720x1280";
-            VideoState.IsRemix = false;
-            VideoState.SelectedLibraryVideo = null;
-            VideoState.SelectedSessionTurn = null;
+            if (!_videoStateEventsSubscribed)
+            {
+                VideoState.PropertyChanged += VideoState_PropertyChanged;
+                _videoStateEventsSubscribed = true;
+            }
+
+            ReplaceCollection(VideoState.AvailableProviders, VideoProviderCatalog.Providers);
+
+            _isRefreshingVideoOptions = true;
+            try
+            {
+                VideoState.PromptText = string.Empty;
+                VideoState.ResponseText = string.Empty;
+                VideoState.SelectedProvider = VideoProviderType.OpenAI;
+                VideoState.SelectedModel = "sora-2";
+                VideoState.SelectedLength = "4";
+                VideoState.SelectedSize = "720x1280";
+                VideoState.SelectedFps = null;
+                VideoState.SelectedCameraMotion = string.Empty;
+                VideoState.GenerateAudio = true;
+                VideoState.IsRemix = false;
+                VideoState.SelectedLibraryVideo = null;
+                VideoState.SelectedSessionTurn = null;
+            }
+            finally
+            {
+                _isRefreshingVideoOptions = false;
+            }
+
+            RefreshVideoOptionsForProvider();
         }
+
+        private void VideoState_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_isRefreshingVideoOptions)
+                return;
+
+            switch (e.PropertyName)
+            {
+                case nameof(VideoPanelState.SelectedProvider):
+                    RefreshVideoOptionsForProvider();
+                    break;
+                case nameof(VideoPanelState.SelectedModel):
+                    RefreshVideoOptionsForSelectedModel();
+                    break;
+            }
+        }
+
+        private void cmbVideoProvider_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isRefreshingVideoOptions)
+                return;
+
+            var selectedProvider = (cmbVideoProvider.SelectedItem as VideoProviderOption)?.ProviderType
+                ?? (cmbVideoProvider.SelectedValue is VideoProviderType providerType ? providerType : VideoState.SelectedProvider);
+
+            if (VideoState.SelectedProvider != selectedProvider)
+            {
+                VideoState.SelectedProvider = selectedProvider;
+            }
+
+            RefreshVideoOptionsForProvider();
+        }
+
+        private void cmbVideoModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isRefreshingVideoOptions)
+                return;
+
+            var selectedModelId = (cmbVideoModel.SelectedItem as VideoModelOption)?.Id
+                ?? cmbVideoModel.SelectedValue as string
+                ?? VideoState.SelectedModel;
+
+            if (!string.Equals(VideoState.SelectedModel, selectedModelId, StringComparison.OrdinalIgnoreCase))
+            {
+                VideoState.SelectedModel = selectedModelId;
+            }
+
+            RefreshVideoOptionsForSelectedModel();
+        }
+
+        private void RefreshVideoOptionsForProvider()
+        {
+            _isRefreshingVideoOptions = true;
+            try
+            {
+                var models = VideoProviderCatalog.GetModels(VideoState.SelectedProvider);
+                ReplaceCollection(VideoState.AvailableModels, models);
+
+                if (!models.Any(m => string.Equals(m.Id, VideoState.SelectedModel, StringComparison.OrdinalIgnoreCase)))
+                {
+                    VideoState.SelectedModel = models.FirstOrDefault()?.Id ?? string.Empty;
+                }
+            }
+            finally
+            {
+                _isRefreshingVideoOptions = false;
+            }
+
+            RefreshVideoOptionsForSelectedModel();
+        }
+
+        private void RefreshVideoOptionsForSelectedModel()
+        {
+            var selectedModel = VideoState.AvailableModels
+                .FirstOrDefault(m => string.Equals(m.Id, VideoState.SelectedModel, StringComparison.OrdinalIgnoreCase));
+
+            _isRefreshingVideoOptions = true;
+            try
+            {
+                ReplaceCollection(VideoState.AvailableLengths, selectedModel?.SupportedDurations ?? Array.Empty<string>());
+                ReplaceCollection(VideoState.AvailableSizes, selectedModel?.SupportedResolutions ?? Array.Empty<string>());
+                ReplaceCollection(VideoState.AvailableFpsValues, selectedModel?.SupportedFpsValues ?? Array.Empty<int>());
+                ReplaceCollection(VideoState.AvailableCameraMotions, selectedModel?.SupportedCameraMotions ?? Array.Empty<string>());
+
+                VideoState.SupportsFps = selectedModel?.SupportedFpsValues?.Count > 0;
+                VideoState.SupportsCameraMotion = selectedModel?.SupportedCameraMotions?.Count > 0;
+                VideoState.SupportsGenerateAudio = selectedModel?.SupportsGenerateAudio ?? false;
+                VideoState.SupportsRemix = selectedModel?.SupportsRemix ?? false;
+                VideoState.SupportsReferenceImage = selectedModel?.SupportsReferenceImage ?? false;
+
+                if (!VideoState.AvailableLengths.Contains(VideoState.SelectedLength))
+                {
+                    VideoState.SelectedLength = VideoState.AvailableLengths.FirstOrDefault() ?? string.Empty;
+                }
+
+                if (!VideoState.AvailableSizes.Contains(VideoState.SelectedSize))
+                {
+                    VideoState.SelectedSize = VideoState.AvailableSizes.FirstOrDefault() ?? string.Empty;
+                }
+
+                if (!VideoState.SupportsFps)
+                {
+                    VideoState.SelectedFps = null;
+                }
+                else if (!VideoState.SelectedFps.HasValue || !VideoState.AvailableFpsValues.Contains(VideoState.SelectedFps.Value))
+                {
+                    VideoState.SelectedFps = VideoState.AvailableFpsValues.FirstOrDefault();
+                }
+
+                if (!VideoState.SupportsCameraMotion)
+                {
+                    VideoState.SelectedCameraMotion = string.Empty;
+                }
+                else if (!VideoState.AvailableCameraMotions.Contains(VideoState.SelectedCameraMotion))
+                {
+                    VideoState.SelectedCameraMotion = VideoState.AvailableCameraMotions.FirstOrDefault() ?? string.Empty;
+                }
+
+                if (!VideoState.SupportsGenerateAudio)
+                {
+                    VideoState.GenerateAudio = false;
+                }
+                else if (VideoState.SelectedProvider == VideoProviderType.Ltx && !VideoState.GenerateAudio)
+                {
+                    VideoState.GenerateAudio = true;
+                }
+
+                if (!VideoState.SupportsRemix)
+                {
+                    VideoState.IsRemix = false;
+                }
+            }
+            finally
+            {
+                _isRefreshingVideoOptions = false;
+            }
+        }
+
+        private static void ReplaceCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
+        {
+            target.Clear();
+            foreach (var item in items ?? Enumerable.Empty<T>())
+            {
+                target.Add(item);
+            }
+        }
+
         private async Task LoadVideoSessionAsync(int sessionId)
         {
             if (sessionId <= 0)
@@ -98,6 +271,9 @@ namespace openAIApps
             {
                 VideoState.PromptText = lastUser.Content ?? string.Empty;
 
+                var provider = ResolveVideoProviderType(lastUser);
+                VideoState.SelectedProvider = provider;
+
                 if (!string.IsNullOrWhiteSpace(lastUser.ModelUsed))
                     VideoState.SelectedModel = lastUser.ModelUsed;
 
@@ -107,6 +283,15 @@ namespace openAIApps
                 if (!string.IsNullOrWhiteSpace(lastUser.VideoSize))
                     VideoState.SelectedSize = lastUser.VideoSize;
 
+                if (!string.IsNullOrWhiteSpace(lastUser.VideoFps) && int.TryParse(lastUser.VideoFps, out var fps))
+                    VideoState.SelectedFps = fps;
+                else if (provider == VideoProviderType.Ltx)
+                    VideoState.SelectedFps = VideoState.AvailableFpsValues.FirstOrDefault();
+                else
+                    VideoState.SelectedFps = null;
+
+                VideoState.SelectedCameraMotion = lastUser.VideoCameraMotion ?? string.Empty;
+                VideoState.GenerateAudio = lastUser.VideoGenerateAudio;
                 VideoState.IsRemix = lastUser.IsRemix;
             }
 
@@ -117,6 +302,23 @@ namespace openAIApps
                 ? GetVideoAssistantDisplayText(lastAssistant)
                 : string.Empty;
         }
+        private static VideoProviderType ResolveVideoProviderType(ChatMessage? message)
+        {
+            if (message != null && !string.IsNullOrWhiteSpace(message.VideoProvider) &&
+                Enum.TryParse<VideoProviderType>(message.VideoProvider, true, out var providerFromMetadata))
+            {
+                return providerFromMetadata;
+            }
+
+            if (!string.IsNullOrWhiteSpace(message?.ModelUsed) &&
+                message.ModelUsed.StartsWith("ltx-", StringComparison.OrdinalIgnoreCase))
+            {
+                return VideoProviderType.Ltx;
+            }
+
+            return VideoProviderType.OpenAI;
+        }
+
         private void SelectVideoLibraryItemFromHistory(IReadOnlyList<ChatMessage> history)
         {
             if (history == null || history.Count == 0)
@@ -136,6 +338,19 @@ namespace openAIApps
             }
 
             var itemToSelect = _videoHistory.FirstOrDefault(v => v.Id == assistantWithRemoteId.RemoteId);
+            if (itemToSelect == null)
+            {
+                itemToSelect = new VideoClient.VideoListItem
+                {
+                    Id = assistantWithRemoteId.RemoteId,
+                    Model = assistantWithRemoteId.ModelUsed,
+                    Status = InferLibraryItemStatus(assistantWithRemoteId),
+                    IsDownloaded = IsHistoryVideoDownloaded(assistantWithRemoteId),
+                    HasError = string.Equals(InferLibraryItemStatus(assistantWithRemoteId), "failed", StringComparison.OrdinalIgnoreCase)
+                };
+                _videoHistory.Add(itemToSelect);
+            }
+
             VideoState.SelectedLibraryVideo = itemToSelect;
 
             if (itemToSelect != null)
@@ -207,7 +422,16 @@ namespace openAIApps
             {
                 // THIS handles if it fails mid-way through processing
                 string errorDetail = $"Code: {finalStatus.Error.Code}\nMessage: {finalStatus.Error.Message}";
-                await _historyService.AddMessageAsync(sessionId, "assistant", $"Processing Failed: {finalStatus.Error.Message}");
+                await _historyService.AddMessageAsync(
+                    sessionId,
+                    "assistant",
+                    $"Processing Failed: {finalStatus.Error.Message}",
+                    model: VideoState.SelectedModel,
+                    videoLength: VideoState.SelectedLength,
+                    videoSize: VideoState.SelectedSize,
+                    remoteId: jobResponse.Id,
+                    videoProvider: VideoProviderType.OpenAI.ToString(),
+                    videoOperation: VideoState.IsRemix ? "remix" : "text-to-video");
                 //MessageBox.Show(errorDetail, "Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 _appStatus.Set($"Processing Error: {errorDetail}");
             }
@@ -215,8 +439,38 @@ namespace openAIApps
 
         private async void btnVideoGenerateClick(object sender, RoutedEventArgs e)
         {
-            string prompt = VideoState.PromptText ?? string.Empty;
-            bool isRemix = VideoState.IsRemix;
+            string prompt = txtVideoPrompt.Text ?? VideoState.PromptText ?? string.Empty;
+
+            var selectedProvider = (cmbVideoProvider.SelectedItem as VideoProviderOption)?.ProviderType
+                ?? (cmbVideoProvider.SelectedValue is VideoProviderType providerType ? providerType : VideoState.SelectedProvider);
+
+            var selectedModel = (cmbVideoModel.SelectedItem as VideoModelOption)?.Id
+                ?? cmbVideoModel.SelectedValue as string
+                ?? VideoState.SelectedModel;
+
+            string? selectedLength = cmbVideoLength.SelectedItem as string ?? VideoState.SelectedLength;
+            string? selectedSize = cmbVideoSize.SelectedItem as string ?? VideoState.SelectedSize;
+
+            int? selectedFps = cmbVideoFps.SelectedItem switch
+            {
+                int fps => fps,
+                string fpsText when int.TryParse(fpsText, out var parsedFps) => parsedFps,
+                _ => VideoState.SelectedFps
+            };
+
+            string? selectedCameraMotion = cmbVideoCameraMotion.SelectedItem as string ?? VideoState.SelectedCameraMotion;
+            bool generateAudio = cbVideoGenerateAudio.IsChecked ?? VideoState.GenerateAudio;
+
+            VideoState.PromptText = prompt;
+            VideoState.SelectedProvider = selectedProvider;
+            VideoState.SelectedModel = selectedModel;
+            VideoState.SelectedLength = selectedLength;
+            VideoState.SelectedSize = selectedSize;
+            VideoState.SelectedFps = selectedFps;
+            VideoState.SelectedCameraMotion = selectedCameraMotion;
+            VideoState.GenerateAudio = generateAudio;
+
+            bool isRemix = VideoState.IsRemix && VideoState.SupportsRemix;
 
             if (string.IsNullOrWhiteSpace(prompt))
             {
@@ -250,6 +504,14 @@ namespace openAIApps
             CurrentVideoMessages.Clear();
             VideoState.SelectedSessionTurn = null;
 
+            string videoProvider = selectedProvider.ToString();
+            string videoOperation = isRemix ? "remix" : "text-to-video";
+            string? videoFps = VideoState.SelectedFps?.ToString();
+            string? videoCameraMotion = string.IsNullOrWhiteSpace(VideoState.SelectedCameraMotion)
+                ? null
+                : VideoState.SelectedCameraMotion;
+            bool videoGenerateAudio = selectedProvider == VideoProviderType.Ltx && VideoState.GenerateAudio;
+
             await _historyService.AddMessageAsync(
                 sessionId,
                 "user",
@@ -258,8 +520,22 @@ namespace openAIApps
                 videoLength: VideoState.SelectedLength,
                 videoSize: VideoState.SelectedSize,
                 isRemix: isRemix,
-                sourceRemoteId: sourceVideoId
+                sourceRemoteId: sourceVideoId,
+                videoProvider: videoProvider,
+                videoOperation: videoOperation,
+                videoFps: videoFps,
+                videoCameraMotion: videoCameraMotion,
+                videoGenerateAudio: videoGenerateAudio
             );
+
+            if (selectedProvider == VideoProviderType.Ltx)
+            {
+                await HandleLtxVideoGenerationAsync(sessionId, prompt, sourceVideoId);
+                await LoadVideoSessionAsync(sessionId);
+                InitVideoList();
+                RefreshLogsTab();
+                return;
+            }
 
             VideoClient.ResponseVideo? videoResult;
 
@@ -294,8 +570,15 @@ namespace openAIApps
                     $"Error: {errorMsg}",
                     rawJson: rawJson,
                     model: VideoState.SelectedModel,
+                    videoLength: VideoState.SelectedLength,
+                    videoSize: VideoState.SelectedSize,
                     remoteId: videoResult?.Id,
-                    sourceRemoteId: sourceVideoId
+                    sourceRemoteId: sourceVideoId,
+                    videoProvider: videoProvider,
+                    videoOperation: videoOperation,
+                    videoFps: videoFps,
+                    videoCameraMotion: videoCameraMotion,
+                    videoGenerateAudio: videoGenerateAudio
                 );
 
                 MessageBox.Show($"API Error: {errorMsg}",
@@ -314,8 +597,15 @@ namespace openAIApps
                 isRemix ? "Remix task initiated..." : "Video task initiated...",
                 rawJson: JsonSerializer.Serialize(videoResult),
                 model: VideoState.SelectedModel,
+                videoLength: VideoState.SelectedLength,
+                videoSize: VideoState.SelectedSize,
                 remoteId: videoResult?.Id,
-                sourceRemoteId: sourceVideoId
+                sourceRemoteId: sourceVideoId,
+                videoProvider: videoProvider,
+                videoOperation: videoOperation,
+                videoFps: videoFps,
+                videoCameraMotion: videoCameraMotion,
+                videoGenerateAudio: videoGenerateAudio
             );
 
             if (videoResult != null && !string.IsNullOrEmpty(videoResult.Id))
@@ -330,7 +620,255 @@ namespace openAIApps
             }
 
             await LoadVideoSessionAsync(sessionId);
+            InitVideoList();
             RefreshLogsTab();
+        }
+
+        private async Task HandleLtxVideoGenerationAsync(int sessionId, string prompt, string? sourceVideoId)
+        {
+            if (_ltxVideoProvider == null)
+            {
+                const string missingKeyMessage = "LTX_API_KEY is not configured.";
+                VideoState.ResponseText = missingKeyMessage;
+                _appStatus.Set(missingKeyMessage);
+                MessageBox.Show(missingKeyMessage, "Missing LTX API key", MessageBoxButton.OK, MessageBoxImage.Warning);
+                await _historyService.AddMessageAsync(
+                    sessionId,
+                    "assistant",
+                    $"Error: {missingKeyMessage}",
+                    rawJson: missingKeyMessage,
+                    model: VideoState.SelectedModel,
+                    videoLength: VideoState.SelectedLength,
+                    videoSize: VideoState.SelectedSize,
+                    sourceRemoteId: sourceVideoId,
+                    videoProvider: VideoProviderType.Ltx.ToString(),
+                    videoOperation: "text-to-video",
+                    videoFps: VideoState.SelectedFps?.ToString(),
+                    videoCameraMotion: string.IsNullOrWhiteSpace(VideoState.SelectedCameraMotion) ? null : VideoState.SelectedCameraMotion,
+                    videoGenerateAudio: VideoState.GenerateAudio);
+                return;
+            }
+
+            try
+            {
+                var request = new VideoGenerationRequest
+                {
+                    ProviderType = VideoProviderType.Ltx,
+                    Prompt = prompt,
+                    Model = VideoState.SelectedModel,
+                    Duration = VideoState.SelectedLength,
+                    Resolution = VideoState.SelectedSize,
+                    Fps = VideoState.SelectedFps,
+                    CameraMotion = string.IsNullOrWhiteSpace(VideoState.SelectedCameraMotion) ? null : VideoState.SelectedCameraMotion,
+                    GenerateAudio = VideoState.GenerateAudio,
+                    IsRemix = false,
+                    SourceVideoId = sourceVideoId,
+                    ReferenceImagePath = _videoReferencePath
+                };
+
+                var submitResult = await _ltxVideoProvider.SubmitTextToVideoAsync(request, CancellationToken.None);
+                VideoState.ResponseText = submitResult.RawJson;
+
+                int assistantMsgId = await _historyService.AddMessageAsync(
+                    sessionId,
+                    "assistant",
+                    "LTX video task initiated...",
+                    rawJson: submitResult.RawJson,
+                    model: VideoState.SelectedModel,
+                    videoLength: VideoState.SelectedLength,
+                    videoSize: VideoState.SelectedSize,
+                    remoteId: submitResult.JobId,
+                    sourceRemoteId: sourceVideoId,
+                    videoProvider: VideoProviderType.Ltx.ToString(),
+                    videoOperation: submitResult.Operation,
+                    videoFps: VideoState.SelectedFps?.ToString(),
+                    videoCameraMotion: string.IsNullOrWhiteSpace(VideoState.SelectedCameraMotion) ? null : VideoState.SelectedCameraMotion,
+                    videoGenerateAudio: VideoState.GenerateAudio);
+
+                if (string.IsNullOrWhiteSpace(submitResult.JobId))
+                {
+                    _appStatus.Set("LTX submit did not return a job id.");
+                    return;
+                }
+
+                EnsureVideoHistoryItem(submitResult.JobId, VideoState.SelectedModel, submitResult.InitialStatus, false, false);
+                await MonitorLtxVideoJobAsync(submitResult.JobId, assistantMsgId);
+            }
+            catch (Exception ex)
+            {
+                VideoState.ResponseText = ex.Message;
+                _appStatus.Set($"LTX error: {ex.Message}");
+                await _historyService.AddMessageAsync(
+                    sessionId,
+                    "assistant",
+                    $"Error: {ex.Message}",
+                    rawJson: ex.ToString(),
+                    model: VideoState.SelectedModel,
+                    videoLength: VideoState.SelectedLength,
+                    videoSize: VideoState.SelectedSize,
+                    sourceRemoteId: sourceVideoId,
+                    videoProvider: VideoProviderType.Ltx.ToString(),
+                    videoOperation: "text-to-video",
+                    videoFps: VideoState.SelectedFps?.ToString(),
+                    videoCameraMotion: string.IsNullOrWhiteSpace(VideoState.SelectedCameraMotion) ? null : VideoState.SelectedCameraMotion,
+                    videoGenerateAudio: VideoState.GenerateAudio);
+                MessageBox.Show(ex.Message, "LTX generation failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task MonitorLtxVideoJobAsync(string jobId, int assistantMsgId)
+        {
+            var progressWindow = new ProgressWindow("Processing video...")
+            {
+                Owner = this
+            };
+            var cts = new CancellationTokenSource();
+            progressWindow.Canceled += (s, _) => cts.Cancel();
+            progressWindow.Show();
+
+            VideoPollResult? finalStatus = null;
+
+            try
+            {
+                while (true)
+                {
+                    cts.Token.ThrowIfCancellationRequested();
+                    finalStatus = await _ltxVideoProvider!.GetJobStatusAsync(jobId, cts.Token);
+                    progressWindow.UpdateProgress(GetProviderProgress(finalStatus));
+
+                    if (IsTerminalProviderStatus(finalStatus.Status))
+                        break;
+
+                    await Task.Delay(TimeSpan.FromSeconds(5), cts.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                await _historyService.UpdateMessageContentAndRawJsonAsync(
+                    assistantMsgId,
+                    "LTX video polling canceled.",
+                    finalStatus?.RawJson ?? string.Empty);
+                _appStatus.Set("LTX video polling canceled.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                await _historyService.UpdateMessageContentAndRawJsonAsync(
+                    assistantMsgId,
+                    $"LTX status check failed: {ex.Message}",
+                    ex.ToString());
+                EnsureVideoHistoryItem(jobId, VideoState.SelectedModel, "failed", false, true);
+                _appStatus.Set($"LTX status check failed: {ex.Message}");
+                return;
+            }
+            finally
+            {
+                progressWindow.Close();
+            }
+
+            if (finalStatus == null)
+                return;
+
+            VideoState.ResponseText = finalStatus.RawJson;
+
+            if (string.Equals(finalStatus.Status, "completed", StringComparison.OrdinalIgnoreCase))
+            {
+                var downloadWindow = new ProgressWindow("Downloading video...")
+                {
+                    Owner = this
+                };
+                downloadWindow.Show();
+
+                string? localFilePath = null;
+                try
+                {
+                    var progress = new Progress<double>(value => downloadWindow.UpdateProgress(value));
+                    localFilePath = await _ltxVideoProvider!.DownloadResultAsync(_settings.VideosFolder, jobId, finalStatus, progress, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    await _historyService.UpdateMessageContentAndRawJsonAsync(
+                        assistantMsgId,
+                        $"LTX download failed: {ex.Message}",
+                        ex.ToString());
+                    EnsureVideoHistoryItem(jobId, VideoState.SelectedModel, "failed", false, true);
+                    _appStatus.Set($"LTX download failed: {ex.Message}");
+                    return;
+                }
+                finally
+                {
+                    downloadWindow.Close();
+                }
+
+                string completionText = string.IsNullOrWhiteSpace(localFilePath)
+                    ? "LTX video completed."
+                    : $"LTX video completed. Saved to {Path.GetFileName(localFilePath)}.";
+
+                await _historyService.UpdateMessageContentAndRawJsonAsync(assistantMsgId, completionText, finalStatus.RawJson);
+
+                if (!string.IsNullOrWhiteSpace(localFilePath))
+                {
+                    await _historyService.LinkMediaAsync(assistantMsgId, localFilePath, "video/mp4");
+                }
+
+                EnsureVideoHistoryItem(jobId, VideoState.SelectedModel, finalStatus.Status, !string.IsNullOrWhiteSpace(localFilePath), false);
+                _appStatus.Set("Video Ready.");
+                return;
+            }
+
+            string failureText = string.IsNullOrWhiteSpace(finalStatus.ErrorMessage)
+                ? $"LTX video failed with status: {finalStatus.Status}."
+                : $"LTX video failed: {finalStatus.ErrorMessage}";
+
+            await _historyService.UpdateMessageContentAndRawJsonAsync(assistantMsgId, failureText, finalStatus.RawJson);
+            EnsureVideoHistoryItem(jobId, VideoState.SelectedModel, finalStatus.Status, false, true);
+            _appStatus.Set(failureText);
+        }
+
+        private static bool IsTerminalProviderStatus(string status)
+        {
+            return string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(status, "not_found", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static double GetProviderProgress(VideoPollResult status)
+        {
+            if (status.ProgressPercent.HasValue)
+                return Math.Clamp(status.ProgressPercent.Value, 0, 100);
+
+            if (string.Equals(status.Status, "completed", StringComparison.OrdinalIgnoreCase))
+                return 100;
+            if (string.Equals(status.Status, "processing", StringComparison.OrdinalIgnoreCase))
+                return 65;
+            if (string.Equals(status.Status, "pending", StringComparison.OrdinalIgnoreCase))
+                return 15;
+            if (string.Equals(status.Status, "failed", StringComparison.OrdinalIgnoreCase))
+                return 100;
+            return 5;
+        }
+
+        private void EnsureVideoHistoryItem(string videoId, string model, string status, bool isDownloaded, bool hasError)
+        {
+            if (string.IsNullOrWhiteSpace(videoId))
+                return;
+
+            var existing = _videoHistory.FirstOrDefault(v => string.Equals(v.Id, videoId, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
+            {
+                existing = new VideoClient.VideoListItem
+                {
+                    Id = videoId,
+                    Model = model,
+                    Status = status
+                };
+                _videoHistory.Add(existing);
+            }
+
+            existing.Model = model;
+            existing.Status = status;
+            existing.IsDownloaded = isDownloaded;
+            existing.HasError = hasError;
         }
 
         private void btnOpenVReference_Click(object sender, RoutedEventArgs e)
@@ -379,12 +917,37 @@ namespace openAIApps
             return File.Exists(path);
         }
 
+        private static string InferLibraryItemStatus(ChatMessage message)
+        {
+            if (message == null)
+                return string.Empty;
+
+            if (message.MediaFiles != null && message.MediaFiles.Any(m => !string.IsNullOrWhiteSpace(m.LocalPath) && File.Exists(m.LocalPath)))
+                return "completed";
+
+            if (!string.IsNullOrWhiteSpace(message.Content) &&
+                (message.Content.StartsWith("Error:", StringComparison.OrdinalIgnoreCase) ||
+                 message.Content.IndexOf("failed", StringComparison.OrdinalIgnoreCase) >= 0))
+                return "failed";
+
+            return "stored";
+        }
+
+        private bool IsHistoryVideoDownloaded(ChatMessage message)
+        {
+            if (message?.MediaFiles != null && message.MediaFiles.Any(m => !string.IsNullOrWhiteSpace(m.LocalPath) && File.Exists(m.LocalPath)))
+                return true;
+
+            return message != null && IsVideoDownloaded(message.RemoteId);
+        }
+
         private async void InitVideoList()
         {
+            _videoHistory.Clear();
+
             try
             {
                 var listResponse = await _videoClient.GetAllVideosAsync();
-                _videoHistory.Clear();
                 if (listResponse?.Data != null)
                 {
                     foreach (var item in listResponse.Data)
@@ -397,8 +960,33 @@ namespace openAIApps
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to load video list:\n{ex.Message}",
-                                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Debug.WriteLine($"Video list remote load failed: {ex.Message}");
+            }
+
+            try
+            {
+                var historyMessages = await _historyService.GetVideoLibraryMessagesAsync();
+                foreach (var message in historyMessages)
+                {
+                    if (string.IsNullOrWhiteSpace(message.RemoteId))
+                        continue;
+
+                    if (_videoHistory.Any(v => string.Equals(v.Id, message.RemoteId, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    _videoHistory.Add(new VideoClient.VideoListItem
+                    {
+                        Id = message.RemoteId,
+                        Model = message.ModelUsed,
+                        Status = InferLibraryItemStatus(message),
+                        IsDownloaded = IsHistoryVideoDownloaded(message),
+                        HasError = string.Equals(InferLibraryItemStatus(message), "failed", StringComparison.OrdinalIgnoreCase)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Video history merge failed: {ex.Message}");
             }
         }
 
@@ -411,6 +999,21 @@ namespace openAIApps
             }
 
             string videoId = selectedVideo.Id;
+            var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
+            var provider = ResolveVideoProviderType(message);
+
+            if (provider == VideoProviderType.Ltx)
+            {
+                if (IsVideoDownloaded(videoId))
+                {
+                    MessageBox.Show($"Video {videoId} is already available locally.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show("LTX videos are downloaded automatically when the job completes. This video is not currently available locally.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                return;
+            }
 
             // Create progress window
             var progressWindow = new ProgressWindow("Downloading video...");
@@ -432,7 +1035,6 @@ namespace openAIApps
                 MessageBox.Show($"Video {videoId} downloaded successfully.", "Download Complete", MessageBoxButton.OK, MessageBoxImage.Information);
                 //update list(item color) to green
                 selectedVideo.IsDownloaded = true;
-                var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
                 if (message != null)
                 {
                     string localFilePath = Path.Combine(_settings.VideosFolder, $"{selectedVideo.Id}.mp4");
@@ -451,20 +1053,41 @@ namespace openAIApps
         {
             if (VideoState.SelectedLibraryVideo is not VideoClient.VideoListItem selectedVideo) return;
 
-            // Ask once, and be specific
+            var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
+            var provider = ResolveVideoProviderType(message);
+
+            string confirmText = provider == VideoProviderType.Ltx
+                ? $"Permanently delete local video {selectedVideo.Id} and its logs?"
+                : $"Permanently delete video {selectedVideo.Id} from OpenAI and local storage?";
+
             var confirm = MessageBox.Show(
-                $"Permanently delete video {selectedVideo.Id} from OpenAI and local storage?",
+                confirmText,
                 "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
             if (confirm != MessageBoxResult.Yes) return;
 
             try
             {
-                // Instruction: Delete everything associated with this ID
-                await _videoClient.DeleteVideoAsync(selectedVideo.Id, _settings.VideosFolder);
 
-                // Database Cleanup
-                var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
+                if (provider == VideoProviderType.Ltx)
+                {
+                    string localFilePath = GetLocalVideoPath(selectedVideo.Id);
+                    if (File.Exists(localFilePath))
+                    {
+                        File.Delete(localFilePath);
+                    }
+
+                    string thumbPath = Path.ChangeExtension(localFilePath, ".thumb.png");
+                    if (File.Exists(thumbPath))
+                    {
+                        File.Delete(thumbPath);
+                    }
+                }
+                else
+                {
+                    await _videoClient.DeleteVideoAsync(selectedVideo.Id, _settings.VideosFolder);
+                }
+
                 if (message != null)
                 {
                     await _historyService.DeleteSessionAsync(message.ChatSessionId);
@@ -492,17 +1115,36 @@ namespace openAIApps
 
             try
             {
-                var status = await _videoClient.GetVideoStatusAsync(selectedVideo.Id);
+                var message = await _historyService.GetMessageByRemoteVideoIdAsync(selectedVideo.Id);
+                var provider = ResolveVideoProviderType(message);
+
+                if (provider == VideoProviderType.Ltx)
+                {
+                    if (_ltxVideoProvider == null)
+                    {
+                        VideoState.ResponseText = "LTX_API_KEY is not configured.";
+                        return;
+                    }
+
+                    var status = await _ltxVideoProvider.GetJobStatusAsync(selectedVideo.Id, CancellationToken.None);
+                    VideoState.ResponseText = status.RawJson;
+                    selectedVideo.Status = status.Status;
+                    selectedVideo.HasError = string.Equals(status.Status, "failed", StringComparison.OrdinalIgnoreCase);
+                    selectedVideo.IsDownloaded = IsVideoDownloaded(selectedVideo.Id);
+                    return;
+                }
+
+                var openAiStatus = await _videoClient.GetVideoStatusAsync(selectedVideo.Id);
 
                 // Show JSON string in your response TextBox (or format nicely)
-                VideoState.ResponseText = JsonSerializer.Serialize(status, new JsonSerializerOptions
+                VideoState.ResponseText = JsonSerializer.Serialize(openAiStatus, new JsonSerializerOptions
                 {
                     WriteIndented = true
                 });
 
                 // Optional: update your local _videoHistory so progress/status is current
-                selectedVideo.Status = status.Status;
-                selectedVideo.Progress = status.Progress;
+                selectedVideo.Status = openAiStatus.Status;
+                selectedVideo.Progress = openAiStatus.Progress;
 
             }
             catch (Exception ex)
@@ -648,9 +1290,13 @@ namespace openAIApps
 
             if (resetSettings)
             {
+                VideoState.SelectedProvider = VideoProviderType.OpenAI;
                 VideoState.SelectedModel = "sora-2";
                 VideoState.SelectedLength = "4";
                 VideoState.SelectedSize = "720x1280";
+                VideoState.SelectedFps = null;
+                VideoState.SelectedCameraMotion = string.Empty;
+                VideoState.GenerateAudio = true;
             }
 
             imgVideo.Source = new BitmapImage(new Uri("/no_pic.png", UriKind.Relative));
