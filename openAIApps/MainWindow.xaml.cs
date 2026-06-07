@@ -230,7 +230,6 @@ namespace openAIApps
                 case nameof(ResponsesPanelState.ImageGenOutputFormat):
                 case nameof(ResponsesPanelState.ImageGenOutputCompression):
                 case nameof(ResponsesPanelState.ImageGenBackground):
-                case nameof(ResponsesPanelState.ImageGenInputFidelity):
                 case nameof(ResponsesPanelState.UseTextTool):
                 case nameof(ResponsesPanelState.UseWebSearch):
                 case nameof(ResponsesPanelState.UseComputerUse):

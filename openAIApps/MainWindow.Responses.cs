@@ -163,7 +163,6 @@ namespace openAIApps
             ResponsesState.ImageGenOutputFormat = "jpeg";
             ResponsesState.ImageGenOutputCompression = 85;
             ResponsesState.ImageGenBackground = "auto";
-            ResponsesState.ImageGenInputFidelity = "high";
             //--------Developer function-tool-calls-----------
             ResponsesState.UseDeveloperTools = false;
             ResponsesState.DeveloperRepositoryRoot = string.Empty;
@@ -996,7 +995,6 @@ namespace openAIApps
 
                 ResponsesState.ImageGenOutputFormat = "jpeg";
                 ResponsesState.ImageGenBackground = "auto";
-                ResponsesState.ImageGenInputFidelity = "high";
                 ResponsesState.ImageGenOutputCompression = 85;
                 ApplyResponsesToolsToState(settingsMessage.ActiveTools);
                 ApplyDeveloperToolSettingsFromJson(settingsMessage.DeveloperToolSettingsJson);
@@ -1064,8 +1062,7 @@ namespace openAIApps
             _responsesClient.ImageGenOutputFormat = ResponsesState.ImageGenOutputFormat;
             _responsesClient.ImageGenOutputCompression = ResponsesState.ImageGenOutputCompression;
             _responsesClient.ImageGenBackground = ResponsesState.ImageGenBackground;
-            _responsesClient.ImageGenInputFidelity = ResponsesState.ImageGenInputFidelity;
-
+            
             _responsesClient.ActiveTools.Clear();
 
             if (ResponsesState.UseTextTool)
@@ -1121,8 +1118,6 @@ namespace openAIApps
             [JsonPropertyName("background")]
             public string Background { get; set; } = "auto";
 
-            [JsonPropertyName("input_fidelity")]
-            public string InputFidelity { get; set; } = "high";
         }
 
         private sealed class DeveloperToolSettingsSnapshot
@@ -1195,9 +1190,6 @@ namespace openAIApps
                     ? "auto"
                     : ResponsesState.ImageGenBackground,
 
-                InputFidelity = string.IsNullOrWhiteSpace(ResponsesState.ImageGenInputFidelity)
-                    ? "high"
-                    : ResponsesState.ImageGenInputFidelity
             };
 
             return JsonSerializer.Serialize(snapshot, new JsonSerializerOptions
@@ -1259,9 +1251,6 @@ namespace openAIApps
 
                 ResponsesState.ImageGenBackground =
                     string.IsNullOrWhiteSpace(snapshot.Background) ? "auto" : snapshot.Background;
-
-                ResponsesState.ImageGenInputFidelity =
-                    string.IsNullOrWhiteSpace(snapshot.InputFidelity) ? "high" : snapshot.InputFidelity;
 
                 if (snapshot.OutputCompression.HasValue)
                     ResponsesState.ImageGenOutputCompression = snapshot.OutputCompression.Value;
@@ -1370,8 +1359,6 @@ namespace openAIApps
             if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenBackground))
                 ResponsesState.ImageGenBackground = "auto";
 
-            if (string.IsNullOrWhiteSpace(ResponsesState.ImageGenInputFidelity))
-                ResponsesState.ImageGenInputFidelity = "high";
         }
 
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject

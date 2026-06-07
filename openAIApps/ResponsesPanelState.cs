@@ -143,19 +143,7 @@ namespace openAIApps
             }
         }
 
-        private string _imageGenInputFidelity = "high";
-        public string ImageGenInputFidelity
-        {
-            get => _imageGenInputFidelity;
-            set
-            {
-                if (_imageGenInputFidelity != value)
-                {
-                    _imageGenInputFidelity = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
+        
 
         public bool IsOutputCompressionEnabled =>
             string.Equals(ImageGenOutputFormat, "jpeg", StringComparison.OrdinalIgnoreCase) ||

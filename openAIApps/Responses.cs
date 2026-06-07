@@ -32,7 +32,7 @@ namespace openAIApps
         public string ImageGenOutputFormat { get; set; } = "jpeg";
         public int ImageGenOutputCompression { get; set; } = 85;
         public string ImageGenBackground { get; set; } = "auto";
-        public string ImageGenInputFidelity { get; set; } = "high";
+        
 
         public Responses(string apiKey)
         {
@@ -660,8 +660,7 @@ namespace openAIApps
                     ImageGenSize,
                     ImageGenOutputFormat,
                     compression,
-                    ImageGenBackground,
-                    ImageGenInputFidelity));
+                    ImageGenBackground));
             }
 
             return tools.ToArray();
@@ -793,15 +792,14 @@ namespace openAIApps
                 string size,
                 string outputFormat,
                 int? outputCompression,
-                string background,
-                string inputFidelity)
+                string background)
             {
                 Type = "image_generation";
                 Quality = quality ?? "auto";
                 Size = size ?? "auto";
                 OutputFormat = string.IsNullOrWhiteSpace(outputFormat) ? "jpeg" : outputFormat;
                 Background = string.IsNullOrWhiteSpace(background) ? "auto" : background;
-                InputFidelity = string.IsNullOrWhiteSpace(inputFidelity) ? "high" : inputFidelity;
+                
 
                 if (outputCompression.HasValue)
                     OutputCompression = outputCompression.Value;
@@ -822,9 +820,7 @@ namespace openAIApps
 
             [JsonPropertyName("background")]
             public string Background { get; set; } = "auto";
-
-            [JsonPropertyName("input_fidelity")]
-            public string InputFidelity { get; set; } = "high";
+            
         }
 
 

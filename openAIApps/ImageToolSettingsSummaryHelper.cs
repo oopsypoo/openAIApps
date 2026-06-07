@@ -23,8 +23,6 @@ namespace openAIApps
             [JsonPropertyName("background")]
             public string Background { get; set; }
 
-            [JsonPropertyName("input_fidelity")]
-            public string InputFidelity { get; set; }
         }
 
         public static string Build(string json)
@@ -54,9 +52,6 @@ namespace openAIApps
 
                 if (s.OutputCompression.HasValue)
                     parts.Add($"comp: {s.OutputCompression.Value}");
-
-                if (!string.IsNullOrWhiteSpace(s.InputFidelity))
-                    parts.Add($"fidelity: {s.InputFidelity}");
 
                 return string.Join(" | ", parts);
             }
