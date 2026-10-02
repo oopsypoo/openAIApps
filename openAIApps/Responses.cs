@@ -1,4 +1,4 @@
-﻿using openAIApps.Services;
+using openAIApps.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -136,14 +136,28 @@ namespace openAIApps
                 ? string.Join(", ", developerToolsOptions.AllowedExtensions)
                 : "(application-defined)";
 
-            string toolModeInstructions = developerToolsOptions.ReadOnlyOnly
-                ? @"You have access to read-only local developer tools."
-                : @"You have access to local developer tools that may include both read and write capabilities.
+            string toolModeInstructions;
+            if (developerToolsOptions.ReadOnlyOnly)
+            {
+                toolModeInstructions = @"You have access to read-only local developer tools.";
+            }
+            else if (developerToolsOptions.RequireWriteConfirmation)
+            {
+                toolModeInstructions = @"You have access to local developer tools that may include both read and write capabilities.
                     Before using any write-capable tool, you must first inspect the relevant files, present a concise change plan, identify which files will be changed or created, and wait for explicit user approval.
                     Never perform any write or file creation until the user has explicitly approved the proposed changes.
                     Prefer targeted edits over full-file rewrites when practical.
                     Minimize the number of files changed.
                     Do not claim to modify files directly unless a write-capable tool succeeds.";
+            }
+            else
+            {
+                toolModeInstructions = @"You have access to local developer tools that may include both read and write capabilities.
+                    Automatic file changes are enabled. Before using a write-capable tool, inspect the relevant files and make only targeted, minimal changes.
+                    Do not wait for a separate approval before using an enabled write tool.
+                    Clearly summarize completed changes in your final response.
+                    Do not claim to modify files directly unless a write-capable tool succeeds.";
+            }
 
             return
                     $@"{baseInstructions}
@@ -165,6 +179,12 @@ namespace openAIApps
                         - Writable file types follow the same allowed extensions as readable file types.
                         - If approval is ambiguous, ask for clarification.";
         }
+        private static bool IsWriteDeveloperTool(string toolName)
+        {
+            return string.Equals(toolName, "write_project_file", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(toolName, "replace_in_project_file", StringComparison.OrdinalIgnoreCase);
+        }
+
         private object[] GetLocalFunctionTools(DeveloperToolsOptions developerToolsOptions)
         {
             if (developerToolsOptions == null || !developerToolsOptions.Enabled)
@@ -466,7 +486,12 @@ namespace openAIApps
                 progress?.Report($"Model requested {functionCalls.Count} local tool call(s)...");
                 foreach (var call in functionCalls)
                 {
-                    if (confirmLocalCallAsync != null)
+                    bool isWriteTool = IsWriteDeveloperTool(call.Name);
+                    bool requiresConfirmation = isWriteTool
+                        ? developerToolsOptions.RequireWriteConfirmation
+                        : developerToolsOptions.RequireConfirmation;
+
+                    if (requiresConfirmation && confirmLocalCallAsync != null)
                     {
                         progress?.Report($"Running local tool: {call.Name}...");
                         bool allowed = await confirmLocalCallAsync(call.Name, call.Arguments ?? "{}");

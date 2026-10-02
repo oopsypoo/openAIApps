@@ -1296,9 +1296,14 @@
                                                 <StackPanel Grid.Row="7">
                                                     <CheckBox Content="Allow read-only only"
                                                               IsChecked="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
-                                                    <CheckBox Content="Require confirmation before local calls"
+                                                    <CheckBox Content="Require confirmation before read-only local calls"
+                                                              ToolTip="Prompt before the AI runs search, read, list, or diagnostics tools."
                                                               IsChecked="{Binding ResponsesState.DeveloperRequireConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                                    <CheckBox Content="Require approval before AI changes files"
+                                                              ToolTip="When enabled, every file write or replacement must be reviewed and approved before it is applied."
+                                                              IsChecked="{Binding ResponsesState.DeveloperRequireWriteConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                                                     <CheckBox Content="Show tool call logs"
+                                                              ToolTip="Show the persisted audit trail of local developer tool calls. Logging continues when this is unchecked."
                                                               IsChecked="{Binding ResponsesState.DeveloperShowToolLogs, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
                                                 </StackPanel>
                                             </Grid>
@@ -1385,7 +1390,7 @@
                                 <Expander Grid.Row="9"
                                           Margin="0,8,0,0"
                                           Header="Local Tool Call Logs"
-                                          Visibility="{Binding ResponsesState.UseDeveloperTools,
+                                          Visibility="{Binding ResponsesState.DeveloperToolLogsVisible,
                                                         RelativeSource={RelativeSource AncestorType=Window},
                                                         Converter={StaticResource BoolToVisibilityConverter}}"
                                           IsExpanded="False">

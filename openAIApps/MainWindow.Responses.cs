@@ -169,6 +169,7 @@ namespace openAIApps
             ResponsesState.DeveloperScope = "repository";
             ResponsesState.DeveloperAllowReadOnlyOnly = true;
             ResponsesState.DeveloperRequireConfirmation = false;
+            ResponsesState.DeveloperRequireWriteConfirmation = true;
             ResponsesState.DeveloperShowToolLogs = true;
             ResponsesState.DeveloperToolSearchProjectText = true;
             ResponsesState.DeveloperToolReadProjectFile = true;
@@ -410,6 +411,7 @@ namespace openAIApps
             ResponsesState.DeveloperScope = "repository";
             ResponsesState.DeveloperAllowReadOnlyOnly = true;
             ResponsesState.DeveloperRequireConfirmation = false;
+            ResponsesState.DeveloperRequireWriteConfirmation = true;
             ResponsesState.DeveloperShowToolLogs = true;
             ResponsesState.DeveloperToolSearchProjectText = true;
             ResponsesState.DeveloperToolReadProjectFile = true;
@@ -1155,6 +1157,9 @@ namespace openAIApps
             [JsonPropertyName("require_confirmation")]
             public bool RequireConfirmation { get; set; }
 
+            [JsonPropertyName("require_write_confirmation")]
+            public bool RequireWriteConfirmation { get; set; } = true;
+
             [JsonPropertyName("show_tool_logs")]
             public bool ShowToolLogs { get; set; } = true;
 
@@ -1217,6 +1222,7 @@ namespace openAIApps
 
                 ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
                 RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
+                RequireWriteConfirmation = ResponsesState.DeveloperRequireWriteConfirmation,
                 ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
 
                 AllowedExtensionsCsv = string.IsNullOrWhiteSpace(ResponsesState.DeveloperAllowedExtensionsCsv)
@@ -1290,6 +1296,7 @@ namespace openAIApps
 
                 ResponsesState.DeveloperAllowReadOnlyOnly = snapshot.ReadOnlyOnly;
                 ResponsesState.DeveloperRequireConfirmation = snapshot.RequireConfirmation;
+                ResponsesState.DeveloperRequireWriteConfirmation = snapshot.RequireWriteConfirmation;
                 ResponsesState.DeveloperShowToolLogs = snapshot.ShowToolLogs;
                 ResponsesState.DeveloperAllowedExtensionsCsv =
                     string.IsNullOrWhiteSpace(snapshot.AllowedExtensionsCsv)
@@ -1475,6 +1482,7 @@ namespace openAIApps
 
                 ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
                 RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
+                RequireWriteConfirmation = ResponsesState.DeveloperRequireWriteConfirmation,
                 ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
 
                 SearchProjectTextEnabled = ResponsesState.DeveloperToolSearchProjectText,
@@ -1500,9 +1508,6 @@ namespace openAIApps
 
             if (isWriteTool)
                 return await ShowPendingToolReviewAsync(toolName, argumentsJson);
-
-            if (!ResponsesState.DeveloperRequireConfirmation)
-                return true;
 
             string message =
                 $"Allow local tool call?\n\n" +
@@ -1834,9 +1839,6 @@ The assistant wants to replace text in an existing file.
 
         private Task LogDeveloperToolCallAsync(string toolName, string argumentsJson, string resultJson)
         {
-            if (!ResponsesState.DeveloperShowToolLogs)
-                return Task.CompletedTask;
-
             Dispatcher.Invoke(() =>
             {
                 _appStatus.Set($"Local tool used: {toolName}");

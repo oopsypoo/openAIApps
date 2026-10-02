@@ -1,4 +1,4 @@
-﻿namespace openAIApps.Services
+namespace openAIApps.Services
 {
     public sealed class DeveloperToolsOptions
     {
@@ -9,6 +9,7 @@
 
         public bool ReadOnlyOnly { get; set; } = true;
         public bool RequireConfirmation { get; set; } = false;
+        public bool RequireWriteConfirmation { get; set; } = true;
         public bool ShowToolLogs { get; set; } = true;
 
         public bool SearchProjectTextEnabled { get; set; } = true;

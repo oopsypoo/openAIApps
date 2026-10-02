@@ -165,6 +165,7 @@ namespace openAIApps
                 _useDeveloperTools = value;
                 OnPropertyChanged(nameof(UseDeveloperTools));
                 OnPropertyChanged(nameof(IsDeveloperToolsOptionsVisible));
+                OnPropertyChanged(nameof(DeveloperToolLogsVisible));
             }
         }
 
@@ -204,6 +205,18 @@ namespace openAIApps
             }
         }
 
+        private bool _developerRequireWriteConfirmation = true;
+        public bool DeveloperRequireWriteConfirmation
+        {
+            get => _developerRequireWriteConfirmation;
+            set
+            {
+                if (_developerRequireWriteConfirmation == value) return;
+                _developerRequireWriteConfirmation = value;
+                OnPropertyChanged(nameof(DeveloperRequireWriteConfirmation));
+            }
+        }
+
         private bool _developerRequireConfirmation;
         public bool DeveloperRequireConfirmation
         {
@@ -216,6 +229,8 @@ namespace openAIApps
             }
         }
 
+        public bool DeveloperToolLogsVisible => UseDeveloperTools && DeveloperShowToolLogs;
+
         private bool _developerShowToolLogs = true;
         public bool DeveloperShowToolLogs
         {
@@ -225,6 +240,7 @@ namespace openAIApps
                 if (_developerShowToolLogs == value) return;
                 _developerShowToolLogs = value;
                 OnPropertyChanged(nameof(DeveloperShowToolLogs));
+                OnPropertyChanged(nameof(DeveloperToolLogsVisible));
             }
         }
 
