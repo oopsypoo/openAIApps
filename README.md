@@ -1,4 +1,40 @@
 # openAIApps
+
+## 2026-10-02 — Developer Tools for local .NET workspaces
+
+The **Responses** experience includes optional **Developer Tools** that let an OpenAI model work with a local C#/.NET workspace through constrained, auditable tools. The user chooses the workspace and explicitly enables each capability; the model is not given an unrestricted shell or arbitrary filesystem access.
+
+### Workspace workflow
+
+- For an existing repository or solution, select its folder as the **Workspace root**.
+- To create a project, initially select the parent folder where the new solution should be created.
+- When creation succeeds, the app automatically changes the Workspace root to the newly created solution folder. Later reads, edits, builds, cleans, rebuilds, and runs use that new root.
+- Tool-call logs record the workspace root used for each operation, making the creation-parent and created-project transition clear in saved sessions.
+
+### Available capabilities
+
+| Capability | What it does |
+|---|---|
+| Inspect workspace files | Search project text, read selected file ranges, and list files within the configured workspace root. |
+| Change files | Create/write project files or make exact text replacements when the corresponding write capability is enabled. |
+| Create .NET projects | Create a constrained solution and one project in a new direct child folder using approved `dotnet new` templates. |
+| Build, clean, and rebuild | Run controlled `dotnet build`, `dotnet clean`, or clean-then-build operations for a `.csproj`, `.sln`, or `.slnx` target. |
+| Run in Debug | Start an already-built .NET project in the `Debug` configuration and track the launched process. |
+| Manage launched processes | List Developer Tools-launched processes, read their bounded output, and stop an individual tracked process. |
+
+### Safety and permissions
+
+Developer Tools remain disabled until enabled by the user. Operations are constrained to the selected Workspace root and supported file/solution types.
+
+- File writes and replacements can require per-operation approval. Users may disable this approval when they want enabled write tools to apply changes automatically.
+- Creating projects, building, cleaning, rebuilding, running, and stopping launched processes are separate execution capabilities. They can require their own approval, independently of file-change approval.
+- Project creation is limited to a new direct child directory of the initial workspace root and an application-maintained allowlist of .NET templates.
+- Build, clean, and rebuild accept only supported `.csproj`, `.sln`, and `.slnx` targets and controlled `Debug` or `Release` configurations.
+- Run operations launch only tracked .NET projects through a constrained `dotnet run --no-build` flow; there is no generic shell, PowerShell, batch-file, or arbitrary executable tool.
+- Tool-call logging continues even when the log panel is hidden. Logs are saved with the conversation and include the operation, arguments, result, and workspace root.
+
+> **Note:** The project creation and build/run capabilities use the .NET CLI to generate and operate on standard solutions/projects. They do not automate the Visual Studio UI, but generated `.sln`/`.slnx` solutions can be opened normally in Visual Studio.
+
 **2026-03-15** Refactored WPF UI and session state management
  - Continued the WPF refactor using an MVVM-lite approach: introduced bindable panel-state objects instead of doing a full MVVM rewrite.
  - Logs tab now uses `LogsPanelState` for filter/search state, with XAML bindings and centralized filtering.
@@ -49,4 +85,4 @@ But if I'm right OpenAI offers a way so that you do not have to use this. Which 
 **GPTs**
 Somehing to look into in the future? See their quotes below:
 _We launched a new feature called GPTs. GPTs combine instructions, data, and capabilities into a customized version of ChatGPT_
-_In addition to the capabilities built by OpenAI such as DALL·E or Advanced Data Analysis, GPTs can call developer-defined actions as well. GPTs let developers control a larger portion of experience. We purposefully architected plugins and actions very similarly, and it takes only a few minutes to turn an existing plugin into an action_
+_We launched a new feature called GPTs. GPTs combine instructions, data, and capabilities into a customized version of ChatGPT_
