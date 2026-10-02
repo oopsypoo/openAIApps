@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace openAIApps.Data
 {
@@ -6,6 +6,7 @@ namespace openAIApps.Data
     {
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string ToolName { get; set; } = string.Empty;
+        public string WorkspaceRoot { get; set; } = string.Empty;
         public string ArgumentsJson { get; set; } = string.Empty;
         public string ResultJson { get; set; } = string.Empty;
         public string TimestampText => Timestamp.ToString("HH:mm:ss");

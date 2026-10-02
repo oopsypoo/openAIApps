@@ -217,6 +217,18 @@ namespace openAIApps
             }
         }
 
+        private bool _developerRequireExecutionConfirmation = true;
+        public bool DeveloperRequireExecutionConfirmation
+        {
+            get => _developerRequireExecutionConfirmation;
+            set
+            {
+                if (_developerRequireExecutionConfirmation == value) return;
+                _developerRequireExecutionConfirmation = value;
+                OnPropertyChanged(nameof(DeveloperRequireExecutionConfirmation));
+            }
+        }
+
         private bool _developerRequireConfirmation;
         public bool DeveloperRequireConfirmation
         {
@@ -280,6 +292,42 @@ namespace openAIApps
             }
         }
 
+        private bool _developerToolCreateDotNetSolution;
+        public bool DeveloperToolCreateDotNetSolution
+        {
+            get => _developerToolCreateDotNetSolution;
+            set
+            {
+                if (_developerToolCreateDotNetSolution == value) return;
+                _developerToolCreateDotNetSolution = value;
+                OnPropertyChanged(nameof(DeveloperToolCreateDotNetSolution));
+            }
+        }
+
+        private bool _developerToolBuildDotNetProject;
+        public bool DeveloperToolBuildDotNetProject
+        {
+            get => _developerToolBuildDotNetProject;
+            set
+            {
+                if (_developerToolBuildDotNetProject == value) return;
+                _developerToolBuildDotNetProject = value;
+                OnPropertyChanged(nameof(DeveloperToolBuildDotNetProject));
+            }
+        }
+
+        private bool _developerToolRunDotNetProject;
+        public bool DeveloperToolRunDotNetProject
+        {
+            get => _developerToolRunDotNetProject;
+            set
+            {
+                if (_developerToolRunDotNetProject == value) return;
+                _developerToolRunDotNetProject = value;
+                OnPropertyChanged(nameof(DeveloperToolRunDotNetProject));
+            }
+        }
+
         private bool _developerToolRunDiagnostics;
         public bool DeveloperToolRunDiagnostics
         {
@@ -292,7 +340,7 @@ namespace openAIApps
             }
         }
         //Set static, because of availability.It's called upon many times. Use GetDefaultAllowedExtensionsCsv()
-        private static string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.json,.xml,.md,.config,.props,.targets,.xaml,.js,.css,.html";
+        private static string _developerAllowedExtensionsCsv = ".cs,.xaml,.csproj,.sln,.slnx,.json,.xml,.md,.config,.props,.targets,.xaml,.js,.css,.html";
         /// <summary>
         /// Returns a comma-separated list of the default allowed file extensions for developers.
         /// </summary>

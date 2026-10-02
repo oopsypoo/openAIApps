@@ -1248,7 +1248,7 @@
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
-                                                <Label Grid.Row="0" Content="Repository root" />
+                                                <Label Grid.Row="0" Content="Workspace root" />
                                                 <DockPanel Grid.Row="1" LastChildFill="True">
                                                     <Button Content="Browse"
                                                             Width="70"
@@ -1277,8 +1277,18 @@
                                                               IsChecked="{Binding ResponsesState.DeveloperToolReadProjectFile, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
                                                     <CheckBox Content="List project files"
                                                               IsChecked="{Binding ResponsesState.DeveloperToolListProjectFiles, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
-                                                    <CheckBox Content="Run diagnostics"
-                                                              IsChecked="{Binding ResponsesState.DeveloperToolRunDiagnostics, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
+                                                    <CheckBox Content="Create .NET solution and project"
+                                                              ToolTip="Creates a constrained .NET solution and project in one new child folder below the workspace root, then switches the workspace root to that new solution folder."
+                                                              IsChecked="{Binding ResponsesState.DeveloperToolCreateDotNetSolution, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                              IsEnabled="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBooleanConverter}}"/>
+                                                    <CheckBox Content="Build, clean, or rebuild .NET project or solution"
+                                                              ToolTip="Enables dotnet build, dotnet clean, and clean-then-build for a selected .csproj, .sln, or .slnx file."
+                                                              IsChecked="{Binding ResponsesState.DeveloperToolBuildDotNetProject, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                              IsEnabled="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBooleanConverter}}"/>
+                                                    <CheckBox Content="Run .NET project (Debug)"
+                                                              ToolTip="Runs a built .NET project in Debug configuration and lets the AI inspect or stop the developer-launched process."
+                                                              IsChecked="{Binding ResponsesState.DeveloperToolRunDotNetProject, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                              IsEnabled="{Binding ResponsesState.DeveloperAllowReadOnlyOnly, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBooleanConverter}}"/>
 
                                                     <CheckBox Content="Write project file"
                                                               IsChecked="{Binding ResponsesState.DeveloperToolWriteProjectFile, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
@@ -1302,9 +1312,16 @@
                                                     <CheckBox Content="Require approval before AI changes files"
                                                               ToolTip="When enabled, every file write or replacement must be reviewed and approved before it is applied."
                                                               IsChecked="{Binding ResponsesState.DeveloperRequireWriteConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                                    <CheckBox Content="Require approval before AI executes project operations"
+                                                              ToolTip="When enabled, solution creation, build, run, and process-stop operations require approval before dotnet is started."
+                                                              IsChecked="{Binding ResponsesState.DeveloperRequireExecutionConfirmation, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"/>
                                                     <CheckBox Content="Show tool call logs"
                                                               ToolTip="Show the persisted audit trail of local developer tool calls. Logging continues when this is unchecked."
                                                               IsChecked="{Binding ResponsesState.DeveloperShowToolLogs, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+                                                <Button Content="Stop all Developer Tools applications"
+                                                        Margin="0,6,0,0"
+                                                        ToolTip="Stops applications that were launched by the Run .NET project tool in this application instance."
+                                                        Click="btnDeveloperStopAllProcesses_Click"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Grid>
@@ -1409,7 +1426,7 @@
                                                        Margin="0,0,0,6"
                                                        FontStyle="Italic"
                                                        Foreground="DimGray"
-                                                       Text="Shows local developer tool calls for the current session." />
+                                                       Text="Shows local developer tool calls and the workspace root used for each call." />
 
                                             <ListBox Grid.Row="1"
                                                      MaxHeight="180"
@@ -1435,6 +1452,12 @@
                                                                            Foreground="DarkSlateBlue"
                                                                            TextWrapping="Wrap"
                                                                            Text="{Binding ResultSummary, Mode=OneWay}" />
+
+                                                                 <TextBlock Margin="0,2,0,0"
+                                                                            FontSize="11"
+                                                                            Foreground="SlateGray"
+                                                                            TextWrapping="Wrap"
+                                                                            Text="{Binding WorkspaceRoot, Mode=OneWay}" />
 
                                                                 <TextBlock Margin="0,4,0,0"
                                                                            FontSize="11"

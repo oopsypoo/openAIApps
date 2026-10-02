@@ -170,11 +170,15 @@ namespace openAIApps
             ResponsesState.DeveloperAllowReadOnlyOnly = true;
             ResponsesState.DeveloperRequireConfirmation = false;
             ResponsesState.DeveloperRequireWriteConfirmation = true;
+            ResponsesState.DeveloperRequireExecutionConfirmation = true;
             ResponsesState.DeveloperShowToolLogs = true;
             ResponsesState.DeveloperToolSearchProjectText = true;
             ResponsesState.DeveloperToolReadProjectFile = true;
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
+            ResponsesState.DeveloperToolCreateDotNetSolution = false;
+            ResponsesState.DeveloperToolBuildDotNetProject = false;
+            ResponsesState.DeveloperToolRunDotNetProject = false;
             ResponsesState.DeveloperAllowedExtensionsCsv = ResponsesPanelState.GetDefaultAllowedExtensionsCsv();
             ApplyResponsesStateToClient();
         }
@@ -386,8 +390,12 @@ namespace openAIApps
             }
         }
 
-        private async Task ResetResponsesUi(bool clearPrompt = true)
+        private async Task ResetResponsesUi(bool clearPrompt = true, bool preserveWorkspaceRoot = false)
         {
+            string workspaceRoot = preserveWorkspaceRoot
+                ? ResponsesState.DeveloperRepositoryRoot ?? string.Empty
+                : string.Empty;
+
             CurrentChatMessages.Clear();
             ResponsesState.SelectedTurn = null;
             
@@ -400,6 +408,10 @@ namespace openAIApps
             ClearDeveloperToolCallLogs();
             HideResponsesImagePreview();
             ResetDeveloperToolsState();
+
+            if (!string.IsNullOrWhiteSpace(workspaceRoot) && Directory.Exists(workspaceRoot))
+                ResponsesState.DeveloperRepositoryRoot = Path.GetFullPath(workspaceRoot);
+
             await RenderResponsesMarkdownAsync(string.Empty);
             if (_responsesClient != null)
                 _responsesClient.ClearConversation();
@@ -412,11 +424,15 @@ namespace openAIApps
             ResponsesState.DeveloperAllowReadOnlyOnly = true;
             ResponsesState.DeveloperRequireConfirmation = false;
             ResponsesState.DeveloperRequireWriteConfirmation = true;
+            ResponsesState.DeveloperRequireExecutionConfirmation = true;
             ResponsesState.DeveloperShowToolLogs = true;
             ResponsesState.DeveloperToolSearchProjectText = true;
             ResponsesState.DeveloperToolReadProjectFile = true;
             ResponsesState.DeveloperToolListProjectFiles = false;
             ResponsesState.DeveloperToolRunDiagnostics = false;
+            ResponsesState.DeveloperToolCreateDotNetSolution = false;
+            ResponsesState.DeveloperToolBuildDotNetProject = false;
+            ResponsesState.DeveloperToolRunDotNetProject = false;
             ResponsesState.DeveloperToolWriteProjectFile = false;
             ResponsesState.DeveloperToolReplaceInProjectFile = false;
             ResponsesState.DeveloperPendingReviewVisible = false;
@@ -634,7 +650,9 @@ namespace openAIApps
                         developerToolsOptions,
                         confirmLocalCallAsync: ConfirmDeveloperToolCallAsync,
                         onToolCallLoggedAsync: LogDeveloperToolCallAsync,
+                        onWorkspaceRootChangedAsync: UpdateDeveloperWorkspaceRootAsync,
                         progress: progress);
+                    developerToolSettingsJson = BuildDeveloperToolSettingsJson();
                     string toolCallLogJson = BuildDeveloperToolCallLogJson();
                     if (result != null)
                     {
@@ -704,9 +722,9 @@ namespace openAIApps
         private async void btnResponsesNewChat_Click(object sender, RoutedEventArgs e)
         {
             _activeResponsesSessionId = null;
-            await ResetResponsesUi(clearPrompt: true);
+            await ResetResponsesUi(clearPrompt: true, preserveWorkspaceRoot: true);
 
-            _appStatus.Set("New session started. History will be saved once you send a message.");
+            _appStatus.Set("New session started. The previous workspace root is retained; Developer Tools remains disabled until you enable it.");
         }
 
         private async void btnResponsesDeleteChat_Click(object sender, RoutedEventArgs e)
@@ -1145,6 +1163,15 @@ namespace openAIApps
             [JsonPropertyName("run_diagnostics")]
             public bool RunDiagnostics { get; set; }
             
+            [JsonPropertyName("create_dotnet_solution")]
+            public bool CreateDotNetSolution { get; set; }
+
+            [JsonPropertyName("build_dotnet_project")]
+            public bool BuildDotNetProject { get; set; }
+
+            [JsonPropertyName("run_dotnet_project")]
+            public bool RunDotNetProject { get; set; }
+
             [JsonPropertyName("write_project_file")]
             public bool WriteProjectFile { get; set; }
 
@@ -1159,6 +1186,9 @@ namespace openAIApps
 
             [JsonPropertyName("require_write_confirmation")]
             public bool RequireWriteConfirmation { get; set; } = true;
+
+            [JsonPropertyName("require_execution_confirmation")]
+            public bool RequireExecutionConfirmation { get; set; } = true;
 
             [JsonPropertyName("show_tool_logs")]
             public bool ShowToolLogs { get; set; } = true;
@@ -1217,12 +1247,16 @@ namespace openAIApps
                 ReadProjectFile = ResponsesState.DeveloperToolReadProjectFile,
                 ListProjectFiles = ResponsesState.DeveloperToolListProjectFiles,
                 RunDiagnostics = ResponsesState.DeveloperToolRunDiagnostics,
+                CreateDotNetSolution = ResponsesState.DeveloperToolCreateDotNetSolution,
+                BuildDotNetProject = ResponsesState.DeveloperToolBuildDotNetProject,
+                RunDotNetProject = ResponsesState.DeveloperToolRunDotNetProject,
                 WriteProjectFile = ResponsesState.DeveloperToolWriteProjectFile,
                 ReplaceInProjectFile = ResponsesState.DeveloperToolReplaceInProjectFile,
 
                 ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
                 RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
                 RequireWriteConfirmation = ResponsesState.DeveloperRequireWriteConfirmation,
+                RequireExecutionConfirmation = ResponsesState.DeveloperRequireExecutionConfirmation,
                 ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
 
                 AllowedExtensionsCsv = string.IsNullOrWhiteSpace(ResponsesState.DeveloperAllowedExtensionsCsv)
@@ -1291,12 +1325,16 @@ namespace openAIApps
                 ResponsesState.DeveloperToolReadProjectFile = snapshot.ReadProjectFile;
                 ResponsesState.DeveloperToolListProjectFiles = snapshot.ListProjectFiles;
                 ResponsesState.DeveloperToolRunDiagnostics = snapshot.RunDiagnostics;
+                ResponsesState.DeveloperToolCreateDotNetSolution = snapshot.CreateDotNetSolution;
+                ResponsesState.DeveloperToolBuildDotNetProject = snapshot.BuildDotNetProject;
+                ResponsesState.DeveloperToolRunDotNetProject = snapshot.RunDotNetProject;
                 ResponsesState.DeveloperToolWriteProjectFile = snapshot.WriteProjectFile;
                 ResponsesState.DeveloperToolReplaceInProjectFile = snapshot.ReplaceInProjectFile;
 
                 ResponsesState.DeveloperAllowReadOnlyOnly = snapshot.ReadOnlyOnly;
                 ResponsesState.DeveloperRequireConfirmation = snapshot.RequireConfirmation;
                 ResponsesState.DeveloperRequireWriteConfirmation = snapshot.RequireWriteConfirmation;
+                ResponsesState.DeveloperRequireExecutionConfirmation = snapshot.RequireExecutionConfirmation;
                 ResponsesState.DeveloperShowToolLogs = snapshot.ShowToolLogs;
                 ResponsesState.DeveloperAllowedExtensionsCsv =
                     string.IsNullOrWhiteSpace(snapshot.AllowedExtensionsCsv)
@@ -1454,11 +1492,19 @@ namespace openAIApps
             if (item.IsImage && File.Exists(item.LocalPath))
                 ShowResponsesImagePreview(item.LocalPath);
         }
+        private void btnDeveloperStopAllProcesses_Click(object sender, RoutedEventArgs e)
+        {
+            int stopped = new DeveloperProcessManager().StopAllRunningProcesses();
+            _appStatus.Set(stopped == 1
+                ? "Stopped 1 Developer Tools-launched application."
+                : $"Stopped {stopped} Developer Tools-launched applications.");
+        }
+
         private void btnDeveloperBrowseRoot_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFolderDialog
             {
-                Title = "Select repository root"
+                Title = "Select workspace root"
             };
 
             if (dlg.ShowDialog() == true)
@@ -1483,12 +1529,16 @@ namespace openAIApps
                 ReadOnlyOnly = ResponsesState.DeveloperAllowReadOnlyOnly,
                 RequireConfirmation = ResponsesState.DeveloperRequireConfirmation,
                 RequireWriteConfirmation = ResponsesState.DeveloperRequireWriteConfirmation,
+                RequireExecutionConfirmation = ResponsesState.DeveloperRequireExecutionConfirmation,
                 ShowToolLogs = ResponsesState.DeveloperShowToolLogs,
 
                 SearchProjectTextEnabled = ResponsesState.DeveloperToolSearchProjectText,
                 ReadProjectFileEnabled = ResponsesState.DeveloperToolReadProjectFile,
                 ListProjectFilesEnabled = ResponsesState.DeveloperToolListProjectFiles,
                 RunDiagnosticsEnabled = ResponsesState.DeveloperToolRunDiagnostics,
+                CreateDotNetSolutionEnabled = ResponsesState.DeveloperToolCreateDotNetSolution,
+                BuildDotNetProjectEnabled = ResponsesState.DeveloperToolBuildDotNetProject,
+                RunDotNetProjectEnabled = ResponsesState.DeveloperToolRunDotNetProject,
 
                 WriteProjectFileEnabled = ResponsesState.DeveloperToolWriteProjectFile,
                 ReplaceInProjectFileEnabled = ResponsesState.DeveloperToolReplaceInProjectFile,
@@ -1731,7 +1781,7 @@ The assistant wants to replace text in an existing file.
         {
             string repositoryRoot = ResponsesState.DeveloperRepositoryRoot ?? string.Empty;
             if (string.IsNullOrWhiteSpace(repositoryRoot))
-                throw new InvalidOperationException("Developer repository root is not configured.");
+                throw new InvalidOperationException("Developer workspace root is not configured.");
 
             if (Path.IsPathRooted(relativePath))
                 throw new InvalidOperationException("Tool review path must be relative.");
@@ -1740,7 +1790,7 @@ The assistant wants to replace text in an existing file.
             string combined = Path.GetFullPath(Path.Combine(fullRepositoryRoot, relativePath));
 
             if (!combined.StartsWith(fullRepositoryRoot, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Tool review path escapes repository root.");
+                throw new InvalidOperationException("Tool review path escapes workspace root.");
 
             return combined;
         }
@@ -1837,6 +1887,20 @@ The assistant wants to replace text in an existing file.
             _pendingToolReview = null;
         }
 
+        private Task UpdateDeveloperWorkspaceRootAsync(string workspaceRoot)
+        {
+            if (string.IsNullOrWhiteSpace(workspaceRoot) || !Directory.Exists(workspaceRoot))
+                throw new InvalidOperationException("The created workspace root does not exist.");
+
+            Dispatcher.Invoke(() =>
+            {
+                ResponsesState.DeveloperRepositoryRoot = Path.GetFullPath(workspaceRoot);
+                _appStatus.Set("Workspace root switched to the created solution folder.");
+            });
+
+            return Task.CompletedTask;
+        }
+
         private Task LogDeveloperToolCallAsync(string toolName, string argumentsJson, string resultJson)
         {
             Dispatcher.Invoke(() =>
@@ -1860,6 +1924,7 @@ The assistant wants to replace text in an existing file.
                 {
                     Timestamp = DateTime.Now,
                     ToolName = toolName ?? string.Empty,
+                    WorkspaceRoot = ResponsesState.DeveloperRepositoryRoot ?? string.Empty,
                     ArgumentsJson = argumentsJson ?? string.Empty,
                     ResultJson = resultJson ?? string.Empty
                 });

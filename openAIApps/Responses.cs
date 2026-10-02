@@ -2,6 +2,7 @@ using openAIApps.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -144,8 +145,8 @@ namespace openAIApps
             else if (developerToolsOptions.RequireWriteConfirmation)
             {
                 toolModeInstructions = @"You have access to local developer tools that may include both read and write capabilities.
-                    Before using any write-capable tool, you must first inspect the relevant files, present a concise change plan, identify which files will be changed or created, and wait for explicit user approval.
-                    Never perform any write or file creation until the user has explicitly approved the proposed changes.
+                    Before using write_project_file or replace_in_project_file, you must first inspect the relevant files, present a concise change plan, identify which files will be changed or created, and wait for explicit user approval.
+                    Never use those file-write tools until the user has explicitly approved the proposed changes.
                     Prefer targeted edits over full-file rewrites when practical.
                     Minimize the number of files changed.
                     Do not claim to modify files directly unless a write-capable tool succeeds.";
@@ -159,13 +160,28 @@ namespace openAIApps
                     Do not claim to modify files directly unless a write-capable tool succeeds.";
             }
 
+            bool anyProjectOperationEnabled =
+                !developerToolsOptions.ReadOnlyOnly &&
+                (developerToolsOptions.CreateDotNetSolutionEnabled ||
+                 developerToolsOptions.BuildDotNetProjectEnabled ||
+                 developerToolsOptions.RunDotNetProjectEnabled);
+
+            string projectOperationInstructions = string.Empty;
+            if (anyProjectOperationEnabled)
+            {
+                projectOperationInstructions = developerToolsOptions.RequireExecutionConfirmation
+                    ? "Enabled project-operation tools create project files or execute constrained dotnet commands. Inspect relevant files, present a concise plan, and wait for explicit user approval before invoking create, build, clean, rebuild, run, or stop tools. Use clean_dotnet_project for a normal clean and rebuild_dotnet_project for clean followed by build. To clean every project in a solution, target its .sln or .slnx file. Never request or attempt arbitrary shell commands."
+                    : "Enabled project-operation tools create project files or execute constrained dotnet commands. Inspect relevant files first, then use only the provided structured tools. Use clean_dotnet_project for a normal clean and rebuild_dotnet_project for clean followed by build. To clean every project in a solution, target its .sln or .slnx file. Never request or attempt arbitrary shell commands. Build before running a project, and use get_process_output or stop_running_process only for processes launched by these tools.";
+            }
+
             return
                     $@"{baseInstructions}
 
                         You are assisting inside a local C# / WPF project workspace.
 
                         {toolModeInstructions}
-                        The repository root is fixed by the application and cannot be changed.
+                        {projectOperationInstructions}
+                        The workspace root is fixed for existing projects. After a successful create_dotnet_solution call, the application automatically switches the workspace root to the newly created solution folder.
                         Allowed file types are: {allowedExtensions}
 
                         Behavior rules:
@@ -174,8 +190,8 @@ namespace openAIApps
                         - Prefer narrow line ranges when reading files.
                         - Use list_project_files only when needed.
                         - Treat tool results as the source of truth.
-                        - Do not assume access outside the configured repository root.
-                        - Only write files inside the configured repository root.
+                        - Do not assume access outside the configured workspace root.
+                        - Only write files inside the configured workspace root.
                         - Writable file types follow the same allowed extensions as readable file types.
                         - If approval is ambiguous, ask for clarification.";
         }
@@ -183,6 +199,72 @@ namespace openAIApps
         {
             return string.Equals(toolName, "write_project_file", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(toolName, "replace_in_project_file", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsExecutionDeveloperTool(string toolName)
+        {
+            return string.Equals(toolName, "create_dotnet_solution", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(toolName, "build_dotnet_project", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(toolName, "clean_dotnet_project", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(toolName, "rebuild_dotnet_project", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(toolName, "run_dotnet_project", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(toolName, "stop_running_process", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool TryGetCreatedWorkspaceRoot(
+            string toolName,
+            string toolResult,
+            string parentWorkspaceRoot,
+            out string workspaceRoot)
+        {
+            workspaceRoot = string.Empty;
+
+            if (!string.Equals(toolName, "create_dotnet_solution", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(toolResult) ||
+                string.IsNullOrWhiteSpace(parentWorkspaceRoot))
+            {
+                return false;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(toolResult);
+                JsonElement root = document.RootElement;
+
+                if (!root.TryGetProperty("ok", out JsonElement ok) || ok.ValueKind != JsonValueKind.True ||
+                    !root.TryGetProperty("workspace_root", out JsonElement path) || path.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(path.GetString()))
+                {
+                    return false;
+                }
+
+                string fullParentPath = Path.GetFullPath(parentWorkspaceRoot)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string fullWorkspacePath = Path.GetFullPath(path.GetString() ?? string.Empty)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string workspaceParentPath = Path.GetDirectoryName(fullWorkspacePath) ?? string.Empty;
+
+                if (!Directory.Exists(fullWorkspacePath) ||
+                    !string.Equals(workspaceParentPath, fullParentPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                workspaceRoot = fullWorkspacePath;
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
         }
 
         private object[] GetLocalFunctionTools(DeveloperToolsOptions developerToolsOptions)
@@ -198,7 +280,7 @@ namespace openAIApps
                 {
                     type = "function",
                     name = "search_project_text",
-                    description = "Search text in allowed files under the configured repository root. Returns matching relative paths, line numbers, and snippets. Read-only.",
+                    description = "Search text in allowed files under the configured workspace root. Returns matching relative paths, line numbers, and snippets. Read-only.",
                     parameters = new
                     {
                         type = "object",
@@ -217,7 +299,7 @@ namespace openAIApps
                             subpath = new
                             {
                                 type = "string",
-                                description = "Optional relative subfolder inside the repository root."
+                                description = "Optional relative subfolder inside the workspace root."
                             },
                             case_sensitive = new
                             {
@@ -243,7 +325,7 @@ namespace openAIApps
                 {
                     type = "function",
                     name = "read_project_file",
-                    description = "Read a text file from the configured repository root using a relative path. Returns line-numbered text. Read-only.",
+                    description = "Read a text file from the configured workspace root using a relative path. Returns line-numbered text. Read-only.",
                     parameters = new
                     {
                         type = "object",
@@ -252,7 +334,7 @@ namespace openAIApps
                             path = new
                             {
                                 type = "string",
-                                description = "Relative file path inside the repository root."
+                                description = "Relative file path inside the workspace root."
                             },
                             start_line = new
                             {
@@ -277,7 +359,7 @@ namespace openAIApps
                 {
                     type = "function",
                     name = "list_project_files",
-                    description = "List files under the configured repository root. Returns relative paths only. Read-only.",
+                    description = "List files under the configured workspace root. Returns relative paths only. Read-only.",
                     parameters = new
                     {
                         type = "object",
@@ -297,13 +379,154 @@ namespace openAIApps
                 });
             }
 
+            if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.CreateDotNetSolutionEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "create_dotnet_solution",
+                    description = "Create a constrained .NET solution and one project in a new direct child folder of the configured workspace root. The application constructs the dotnet commands; arbitrary shell commands are not accepted.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            solution_name = new { type = "string", description = "Safe solution name." },
+                            project_name = new { type = "string", description = "Safe project name." },
+                            template = new { type = "string", description = "One of: console, classlib, wpf, winforms, webapi, mvc, xunit." },
+                            framework = new { type = "string", description = "Optional target framework moniker, such as net8.0." },
+                            output_directory = new { type = "string", description = "Name of one new direct child folder under the workspace root; not a path." }
+                        },
+                        required = new[] { "solution_name", "project_name", "template", "output_directory" },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.BuildDotNetProjectEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "build_dotnet_project",
+                    description = "Build an existing .csproj, .sln, or .slnx file inside the repository with dotnet build and return bounded build output.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            target_path = new { type = "string", description = "Relative .csproj, .sln, or .slnx path inside the workspace root." },
+                            configuration = new { type = "string", description = "Optional Debug or Release configuration. Defaults to Debug." }
+                        },
+                        required = new[] { "target_path" },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.BuildDotNetProjectEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "clean_dotnet_project",
+                    description = "Clean build outputs for an existing .csproj, .sln, or .slnx file inside the repository with dotnet clean. Target a solution to clean all projects in that solution.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            target_path = new { type = "string", description = "Relative .csproj, .sln, or .slnx path inside the workspace root. Use a solution path to clean all projects in it." },
+                            configuration = new { type = "string", description = "Optional Debug or Release configuration. Defaults to Debug." }
+                        },
+                        required = new[] { "target_path" },
+                        additionalProperties = false
+                    }
+                });
+
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "rebuild_dotnet_project",
+                    description = "Clean and then build an existing .csproj, .sln, or .slnx file inside the repository. Target a solution to rebuild all projects in that solution.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            target_path = new { type = "string", description = "Relative .csproj, .sln, or .slnx path inside the workspace root. Use a solution path to rebuild all projects in it." },
+                            configuration = new { type = "string", description = "Optional Debug or Release configuration. Defaults to Debug." }
+                        },
+                        required = new[] { "target_path" },
+                        additionalProperties = false
+                    }
+                });
+            }
+
+            if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.RunDotNetProjectEnabled)
+            {
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "run_dotnet_project",
+                    description = "Run an already-built .NET project in Debug or Release configuration using dotnet run --no-build. The application tracks the launched process.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            project_path = new { type = "string", description = "Relative .csproj path inside the workspace root." },
+                            configuration = new { type = "string", description = "Optional Debug or Release configuration. Defaults to Debug." }
+                        },
+                        required = new[] { "project_path" },
+                        additionalProperties = false
+                    }
+                });
+
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "get_running_processes",
+                    description = "List processes launched by the Developer Tools run function in this application instance.",
+                    parameters = new { type = "object", properties = new { }, additionalProperties = false }
+                });
+
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "get_process_output",
+                    description = "Return bounded standard output and standard error for a Developer Tools-launched process.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new { process_id = new { type = "string" } },
+                        required = new[] { "process_id" },
+                        additionalProperties = false
+                    }
+                });
+
+                tools.Add(new
+                {
+                    type = "function",
+                    name = "stop_running_process",
+                    description = "Stop one process previously launched by the Developer Tools run function.",
+                    parameters = new
+                    {
+                        type = "object",
+                        properties = new { process_id = new { type = "string" } },
+                        required = new[] { "process_id" },
+                        additionalProperties = false
+                    }
+                });
+            }
+
             if (!developerToolsOptions.ReadOnlyOnly && developerToolsOptions.WriteProjectFileEnabled)
             {
                 tools.Add(new
                 {
                     type = "function",
                     name = "write_project_file",
-                    description = "Write a text file inside the configured repository root using a relative path. Can create a new file or overwrite an existing allowed text file. Write-capable.",
+                    description = "Write a text file inside the configured workspace root using a relative path. Can create a new file or overwrite an existing allowed text file. Write-capable.",
                     parameters = new
                     {
                         type = "object",
@@ -312,7 +535,7 @@ namespace openAIApps
                             path = new
                             {
                                 type = "string",
-                                description = "Relative file path inside the repository root."
+                                description = "Relative file path inside the workspace root."
                             },
                             content = new
                             {
@@ -342,7 +565,7 @@ namespace openAIApps
                 {
                     type = "function",
                     name = "replace_in_project_file",
-                    description = "Replace exact text in an existing allowed text file inside the configured repository root. Write-capable.",
+                    description = "Replace exact text in an existing allowed text file inside the configured workspace root. Write-capable.",
                     parameters = new
                     {
                         type = "object",
@@ -351,7 +574,7 @@ namespace openAIApps
                             path = new
                             {
                                 type = "string",
-                                description = "Relative file path inside the repository root."
+                                description = "Relative file path inside the workspace root."
                             },
                             find = new
                             {
@@ -398,7 +621,8 @@ namespace openAIApps
                 PreviousResponseId = previousResponseId,
                 Tools = allTools,
                 ToolChoice = allTools.Length > 0 ? "auto" : null,
-                ParallelToolCalls = true
+                // Local file and process operations must execute in a deterministic order.
+                ParallelToolCalls = developerToolsOptions?.Enabled != true
             };
 
             if (!string.IsNullOrEmpty(CurrentReasoning) && CurrentReasoning != "none")
@@ -416,6 +640,7 @@ namespace openAIApps
         DeveloperToolsOptions developerToolsOptions,
         Func<string, string, Task<bool>> confirmLocalCallAsync = null,
         Func<string, string, string, Task> onToolCallLoggedAsync = null,
+        Func<string, Task> onWorkspaceRootChangedAsync = null,
         IProgress<string> progress = null)
         {
             if (developerToolsOptions == null ||
@@ -427,9 +652,15 @@ namespace openAIApps
             }
 
             var guard = new WorkspaceGuard(developerToolsOptions);
+            var processManager = new DeveloperProcessManager();
             var fileService = new ProjectFileToolService(developerToolsOptions, guard);
             var searchService = new ProjectSearchToolService(developerToolsOptions, guard);
-            var dispatcher = new LocalToolDispatcher(fileService, searchService);
+            var dotNetProjectService = new DotNetProjectToolService(
+                developerToolsOptions,
+                guard,
+                new DotNetCliService(),
+                processManager);
+            var dispatcher = new LocalToolDispatcher(fileService, searchService, dotNetProjectService);
 
             string previousResponseId = null;
             object currentInput = openAIContext;
@@ -486,10 +717,13 @@ namespace openAIApps
                 progress?.Report($"Model requested {functionCalls.Count} local tool call(s)...");
                 foreach (var call in functionCalls)
                 {
+                    bool isExecutionTool = IsExecutionDeveloperTool(call.Name);
                     bool isWriteTool = IsWriteDeveloperTool(call.Name);
-                    bool requiresConfirmation = isWriteTool
-                        ? developerToolsOptions.RequireWriteConfirmation
-                        : developerToolsOptions.RequireConfirmation;
+                    bool requiresConfirmation = isExecutionTool
+                        ? developerToolsOptions.RequireExecutionConfirmation
+                        : isWriteTool
+                            ? developerToolsOptions.RequireWriteConfirmation
+                            : developerToolsOptions.RequireConfirmation;
 
                     if (requiresConfirmation && confirmLocalCallAsync != null)
                     {
@@ -524,6 +758,23 @@ namespace openAIApps
 
                     if (onToolCallLoggedAsync != null)
                         await onToolCallLoggedAsync(call.Name, call.Arguments ?? "{}", toolResult);
+
+                    if (TryGetCreatedWorkspaceRoot(call.Name, toolResult, guard.RootFullPath, out string createdWorkspaceRoot))
+                    {
+                        developerToolsOptions.RepositoryRoot = createdWorkspaceRoot;
+                        guard = new WorkspaceGuard(developerToolsOptions);
+                        fileService = new ProjectFileToolService(developerToolsOptions, guard);
+                        searchService = new ProjectSearchToolService(developerToolsOptions, guard);
+                        dotNetProjectService = new DotNetProjectToolService(
+                            developerToolsOptions,
+                            guard,
+                            new DotNetCliService(),
+                            processManager);
+                        dispatcher = new LocalToolDispatcher(fileService, searchService, dotNetProjectService);
+
+                        if (onWorkspaceRootChangedAsync != null)
+                            await onWorkspaceRootChangedAsync(createdWorkspaceRoot);
+                    }
 
                     toolOutputs.Add(new
                     {
