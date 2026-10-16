@@ -1851,6 +1851,7 @@ The assistant wants to replace text in an existing file.
             {
                 ".cs" => "csharp",
                 ".xaml" => "xml",
+                ".axaml" => "xml",
                 ".xml" => "xml",
                 ".json" => "json",
                 ".js" => "javascript",
